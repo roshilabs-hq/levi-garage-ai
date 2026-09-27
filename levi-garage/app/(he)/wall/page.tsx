@@ -56,7 +56,7 @@ function Empty({ text }: { text: string }) {
 }
 
 export default async function WallPage() {
-  await requireScreen("wall")
+  const viewer = await requireScreen("wall")
   const supabase = await createClient()
 
   const today = new Date()
@@ -179,7 +179,9 @@ export default async function WallPage() {
           {/* המסך הזה תלוי מול חלון או מול מנורה, ולכן התאורה נקבעת עליו
               ולא לפי מה שהטלוויזיה חושבת. הבחירה נשמרת במכשיר. */}
           <ThemeToggle />
-          <Link href="/staff/floor">מסך העבודה</Link>
+          {/* רק לאיש צוות שפתח את הלוח מהחשבון שלו. במסך התלוי הקישור הזה הוביל
+              למפת המוסך, שמחזירה אותו מיד ל-/wall — נראה כמו כפתור שלא עושה כלום. */}
+          {viewer.role !== "display" && <Link href="/staff/floor">מסך העבודה</Link>}
           <Link href="/staff/login">החלפת משתמש</Link>
         </span>
       </footer>
