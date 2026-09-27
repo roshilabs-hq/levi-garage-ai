@@ -1,6 +1,6 @@
 // בודק את "הרכב מוכן" בצד המסד: מי יכול לשלוח, מתי, וכמה פעמים.
 //
-// הרצה: node --env-file=levi-garage/.env.local 03-rollout/solution-4-app/test/customer-notices.mjs
+// הרצה: node --env-file=levi-garage/.env.local --env-file=levi-garage/.env.staff.local 03-rollout/solution-4-app/test/customer-notices.mjs
 //
 // שום הודעה לא נשלחת כאן. הבדיקה מדברת רק עם המסד: תופסת הודעות, רושמת
 // תוצאות, וקוראת את השורות בחזרה — לא מסתפקת בקוד תשובה.
@@ -8,7 +8,8 @@
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const secret = process.env.SUPABASE_SECRET_KEY
-const password = process.env.STAFF_DEMO_PASSWORD || "levi-2026"
+const password = process.env.STAFF_DEMO_PASSWORD
+if (!password) throw new Error("חסר STAFF_DEMO_PASSWORD. להריץ עם --env-file=levi-garage/.env.staff.local")
 
 let pass = 0
 let fail = 0

@@ -1,9 +1,33 @@
+// כותרות אבטחה לכל דף (27.9, בדיקת OWASP A02).
+//
+// frame-ancestors / X-Frame-Options: אף אתר לא יכול להטמיע אותנו. בלי זה, אתר
+// זר היה יכול להציג את דף האישור של לקוח בתוך מסגרת שקופה ולגרום לו ללחוץ
+// "מאשר" בלי לדעת (clickjacking). אנחנו מטמיעים את Cal.com, לא להפך.
+//
+// זה לא CSP מלא: script-src דורש nonce לכל סקריפט של Next ושל Cal.com, וזה
+// שינוי גדול שלא נכנס לפני ההגשה. מה שכאן לא שובר שום סקריפט.
+//
+// Permissions-Policy: מצלמה ומיקרופון רק לדפים שלנו (הדיווח של המכונאי),
+// ולא לשום iframe.
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=()" },
+]
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // מזהה של הבנייה, שנכנס גם לקוד שבדפדפן וגם לשרת. מסך שפתוח ימים (הטלוויזיה
   // בסדנה, בחדר ההמתנה) משווה אותו מול השרת לפני כל רענון, ואם השרת הוחלף —
   // טוען את הדף מחדש, במקום לערבב קוד ישן עם תוכן חדש (שגיאת React #418).
   env: { APP_BUILD: String(Date.now()) },
+  // לא לפרסם באיזו מסגרת האתר בנוי.
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }]
+  },
 }
 
 export default nextConfig

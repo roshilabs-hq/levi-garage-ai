@@ -1,10 +1,10 @@
 // יוצר את משתמשי הצוות להדגמה, ואת שורות ה-staff שלהם.
-// הרצה: node --env-file=.env.local scripts/seed-staff.mjs
+// הרצה: node --env-file=.env.local --env-file=.env.staff.local scripts/seed-staff.mjs
 //
 // אידמפוטנטי: אפשר להריץ שוב ושוב. משתמש שכבר קיים לא נוצר מחדש, והשורה שלו מתעדכנת.
-// הסיסמה להדגמה מגיעה מ-STAFF_DEMO_PASSWORD, ואם אין, נוצרת סיסמה אקראית שמודפסת פעם אחת.
-
-import { randomBytes } from "node:crypto"
+// הסיסמה להדגמה מגיעה מ-STAFF_DEMO_PASSWORD בקובץ המקומי .env.staff.local (לא בגיט),
+// שנוצר ב-scripts/new-staff-password.mjs. אין ברירת מחדל בקוד: עד 27.9 הייתה כאן
+// סיסמה קבועה, והריפו ציבורי — כלומר כל מי שקרא אותו יכל להיכנס כמנהל העבודה.
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const secret = process.env.SUPABASE_SECRET_KEY
@@ -13,9 +13,11 @@ if (!url || !secret) {
   process.exit(1)
 }
 
-// סיסמה קצרה ונוחה להקלדה בהדגמה מול קהל, אבל לא אחת מאלה שמנהל הסיסמאות
-// של כרום מזהה כסיסמה דלופה ומקפיץ עליה אזהרה אדומה באמצע ההצגה.
-const password = process.env.STAFF_DEMO_PASSWORD || "levi-2026"
+const password = process.env.STAFF_DEMO_PASSWORD
+if (!password || password.length < 12) {
+  console.error("חסר STAFF_DEMO_PASSWORD (12 תווים לפחות). ליצור: node scripts/new-staff-password.mjs")
+  process.exit(1)
+}
 
 const TEAM = [
   { email: "test1@test.com", full_name: "דניאל לוי", role: "manager", lift: null, lang: "he" },
@@ -103,5 +105,6 @@ for (const person of TEAM) {
   console.log(`✓ ${person.full_name} (${person.role}${person.lift ? `, ליפט ${person.lift}` : ""}${person.screen ? `, ${person.screen}` : ""}) - ${person.email}`)
 }
 
-console.log(`
-סיסמה לכולם: ${password}`)
+// הסיסמה לא מודפסת: היא בקובץ .env.staff.local, ומשם למסמך ההגשה.
+console.log("")
+console.log("הסיסמה לכולם: בקובץ .env.staff.local (לא מודפסת)")

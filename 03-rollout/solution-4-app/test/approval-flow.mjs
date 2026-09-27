@@ -1,5 +1,5 @@
 // בודק את מסלול האישור מול מסד הנתונים האמיתי, עם ההרשאות האמיתיות.
-// הרצה: node --env-file=levi-garage/.env.local 03-rollout/solution-4-app/test/approval-flow.mjs
+// הרצה: node --env-file=levi-garage/.env.local --env-file=levi-garage/.env.staff.local 03-rollout/solution-4-app/test/approval-flow.mjs
 //
 // מה נבדק:
 //   1. מכונאי לא יכול לשלוח מחיר ללקוח. רק מנהל עבודה או בעלים.
@@ -12,7 +12,8 @@
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const secret = process.env.SUPABASE_SECRET_KEY
-const password = process.env.STAFF_DEMO_PASSWORD || "levi-2026"
+const password = process.env.STAFF_DEMO_PASSWORD
+if (!password) throw new Error("חסר STAFF_DEMO_PASSWORD. להריץ עם --env-file=levi-garage/.env.staff.local")
 
 let pass = 0
 let fail = 0
