@@ -4,9 +4,10 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { CaptureButton } from "@/components/staff/capture-button"
-import { callManager, setMyLift, takeCar } from "../actions"
+import { callManager, takeCar } from "../actions"
 import { TopBar } from "@/components/staff/top-bar"
 import { elapsed } from "@/lib/staff/format"
+import { StationIdle } from "@/components/staff/station-idle"
 
 export const metadata: Metadata = { title: "הליפט שלי | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -179,6 +180,7 @@ export default async function LiftPage() {
 
   return (
     <main className="staff-wrap lift-page">
+      {staff.role === "mechanic" && <StationIdle />}
       <TopBar staff={staff} current="lift" />
 
       <header className="staff-top">
@@ -191,17 +193,7 @@ export default async function LiftPage() {
           </p>
         </div>
 
-        {/* במוסך יש 4 ליפטים ויותר מכונאים מזה, והעמדה מתחלפת במהלך היום. */}
-        <form action={setMyLift} className="lift-picker">
-          <label htmlFor="my-lift">איפה אני עובד עכשיו</label>
-          <select id="my-lift" name="lift" defaultValue={staff.lift ?? ""}>
-            {[1, 2, 3, 4].map((n) => (
-              <option key={n} value={n}>ליפט {n}</option>
-            ))}
-            <option value="">עמדת אבחון</option>
-          </select>
-          <button className="btn quiet" type="submit">עדכון</button>
-        </form>
+        {/* איפה הוא עובד נקבע לפי העמדה שממנה נכנס (016), לא לפי בחירה. */}
       </header>
 
       {atDiag && (

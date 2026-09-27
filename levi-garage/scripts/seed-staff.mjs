@@ -6,6 +6,8 @@
 // שנוצר ב-scripts/new-staff-password.mjs. אין ברירת מחדל בקוד: עד 27.9 הייתה כאן
 // סיסמה קבועה, והריפו ציבורי — כלומר כל מי שקרא אותו יכל להיכנס כמנהל העבודה.
 
+import { createHmac } from "node:crypto"
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const secret = process.env.SUPABASE_SECRET_KEY
 if (!url || !secret) {
@@ -14,6 +16,12 @@ if (!url || !secret) {
 }
 
 const password = process.env.STAFF_DEMO_PASSWORD
+// מכונאי נכנס רק מעמדה (016): הסיסמה שלו נגזרת מ-STATION_SECRET, כמו ב-lib/staff/station.ts.
+// בלי השורה הזו, הרצה חוזרת של הסקריפט הייתה מחזירה אותו לסיסמה המשותפת.
+const passwordOf = (person) =>
+  person.role === "mechanic" && process.env.STATION_SECRET
+    ? createHmac("sha256", process.env.STATION_SECRET).update(`mechanic:${person.email.trim().toLowerCase()}`).digest("base64url")
+    : password
 if (!password || password.length < 12) {
   console.error("חסר STAFF_DEMO_PASSWORD (12 תווים לפחות). ליצור: node scripts/new-staff-password.mjs")
   process.exit(1)
@@ -61,14 +69,14 @@ async function upsertUser(person) {
     // מיישר את הסיסמה, כדי שההדגמה תמיד תעבוד עם מה שכתוב ב-README.
     const res = await admin(`/auth/v1/admin/users/${existing.id}`, {
       method: "PUT",
-      body: JSON.stringify({ password, email_confirm: true }),
+      body: JSON.stringify({ password: passwordOf(person), email_confirm: true }),
     })
     if (!res.ok) throw new Error(`update ${person.email}: ${res.status} ${await res.text()}`)
     return existing.id
   }
   const res = await admin(`/auth/v1/admin/users`, {
     method: "POST",
-    body: JSON.stringify({ email: person.email, password, email_confirm: true }),
+    body: JSON.stringify({ email: person.email, password: passwordOf(person), email_confirm: true }),
   })
   if (!res.ok) throw new Error(`create ${person.email}: ${res.status} ${await res.text()}`)
   return (await res.json()).id

@@ -20,7 +20,7 @@ const MAX_SECONDS = 25
 const SILENCE_MS = 2500
 const LEVEL = 0.025
 
-async function shrink(file: File): Promise<Blob> {
+export async function shrink(file: File): Promise<Blob> {
   if (!file.type.startsWith("image/")) return file
   try {
     const bitmap = await createImageBitmap(file)
@@ -43,12 +43,15 @@ export function CaptureButton({
   item,
   label = "צילום ודיווח",
   size = "big",
+  requirePhoto = false,
 }: {
   jobId: number
   /** מבדיקת הכניסה: איזה פריט ואיזה צבע */
   item?: { key: string; light: "yellow" | "red" }
   label?: string
   size?: "big" | "small"
+  /** ממצא אדום או בטיחותי: תמונה חובה, ולכן אין "בלי תמונה" (החלטה של רועי, 27.9) */
+  requirePhoto?: boolean
 }) {
   const router = useRouter()
   const input = useRef<HTMLInputElement | null>(null)
@@ -221,7 +224,7 @@ export function CaptureButton({
         </button>
       )}
 
-      {state === "idle" || state === "done" || state === "error" ? (
+      {!requirePhoto && (state === "idle" || state === "done" || state === "error") ? (
         <button type="button" className="capture-alt" onClick={() => { setMessage(""); photo.current = null; record() }}>
           בלי תמונה, רק לדבר
         </button>

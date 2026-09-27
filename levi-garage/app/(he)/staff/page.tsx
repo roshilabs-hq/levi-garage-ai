@@ -77,7 +77,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
     // שישה מכונאים מול מנהל עבודה אחד. אדום קודם, ובתוך צבע — הוותיק קודם.
     supabase
       .from("findings")
-      .select("id, title, summary, urgency, safety, red_list, source, created_at, job_cards!inner(id, plate, vehicle_make, vehicle_model, lift)")
+      .select("id, title, summary, urgency, safety, red_list, source, created_at, media(kind), job_cards!inner(id, plate, vehicle_make, vehicle_model, lift)")
       .eq("status", "draft")
       .order("created_at", { ascending: true }),
     // "בוא לעמדה" ו"סיימתי" שעוד לא טופלו.
@@ -180,6 +180,9 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
                       {f.title || f.summary || "ממצא"}
                       {f.safety ? " · בטיחות" : ""}
                       {f.red_list ? " · רשימה אדומה" : ""}
+                      {(f.urgency === "red" || f.safety) && !(f.media ?? []).some((m) => m.kind === "photo") && (
+                        <span className="missing-photo">חסרה תמונה</span>
+                      )}
                     </b>
                     <span className="staff-meta">
                       {carName(job)} · {f.source === "intake" ? "בדיקת כניסה" : job.lift ? `ליפט ${job.lift}` : "בלי ליפט"} · מחכה{" "}

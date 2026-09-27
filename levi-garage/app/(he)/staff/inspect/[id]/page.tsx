@@ -7,6 +7,7 @@ import { requireStaff } from "@/lib/staff/session"
 import { INSPECTION_ITEMS, progress, type InspectionState } from "@/lib/staff/inspection"
 import { TopBar } from "@/components/staff/top-bar"
 import { CaptureButton } from "@/components/staff/capture-button"
+import { StationIdle } from "@/components/staff/station-idle"
 import { completeInspection, setInspectionItem } from "../../actions"
 
 export const metadata: Metadata = { title: "בדיקת כניסה | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -51,6 +52,7 @@ export default async function InspectPage({
 
   return (
     <main className="staff-wrap inspect-page">
+      {staff.role === "mechanic" && <StationIdle />}
       <TopBar staff={staff} current="lift" />
 
       <header className="staff-top">
@@ -107,7 +109,13 @@ export default async function InspectPage({
                 (fid ? (
                   <p className="inspect-done">נרשם: {titles.get(fid) ?? "ממצא"}. דניאל קיבל.</p>
                 ) : (
-                  <CaptureButton jobId={job.id} item={{ key: item.key, light }} label="לצלם ולהגיד מה ראית" size="small" />
+                  <CaptureButton
+                    jobId={job.id}
+                    item={{ key: item.key, light }}
+                    label="לצלם ולהגיד מה ראית"
+                    size="small"
+                    requirePhoto={light === "red" || item.safety}
+                  />
                 ))}
             </li>
           )

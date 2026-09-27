@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { signOut } from "@/app/(he)/staff/actions"
+import { stationSwitch } from "@/app/(he)/station/actions"
 import { roleLabel, type StaffMember } from "@/lib/staff/session"
 import { ThemeToggle } from "@/components/site/theme-toggle"
 
@@ -12,7 +13,7 @@ export function TopBar({
   current,
 }: {
   staff: StaffMember
-  current: "board" | "floor" | "wall" | "lift" | "fleets" | "dashboard" | "other"
+  current: "board" | "floor" | "wall" | "lift" | "fleets" | "dashboard" | "stations" | "other"
 }) {
   const links: { href: string; label: string; key: string }[] = [
     { href: "/staff", label: "לוח היום", key: "board" },
@@ -23,6 +24,7 @@ export function TopBar({
       ? [
           { href: "/staff/fleets", label: "ציים", key: "fleets" },
           { href: "/staff/dashboard", label: "מדדים", key: "dashboard" },
+          { href: "/staff/stations", label: "עמדות", key: "stations" },
         ]
       : []),
     // לוח הסדנה לא יושב כאן בכוונה: פותחים אותו פעם אחת על הטלוויזיה
@@ -48,8 +50,10 @@ export function TopBar({
           </small>
         </span>
         <ThemeToggle compact />
-        <form action={signOut}>
-          <button type="submit">יציאה</button>
+        {/* מכונאי נכנס רק מעמדה קבועה (016), ולכן היציאה שלו מחזירה את העמדה
+            לרשימת השמות, לעובד הבא. */}
+        <form action={staff.role === "mechanic" ? stationSwitch : signOut}>
+          <button type="submit">{staff.role === "mechanic" ? "החלפת עובד" : "יציאה"}</button>
         </form>
       </div>
     </div>

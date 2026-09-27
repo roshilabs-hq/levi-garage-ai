@@ -11,6 +11,8 @@
 // המסכים נקראים עם הזהויות של המסכים עצמם. שום הודעה לא יוצאת ללקוח: הבדיקה
 // לא נוגעת בבוט, רק בשאילתה שהבוט שואל. הרכב נמחק בסוף, גם אם משהו נכשל.
 
+import { passwordFor } from "./_auth.mjs"
+
 import { createHmac } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
@@ -57,7 +59,7 @@ const service = (path, init = {}) =>
   })
 
 async function signIn(email) {
-  const res = await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password }) })
+  const res = await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password: passwordFor(email) }) })
   if (!res.ok) throw new Error(`sign in ${email}: ${res.status} ${await res.text()}`)
   return (await res.json()).access_token
 }

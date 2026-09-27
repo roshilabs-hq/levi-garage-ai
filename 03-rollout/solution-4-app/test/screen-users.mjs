@@ -8,6 +8,8 @@
 // כדי להוציא שמות, טלפונים ומחירים — גם אם המסך עצמו מראה שלוש ספרות.
 // הבדיקה הזאת היא ההבדל בין "המסך לא מציג" לבין "אי אפשר להוציא".
 
+import { passwordFor } from "./_auth.mjs"
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const password = process.env.STAFF_DEMO_PASSWORD
@@ -32,7 +34,7 @@ const call = (path, { token = anonKey, ...init } = {}) =>
   })
 
 async function signIn(email) {
-  const res = await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password }) })
+  const res = await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password: passwordFor(email) }) })
   if (!res.ok) throw new Error(`sign in ${email}: ${res.status} ${await res.text()}`)
   return (await res.json()).access_token
 }

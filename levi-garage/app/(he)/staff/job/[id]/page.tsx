@@ -7,6 +7,7 @@ import { requireStaff } from "@/lib/staff/session"
 import { reissueQuote, resendQuoteNotice, resendReadyNotice, setJobStatus } from "../../actions"
 import { noticeLabel } from "@/lib/staff/notify"
 import { DraftForm } from "@/components/staff/draft-form"
+import { AddPhoto } from "@/components/staff/add-photo"
 import type { PriceItem } from "@/components/staff/arrive-form"
 import { INSPECTION_ITEMS, type InspectionState } from "@/lib/staff/inspection"
 import { money } from "@/lib/staff/quote"
@@ -273,6 +274,29 @@ export default async function JobCardPage({
                       <p>{f.transcript}</p>
                     </details>
                   )}
+
+                  {f.status === "draft" && (() => {
+                    // התמונות של הממצא הזה בלבד: הן שיוצאות ללקוח עם ההצעה.
+                    const own = photos.filter((m) => m.finding_id === f.id)
+                    return (
+                      <>
+                        {own.length > 0 && (
+                          <ul className="finding-photos">
+                            {own.map((m) => {
+                              const url = signed.get(m.storage_path)
+                              return url ? (
+                                <li key={m.id}>
+                                  {/* eslint-disable-next-line @next/next/no-img-element -- כתובת חתומה לשעה */}
+                                  <img src={url} alt={`תמונה של הממצא, ${fmtStamp(m.created_at)}`} loading="lazy" />
+                                </li>
+                              ) : null
+                            })}
+                          </ul>
+                        )}
+                        {canSend && <AddPhoto findingId={f.id} missing={own.length === 0 && (f.urgency === "red" || Boolean(f.safety))} />}
+                      </>
+                    )
+                  })()}
 
                   {f.status === "draft" ? (
                     canSend ? (

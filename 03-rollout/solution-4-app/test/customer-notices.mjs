@@ -5,6 +5,8 @@
 // שום הודעה לא נשלחת כאן. הבדיקה מדברת רק עם המסד: תופסת הודעות, רושמת
 // תוצאות, וקוראת את השורות בחזרה — לא מסתפקת בקוד תשובה.
 
+import { passwordFor } from "./_auth.mjs"
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const secret = process.env.SUPABASE_SECRET_KEY
@@ -36,7 +38,7 @@ const service = (path, init = {}) =>
   })
 
 async function signIn(email) {
-  const res = await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password }) })
+  const res = await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password: passwordFor(email) }) })
   if (!res.ok) throw new Error(`sign in ${email}: ${res.status} ${await res.text()}`)
   return (await res.json()).access_token
 }

@@ -59,6 +59,9 @@ export async function POST(req: Request) {
 
   const item = itemKey ? itemByKey(itemKey) : undefined
   if (itemKey && (!item || (light !== "yellow" && light !== "red"))) return NextResponse.json({ error: "item" }, { status: 400 })
+  // אדום או בטיחות בבדיקת הכניסה: תמונה חובה. הלקוח מאשר תיקון לפי מה שהוא רואה,
+  // ובלי תמונה דניאל צריך לרדת לרכב בעצמו. הכפתור כבר לא מציע "בלי תמונה", וזה הגיבוי.
+  if (item && (light === "red" || item.safety) && !photo) return NextResponse.json({ error: "photo" }, { status: 400 })
 
   const supabase = await createClient()
 

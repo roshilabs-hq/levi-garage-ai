@@ -8,6 +8,8 @@
 //   ס' 132(ב)    — עדכון באמצעי אלקטרוני רק בהסכמת הלקוח.
 // כל מקרה נבדק מול המסד בזהות של מנהל העבודה, ובודקים גם שלא נוצר קישור.
 
+import { passwordFor } from "./_auth.mjs"
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const secret = process.env.SUPABASE_SECRET_KEY
@@ -36,7 +38,7 @@ const service = (path, init = {}) =>
     headers: { apikey: secret, authorization: `Bearer ${secret}`, "content-type": "application/json", ...(init.headers || {}) },
   })
 const signIn = async (email) =>
-  (await (await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password }) })).json()).access_token
+  (await (await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password: passwordFor(email) }) })).json()).access_token
 const send = async (findingId, token) => {
   const res = await call(`/rest/v1/rpc/send_finding`, {
     token,
