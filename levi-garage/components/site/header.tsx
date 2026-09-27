@@ -63,7 +63,20 @@ export function SiteHeader({ t, overPhoto = true }: { t: Dict; overPhoto?: boole
 
   return (
     <>
-      <a className="skip" href="#main">{t.nav.skip}</a>
+      {/* מעביר פוקוס בלי לשנות את הכתובת. קישור רגיל מוסיף #main להיסטוריה, ואז "אחורה" בדפדפן נשאר באותו דף. */}
+      <a
+        className="skip"
+        href="#main"
+        onClick={(e) => {
+          const main = document.getElementById("main")
+          if (!main) return
+          e.preventDefault()
+          main.setAttribute("tabindex", "-1")
+          main.focus()
+        }}
+      >
+        {t.nav.skip}
+      </a>
       <header className="site-header" data-solid={solid || open ? "" : undefined}>
         <div className="wrap nav">
           <Link className="brand" href={home}>

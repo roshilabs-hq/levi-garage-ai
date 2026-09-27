@@ -386,6 +386,10 @@ section { position: relative; }
 .legal ul { padding-inline-start: 22px; }
 .legal .updated { margin-top: 12px; font-size: 15px; }
 .legal-header { color: var(--ink); box-shadow: 0 1px 0 var(--line); }
+.legal-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-bottom: 20px; color: var(--ink); font-weight: 600; text-decoration: none; }
+.legal-back:hover { text-decoration: underline; }
+.legal .legal-end { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); }
+.legal .legal-end .legal-back { margin-bottom: 0; }
 
 /* אחרי קביעת תור: הצעד היחיד שנשאר, בולט ולא מתחנן */
 .booked-step {

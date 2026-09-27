@@ -16,7 +16,6 @@ export function SiteFooter({ t }: { t: Dict }) {
             <li><Link href="/privacy">{t.footer.privacy}</Link></li>
             <li><Link href="/accessibility">{t.footer.accessibility}</Link></li>
             <li><Link href="/terms">{t.footer.terms}</Link></li>
-            <li><Link href="/staff">{t.footer.staff}</Link></li>
             <li>
               <ThemeToggle labels={{ light: t.footer.themeLight, dark: t.footer.themeDark }} />
             </li>

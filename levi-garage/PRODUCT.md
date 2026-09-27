@@ -25,7 +25,7 @@ Industrial zone, Krayot (Haifa bay). Sunday to Thursday 07:00 to 17:00, Friday 0
 - Plate lookup: the visitor types a license plate; the site queries the public Ministry of Transport vehicle registry (data.gov.il) and shows make, model, year and test expiry, with a prefilled booking link. The plate is not stored.
 - On-site information assistant ("ask us"): answers only from the garage's closed knowledge base (hours, location, services, starting prices, FAQ, policies), never invents a price, never diagnoses, hands off to booking or WhatsApp. Same brain as the WhatsApp assistant. Rate limited, no personal data retained.
 - Language switch: Hebrew (default, RTL), Arabic (RTL), Russian (LTR) for the main content.
-- Footer link "כניסת צוות" to the future staff area (repair approvals and job cards, built later in the same app).
+- No link from the customer site to the staff area (changed 27.9). Staff enter at `/staff` directly; the two audiences are unrelated.
 - Legal: Israeli Privacy Protection Law (including Amendment 13) and accessibility regulations (IS 5568, WCAG 2.0 AA).
 - OPEN: the WhatsApp number shown is the owner's real Green API number (for a live demo). Before publishing it, the routing must send every sender except the owner to the garage bot, not to the owner's personal assistant.
 - OPEN: the phone number shown on the site is fictional and marked as such.

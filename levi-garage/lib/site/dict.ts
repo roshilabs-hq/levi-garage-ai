@@ -31,7 +31,7 @@ export type Dict = {
     disclaimer: string; thinking: string; error: string; limit: string; open: string; close: string
     book: string; whatsapp: string; you: string; garage: string
   }
-  footer: { tagline: string; privacy: string; accessibility: string; terms: string; staff: string; demo: string; langs: string; themeLight: string; themeDark: string }
+  footer: { tagline: string; privacy: string; accessibility: string; terms: string; demo: string; langs: string; themeLight: string; themeDark: string }
   book: {
     title: string; lead: string; loading: string; fallback: string
     doneTitle: string; doneLead: string; stepTitle: string; stepBody: string; waButton: string; waMessage: string; note: string
@@ -188,7 +188,6 @@ const he: Dict = {
     privacy: "מדיניות פרטיות",
     accessibility: "הצהרת נגישות",
     terms: "תנאי שימוש",
-    staff: "כניסת צוות",
     demo: "אתר הדגמה לפרויקט גמר. העסק, האנשים והתמונות בדויים, והתמונות נוצרו להמחשה.",
     langs: "שפה",
     themeLight: "תאורה בהירה",
@@ -359,7 +358,6 @@ const ar: Dict = {
     privacy: "سياسة الخصوصية (بالعبرية)",
     accessibility: "بيان الإتاحة (بالعبرية)",
     terms: "شروط الاستخدام (بالعبرية)",
-    staff: "دخول الطاقم",
     demo: "موقع عرض لمشروع تخرّج. المصلحة والأشخاص والصور متخيّلة، والصور أُنتجت للتوضيح.",
     langs: "اللغة",
     themeLight: "إضاءة فاتحة",
@@ -530,7 +528,6 @@ const ru: Dict = {
     privacy: "Политика конфиденциальности (на иврите)",
     accessibility: "Заявление о доступности (на иврите)",
     terms: "Условия использования (на иврите)",
-    staff: "Вход для сотрудников",
     demo: "Демонстрационный сайт для дипломного проекта. Бизнес, люди и фотографии вымышлены, фото созданы для иллюстрации.",
     langs: "Язык",
     themeLight: "Светлая тема",
