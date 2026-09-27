@@ -875,7 +875,7 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 /* ---------- קבלת רכב ---------- */
 .arrive-form { margin-top: 22px; display: grid; gap: 8px; max-width: 620px; }
 .arrive-form > label { font-weight: 700; font-size: 15px; margin-top: 10px; }
-.arrive-form input:not([type="checkbox"]):not([type="radio"]), .draft-grid input, .job-draft select { width: 100%; min-height: 48px; }
+.arrive-form input:not([type="checkbox"]):not([type="radio"]), .draft-grid input, .draft-discount input, .job-draft select { width: 100%; min-height: 48px; }
 .arrive-offer { background: var(--bg); border-radius: var(--radius); padding: 14px 16px; margin-top: 4px; }
 .arrive-offer fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 .arrive-offer legend { font-weight: 700; margin-bottom: 8px; }
@@ -1062,3 +1062,10 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .pick-msg.sent { background: color-mix(in srgb, var(--forest) 16%, var(--surface)); }
 .pick-msg.draft { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
 .pick-msg.error { background: color-mix(in srgb, #c0392b 14%, var(--surface)); }
+
+/* הנחה (020) */
+.approve-discount { margin-top: 14px; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--forest) 12%, var(--surface)); }
+.approve-discount s { color: var(--muted); }
+.draft-discount { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; align-items: end; }
+.draft-discount label { display: grid; gap: 4px; font-size: 14.5px; font-weight: 600; }
+.draft-discount .staff-meta { grid-column: 1 / -1; }

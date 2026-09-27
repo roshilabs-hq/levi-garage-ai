@@ -23,6 +23,8 @@ export type QuoteFinding = QuoteOption & {
   status: "sent" | "approved" | "declined"
   safety: boolean
   decided_at: string | null
+  /** 020: הנחה שדניאל או אבי נתנו. המחיר כבר אחריה. */
+  discount_pct?: number | null
 }
 
 export type QuoteSnapshot = {
@@ -100,7 +102,8 @@ function blockHtml(o: QuoteOption, status: string) {
 }
 
 function findingStatus(f: QuoteFinding) {
-  if (f.status === "approved") return `אושר על ידך${f.decided_at ? ` ב-${stampFmt.format(new Date(f.decided_at))}` : ""}: ${partName(f.part_choice)}, ${money(f.price)}`
+  if (f.status === "approved")
+    return `אושר על ידך${f.decided_at ? ` ב-${stampFmt.format(new Date(f.decided_at))}` : ""}: ${partName(f.part_choice)}, ${money(f.price)}${Number(f.discount_pct) > 0 ? ` (כולל הנחה של ${Number(f.discount_pct)}%)` : ""}`
   if (f.status === "declined") return `לא אושר על ידך${f.decided_at ? ` (${stampFmt.format(new Date(f.decided_at))})` : ""}. לא נבצע את העבודה הזו.`
   return "ממתין לתשובה שלך בקישור ששלחנו בוואטסאפ"
 }

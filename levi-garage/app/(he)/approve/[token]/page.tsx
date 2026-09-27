@@ -35,6 +35,9 @@ type View = {
   expired: boolean
   plate_last3: string | null
   vehicle: string | null
+  list_price_original: number | null
+  list_price_aftermarket: number | null
+  discount_pct: number | null
 }
 
 const photoUrl = (path: string) =>
@@ -132,6 +135,19 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
             <p className="approve-stamp">נרשם אצלנו בכתב, {fmtStamp(view.decided_at)}. אם השארת לנו מייל, הצעת המחיר המעודכנת נשלחת אליך לשם.</p>
           </div>
         ) : view.expired ? null : (
+          <>
+          {Number(view.discount_pct) > 0 && view.list_price_original !== null && (
+            <p className="approve-discount">
+              המחירים כוללים <b>הנחה של {Number(view.discount_pct).toLocaleString("he-IL")}%</b>. במחירון:{" "}
+              <s className="num">{Number(view.list_price_original).toLocaleString("he-IL")} ש&quot;ח</s>
+              {view.list_price_aftermarket !== null && (
+                <>
+                  , חלופי <s className="num">{Number(view.list_price_aftermarket).toLocaleString("he-IL")} ש&quot;ח</s>
+                </>
+              )}
+              .
+            </p>
+          )}
           <ApproveForm
             token={token}
             priceOriginal={view.price_original}
@@ -139,6 +155,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
             warrantyOriginal={view.warranty_original}
             warrantyAftermarket={view.warranty_aftermarket}
           />
+          </>
         )}
 
         <p className="approve-small">

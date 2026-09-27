@@ -300,7 +300,7 @@ export default async function JobCardPage({
 
                   {f.status === "draft" ? (
                     canSend ? (
-                      <DraftForm jobId={job.id} draft={f} items={(priceItems ?? []) as PriceItem[]} suggest={suggestFor.get(f.id)} />
+                      <DraftForm jobId={job.id} draft={f} items={(priceItems ?? []) as PriceItem[]} suggest={suggestFor.get(f.id)} maxDiscount={staff.role === "owner" ? 30 : 10} />
                     ) : (
                       <p className="job-note">
                         הטיוטה מוכנה. <b>מנהל עבודה או הבעלים שולחים ללקוח</b>, לא מכונאי.

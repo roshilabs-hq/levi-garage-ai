@@ -325,6 +325,11 @@ const LAW_ERRORS: Record<string, string> = {
   "law-132a": "חסרים מחיר, שעות עבודה או אחריות. החוק דורש את שלושתם בהצעה.",
   "law-131": "צריך להציע גם חלק חלופי ולהסביר את ההבדל, או לכתוב למה אין חלופה.",
   "law-132b": "הלקוח לא אישר בקבלה עדכונים באמצעים אלקטרוניים. צריך להתקשר או להדפיס.",
+  // הנחה (020): הכללים של רועי, נאכפים במסד.
+  "discount-reason": "הנחה צריכה סיבה. היא נרשמת, כדי שנדע בסוף החודש על מה הלך הכסף.",
+  "discount-owner": "מעל 10% רק אבי. לבקש ממנו, או להוריד ל-10%.",
+  "discount-role": "הנחה נותנים רק מנהל העבודה או הבעלים.",
+  "discount-sent": "ההצעה כבר נשלחה ללקוח. אי אפשר לשנות לה את המחיר.",
 }
 
 const num = (v: FormDataEntryValue | null) => {
@@ -356,6 +361,11 @@ export async function sendFinding(formData: FormData): Promise<SendResult> {
       price_list_id: num(formData.get("price_list_id")),
       price_original: num(formData.get("price_original")),
       price_aftermarket: num(formData.get("price_aftermarket")),
+      // מחיר המחירון והאחוז. המחיר הסופי מחושב מהם במסד (020), ולא כאן.
+      list_price_original: num(formData.get("price_original")),
+      list_price_aftermarket: num(formData.get("price_aftermarket")),
+      discount_pct: num(formData.get("discount_pct")) ?? 0,
+      discount_reason: txt(formData.get("discount_reason")),
       labor_hours: num(formData.get("labor_hours")),
       warranty_original: txt(formData.get("warranty_original")),
       warranty_aftermarket: txt(formData.get("warranty_aftermarket")),
@@ -365,7 +375,7 @@ export async function sendFinding(formData: FormData): Promise<SendResult> {
       safety: formData.get("safety") === "on",
     })
     .eq("id", findingId)
-  if (saveError) return { ok: false, error: "לא הצלחנו לשמור. לנסות שוב." }
+  if (saveError) return { ok: false, error: LAW_ERRORS[saveError.hint ?? ""] ?? "לא הצלחנו לשמור. לנסות שוב." }
 
   const { data: token, error } = await supabase.rpc("send_finding", { p_finding_id: findingId, p_message: message, p_channel: "link" })
   if (error || !token) {

@@ -29,7 +29,20 @@ type Draft = {
 
 const str = (v: number | string | null | undefined) => (v === null || v === undefined ? "" : String(v))
 
-export function DraftForm({ jobId, draft, items, suggest }: { jobId: number; draft: Draft; items: PriceItem[]; suggest?: string | null }) {
+export function DraftForm({
+  jobId,
+  draft,
+  items,
+  suggest,
+  maxDiscount = 10,
+}: {
+  jobId: number
+  draft: Draft
+  items: PriceItem[]
+  suggest?: string | null
+  /** דניאל עד 10%, אבי עד 30% (רועי, 28.9). המסד אוכף שוב. */
+  maxDiscount?: number
+}) {
   const initial = draft.price_list_id ?? items.find((i) => i.code === suggest)?.id ?? null
   const [f, setF] = useState(() => {
     const it = items.find((i) => i.id === initial)
@@ -46,6 +59,8 @@ export function DraftForm({ jobId, draft, items, suggest }: { jobId: number; dra
       eta: draft.eta ?? "",
       message: draft.customer_text ?? "",
       safety: draft.safety,
+      discount_pct: "0",
+      discount_reason: "",
     }
   })
   const [sending, setSending] = useState(false)
@@ -71,6 +86,9 @@ export function DraftForm({ jobId, draft, items, suggest }: { jobId: number; dra
   }
 
   const two = f.price_aftermarket.trim() !== ""
+  const pct = Number(f.discount_pct) || 0
+  const after = (v: string) => (v.trim() === "" ? null : Math.round((Number(v) * (100 - pct)) / 100))
+  const steps = [0, 5, 10, 15, 20, 25, 30].filter((n) => n <= maxDiscount)
 
   return (
     <form
@@ -142,6 +160,30 @@ export function DraftForm({ jobId, draft, items, suggest }: { jobId: number; dra
           <input type="checkbox" name="safety" checked={f.safety} onChange={(e) => setF((p) => ({ ...p, safety: e.target.checked }))} />
           <span>ליקוי בטיחותי (אם הלקוח ידחה — לדווח)</span>
         </label>
+      </div>
+
+      <div className="draft-discount">
+        <label>
+          <span>הנחה</span>
+          <select name="discount_pct" value={f.discount_pct} onChange={set("discount_pct")}>
+            {steps.map((n) => (
+              <option key={n} value={n}>{n === 0 ? "בלי הנחה" : `${n}%`}</option>
+            ))}
+          </select>
+        </label>
+        {pct > 0 && (
+          <label>
+            <span>למה (נרשם)</span>
+            <input name="discount_reason" value={f.discount_reason} onChange={set("discount_reason")} required placeholder="למשל: עיכוב שלנו, לקוח ותיק" />
+          </label>
+        )}
+        {pct > 0 && (
+          <p className="staff-meta">
+            הלקוח יראה: {after(f.price_original)?.toLocaleString("he-IL")} ש&quot;ח
+            {two ? ` (חלופי ${after(f.price_aftermarket)?.toLocaleString("he-IL")} ש"ח)` : ""}, במקום מחיר המחירון.
+            {maxDiscount <= 10 ? " מעל 10% — רק אבי." : ""}
+          </p>
+        )}
       </div>
 
       <label htmlFor={`draft-${draft.id}`}>מה נמצא, במילים ללקוח</label>
