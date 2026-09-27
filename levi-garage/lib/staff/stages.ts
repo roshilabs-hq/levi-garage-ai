@@ -51,7 +51,7 @@ export function clockOf(c: ClockCard): { iso: string; label: string; limit: numb
   if (c.lift !== null) {
     return { iso: c.lift_since ?? c.status_since, label: "בעבודה", limit: TOO_LONG.lift, stage: "working" }
   }
-  return { iso: c.status_since, label: "ממתין לתא", limit: TOO_LONG.noLift, stage: "working" }
+  return { iso: c.status_since, label: "ממתין לליפט", limit: TOO_LONG.noLift, stage: "working" }
 }
 
 export function heatOf(c: ClockCard): Heat {

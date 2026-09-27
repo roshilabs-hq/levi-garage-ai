@@ -51,6 +51,30 @@ function Cube({ card }: { card: Card }) {
   )
 }
 
+const hours = (m: number) => (m % 60 ? `${m / 60}`.replace(".5", "½") : `${m / 60}`)
+
+/**
+ * המקרא של הצבעים, בצורת רמזור: אדום למעלה, ירוק למטה, כמו ברחוב, כדי שמזהים
+ * אותו מהצד השני של הסדנה בלי לקרוא. עד 27.9 זה היה משפט אחד, והוא גם הטעה:
+ * "אדום מעבר לכפול (4 שע׳ על ליפט)" — כש-4 שעות הן בכלל הסף של הכתום.
+ */
+function TrafficLight() {
+  return (
+    <div className="traffic" role="group" aria-label="מה אומרים הצבעים">
+      <span className="traffic-box" aria-hidden>
+        <i className="lamp late" />
+        <i className="lamp warn" />
+        <i className="lamp ok" />
+      </span>
+      <ul className="traffic-legend">
+        <li><b>חריגה</b> פי 2 מהזמן ({hours(TOO_LONG.lift * 2)} שע׳ על ליפט, {hours(TOO_LONG.customer * 2)} שע׳ אצל הלקוח)</li>
+        <li><b>עבר את הזמן</b> ({hours(TOO_LONG.lift)} שע׳ על ליפט, {hours(TOO_LONG.customer)} שע׳ אצל הלקוח)</li>
+        <li><b>בזמן</b></li>
+      </ul>
+    </div>
+  )
+}
+
 function Empty({ text }: { text: string }) {
   return <p className="wall-empty">{text}</p>
 }
@@ -172,9 +196,7 @@ export default async function WallPage() {
       </Rotator>
 
       <footer className="wall-foot">
-        <span>
-          ירוק בתוך הזמן · כתום מעבר לסף · אדום מעבר לכפול ({TOO_LONG.lift / 60} שע׳ על ליפט, {TOO_LONG.customer / 60} שע׳ אצל הלקוח)
-        </span>
+        <TrafficLight />
         <span className="wall-foot-links">
           {/* המסך הזה תלוי מול חלון או מול מנורה, ולכן התאורה נקבעת עליו
               ולא לפי מה שהטלוויזיה חושבת. הבחירה נשמרת במכשיר. */}

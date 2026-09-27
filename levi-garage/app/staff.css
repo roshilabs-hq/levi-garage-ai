@@ -712,7 +712,36 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
   font-size: 14px;
 }
 .staff-note b { color: var(--ink); }
-.wall-foot-links { display: flex; gap: 16px; }
+.wall-foot-links { display: flex; gap: 16px; align-self: flex-end; }
+
+/* המקרא של מסך הסדנה, כרמזור. אותם צבעים בדיוק כמו פס הצד של הקוביות. */
+.traffic { display: flex; align-items: stretch; gap: 12px; }
+.traffic-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px;
+  border-radius: 12px;
+  background: #1f2622;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+}
+.lamp { display: block; width: 16px; height: 16px; border-radius: 50%; }
+.lamp.late { background: #b3261e; }
+.lamp.warn { background: var(--amber); }
+/* ירוק היער של האתר כהה מדי על גוף הרמזור. נורה צריכה להאיר. */
+.lamp.ok { background: #3fa66a; }
+.traffic-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  line-height: 16px;
+}
+.traffic-legend b { color: var(--ink); margin-inline-end: 4px; }
 .lobby-switch { color: var(--muted); opacity: .55; margin-inline-start: 14px; font-size: .9em; }
 .lobby-switch:hover { opacity: 1; }
 .lobby-tools { display: inline-flex; align-items: center; gap: 10px; margin-inline-start: 14px; vertical-align: middle; }

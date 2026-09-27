@@ -270,7 +270,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                 <li key={c.id} className="chain-card pale">
                   <div className="chain-card-top">
                     <Plate value={c.plate} />
-                    <span className="chain-tag wait">ממתין לתא</span>
+                    <span className="chain-tag wait">ממתין לליפט</span>
                   </div>
                   <b>{carName(c)}</b>
                   <span className="staff-meta">{c.customer_name || "ללא שם"}</span>
