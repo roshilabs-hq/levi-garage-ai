@@ -9,6 +9,7 @@ import { notifyQuote, notifyReady, sendDueReminders } from "@/lib/staff/notify"
 import { INSPECTION_ITEMS, progress, type InspectionState, type Light } from "@/lib/staff/inspection"
 import { quoteEmail, type QuoteSnapshot } from "@/lib/staff/quote"
 import { sendEmail } from "@/lib/staff/email"
+import { ACTIVE } from "@/lib/staff/queue"
 
 // כל הפעולות של אזור הצוות עוברות כאן. הן רצות בשרת בזהות של המשתמש המחובר,
 // ולכן ה-RLS והפונקציות במסד אוכפים אותן שוב, גם אם מישהו יקרא להן ישירות.
@@ -47,7 +48,9 @@ export async function signOut() {
  * יוצאת ללקוח במייל (ס' 132(ב): "במסמך מודפס או בהודעת דואר אלקטרוני").
  * בלי מייל — ההצעה מודפסת בדלפק, ונרשמת גרסה מודפסת.
  *
- * הרכב לא עולה לליפט מכאן: הוא נכנס לתור של בדיקת הכניסה בעמדת האבחון.
+ * הלקוח עומד מול דניאל ומאשר את הצעת העבודה לטיפול שהוזמן, כולל האבחון (החלטה
+ * של רועי, 28.9): ככה החלק הראשון מאושר לפני שהרכב זז, וכל מה שיימצא אחר כך
+ * הוא תוספת שנשלחת לאישור בנפרד. הרכב עובר לחניה, לתור של הליפטים.
  */
 export async function receiveCar(formData: FormData) {
   const staff = await requireManager()
@@ -58,9 +61,12 @@ export async function receiveCar(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase() || null
   const consent = formData.get("consent") === "on"
   const explained = formData.get("explained") === "on"
+  const approved = formData.get("approved") === "on"
   if (!bookingId || !priceId) redirect(`/staff/arrive/${bookingId}?e=missing`)
   // ס' 131: הסבר על ההבדל בין סוגי החלקים, לפני ההצעה. דניאל מאשר שהסביר.
   if (!explained) redirect(`/staff/arrive/${bookingId}?e=explain`)
+  // תקנה 8: לא מתחילים עבודה שהלקוח לא אישר. גם האבחון הוא עבודה.
+  if (!approved) redirect(`/staff/arrive/${bookingId}?e=approve`)
 
   const supabase = await createClient()
   const [{ data: booking }, { data: item }] = await Promise.all([
@@ -92,6 +98,8 @@ export async function receiveCar(formData: FormData) {
       odometer_km: odometer,
       whatsapp_consent: consent || (booking.whatsapp_consent ?? false),
       updates_consent_at: consent ? new Date().toISOString() : null,
+      work_approved_at: new Date().toISOString(),
+      work_approved_by: staff.id,
       lift: null,
       status: "open",
       opened_by: staff.id,
@@ -161,7 +169,7 @@ export async function reissueQuote(formData: FormData) {
 
 // ---------------------------------------------------------------- בדיקת הכניסה
 
-/** סימון פריט בבדיקת הכניסה: ירוק, צהוב או אדום. */
+/** סימון פריט באבחון: ירוק, צהוב או אדום. */
 export async function setInspectionItem(formData: FormData) {
   const staff = await requireStaff()
   const jobId = Number(formData.get("job_id"))
@@ -178,7 +186,7 @@ export async function setInspectionItem(formData: FormData) {
   revalidatePath(`/staff/inspect/${jobId}`)
 }
 
-/** סיום בדיקת הכניסה. רק כשכל הפריטים סומנו — אחרת זו לא בדיקה, זה ניחוש. */
+/** סיום האבחון. רק כשכל הפריטים סומנו — אחרת זה לא אבחון, זה ניחוש. */
 export async function completeInspection(formData: FormData) {
   const staff = await requireStaff()
   const jobId = Number(formData.get("job_id"))
@@ -294,10 +302,10 @@ export async function assignLift(formData: FormData) {
   if (!id || (lift !== null && ![1, 2, 3, 4].includes(lift))) return
 
   const supabase = await createClient()
-  // בדיקת הכניסה קודם, תמיד (החלטה של רועי, 27.9). רכב שלא נבדק לא עולה לליפט.
+  // האבחון נעשה על הליפט (רועי, 28.9): בלמים, נזילות והיגוי צריכים רכב מורם.
   if (lift !== null) {
-    const { data: job } = await supabase.from("job_cards").select("inspected_at, status").eq("id", id).maybeSingle()
-    if (!job?.inspected_at) return
+    const { data: job } = await supabase.from("job_cards").select("status").eq("id", id).maybeSingle()
+    if (!job) return
     await supabase
       .from("job_cards")
       .update({ lift, ...(job.status === "open" ? { status: "in_progress" } : {}) })
@@ -430,20 +438,28 @@ export async function resendQuoteNotice(formData: FormData) {
   revalidatePath(`/staff/job/${jobId}`)
 }
 
-/** מכונאי לוקח לליפט שלו רכב שנפתח בלי שיוך. */
+/**
+ * מכונאי מושך לליפט שלו את הבא בתור. רכב שהורד לחניה ומחכה למשהו לא בתור:
+ * דניאל מחזיר אותו (המסד אוכף את זה גם אם מישהו עוקף את הכפתור).
+ */
 export async function takeCar(formData: FormData) {
   const staff = await requireStaff()
   const id = Number(formData.get("job_id"))
   if (!id || !staff.lift) return
 
   const supabase = await createClient()
-  const { data: job } = await supabase.from("job_cards").select("inspected_at, status").eq("id", id).maybeSingle()
-  if (!job?.inspected_at) return
+  const [{ data: job }, { data: onMyLift }] = await Promise.all([
+    supabase.from("job_cards").select("status").eq("id", id).maybeSingle(),
+    supabase.from("job_cards").select("id").eq("lift", staff.lift).in("status", [...ACTIVE]),
+  ])
+  // ליפט אחד, רכב אחד.
+  if (!job || (onMyLift ?? []).length > 0) return
   await supabase
     .from("job_cards")
     .update({ lift: staff.lift, ...(job.status === "open" ? { status: "in_progress" } : {}) })
     .eq("id", id)
     .is("lift", null)
+    .is("parked_at", null)
 
   revalidatePath("/staff/lift")
   revalidatePath("/staff")
@@ -465,4 +481,104 @@ export async function setMyLift(formData: FormData) {
   revalidatePath("/staff/lift")
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
+}
+
+// ---------------------------------------------------------------- הליפט לא מחכה
+
+
+function revalidateFloor(jobId?: number) {
+  revalidatePath("/staff")
+  revalidatePath("/staff/floor")
+  revalidatePath("/staff/lift")
+  if (jobId) revalidatePath(`/staff/job/${jobId}`)
+}
+
+/**
+ * להוריד מהליפט: הרכב מחכה ללקוח (או לחלק), ואין עליו עבודה מאושרת שנשארה.
+ * הוא עובר לחניה ויוצא מהתור, והליפט עובר לבא בתור. כשהלקוח מאשר, דניאל
+ * מחזיר אותו לתור — בראש התור, כי ללקוח הזה כבר הבטחנו.
+ */
+export async function lowerCar(formData: FormData) {
+  const staff = await requireStaff()
+  if (staff.role === "display") return
+  const id = Number(formData.get("job_id"))
+  if (!id) return
+  const supabase = await createClient()
+  await supabase
+    .from("job_cards")
+    .update({ lift: null, parked_at: new Date().toISOString() })
+    .eq("id", id)
+    .not("lift", "is", null)
+    .in("status", [...ACTIVE])
+  revalidateFloor(id)
+}
+
+/** דניאל מחזיר לתור רכב שחיכה בחניה. הוא נכנס לראש התור. */
+export async function requeueCar(formData: FormData) {
+  await requireManager()
+  const id = Number(formData.get("job_id"))
+  if (!id) return
+  const supabase = await createClient()
+  await supabase
+    .from("job_cards")
+    .update({ parked_at: null, outside_at: null, priority_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("lift", null)
+    .in("status", [...ACTIVE])
+  revalidateFloor(id)
+}
+
+/** דניאל מקדים רכב לראש התור. המכונאי הבא שיתפנה ימשוך אותו. */
+export async function toFrontOfQueue(formData: FormData) {
+  await requireManager()
+  const id = Number(formData.get("job_id"))
+  if (!id) return
+  const supabase = await createClient()
+  await supabase.from("job_cards").update({ priority_at: new Date().toISOString() }).eq("id", id).is("lift", null)
+  revalidateFloor(id)
+}
+
+/** עבודה קטנה שלא צריכה ליפט: בחוץ, בחניה. */
+export async function sendOutside(formData: FormData) {
+  await requireManager()
+  const id = Number(formData.get("job_id"))
+  if (!id) return
+  const supabase = await createClient()
+  await supabase
+    .from("job_cards")
+    .update({ lift: null, parked_at: null, outside_at: new Date().toISOString() })
+    .eq("id", id)
+    .in("status", [...ACTIVE])
+  revalidateFloor(id)
+}
+
+export type PickResult = { ok: true; sent: boolean; why?: string } | { ok: false; error: string } | null
+
+const PICK_WHY: Record<string, string> = {
+  price_by_model: "המחיר תלוי בדגם, ולכן זה עבר לדניאל לתמחור.",
+  over_500: "מעל 500 ש\"ח, ולכן דניאל שולח.",
+  no_consent: "הלקוח לא הסכים בקבלה לעדכונים בוואטסאפ. דניאל יתקשר.",
+  exists: "זה כבר נרשם ברכב הזה.",
+}
+
+/**
+ * ממצא מהמחירון, מהעמדה. במחיר קבוע ועד 500 ש"ח ההצעה יוצאת ללקוח מיד — שלמה
+ * לפי החוק, כי כל השדות באים מהמחירון. אחרת נפתחת טיוטה אצל דניאל.
+ * המכונאי לא מקליד מחיר, בשום מסלול.
+ */
+export async function addFromPriceList(_prev: PickResult, formData: FormData): Promise<PickResult> {
+  const staff = await requireStaff()
+  if (staff.role === "display") return { ok: false, error: "אין הרשאה." }
+  const jobId = Number(formData.get("job_id"))
+  const itemId = Number(formData.get("price_list_id"))
+  if (!jobId || !itemId) return { ok: false, error: "צריך לבחור עבודה." }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("add_price_list_finding", { p_job_id: jobId, p_price_list_id: itemId })
+  if (error || !data) return { ok: false, error: "לא נרשם. לנסות שוב, או לקרוא לדניאל." }
+  const r = data as { finding_id: number; sent: boolean; why?: string }
+  if (r.sent) await notifyQuote(supabase, r.finding_id)
+
+  revalidateFloor(jobId)
+  return { ok: true, sent: r.sent, why: r.why ? PICK_WHY[r.why] : undefined }
 }

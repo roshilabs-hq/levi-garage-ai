@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireScreen } from "@/lib/staff/session"
 import { elapsed, fmtMinutes, fmtTime, minutesSince } from "@/lib/staff/format"
 import { clockOf, heat, heatOf, stageLabel, TOO_LONG, type Stage } from "@/lib/staff/stages"
+import { placeLabel } from "@/lib/staff/queue"
 import { Since } from "@/components/staff/since"
 import { Rotator } from "@/components/staff/rotator"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
@@ -31,6 +32,10 @@ type Card = {
   lift_since: string | null
   status_since: string
   inspected_at: string | null
+  opened_at: string
+  parked_at: string | null
+  outside_at: string | null
+  priority_at: string | null
 }
 
 const carName = (c: { vehicle_make: string | null; vehicle_model: string | null }) =>
@@ -47,7 +52,7 @@ function Cube({ card }: { card: Card }) {
       <span className="cube-clock">
         {label} <Since iso={iso} initial={elapsed(iso)} />
       </span>
-      <small>{card.lift ? `ליפט ${card.lift}` : card.status === "ready" ? "בחצר, מחכה ללקוח" : card.inspected_at ? "מחכה לליפט" : "בבדיקת כניסה"}</small>
+      <small>{placeLabel(card)}</small>
     </li>
   )
 }
@@ -91,7 +96,7 @@ export default async function WallPage() {
   const [{ data: cards }, { data: booked }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, status, lift, lift_since, status_since, inspected_at")
+      .select("id, plate, vehicle_make, vehicle_model, status, lift, lift_since, status_since, inspected_at, opened_at, parked_at, outside_at, priority_at")
       .not("status", "in", "(delivered,cancelled)")
       .order("status_since", { ascending: true }),
     supabase

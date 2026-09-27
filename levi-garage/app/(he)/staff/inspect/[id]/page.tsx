@@ -10,9 +10,10 @@ import { CaptureButton } from "@/components/staff/capture-button"
 import { StationIdle } from "@/components/staff/station-idle"
 import { completeInspection, setInspectionItem } from "../../actions"
 
-export const metadata: Metadata = { title: "בדיקת כניסה | מוסך לוי ובניו", robots: { index: false, follow: false } }
+export const metadata: Metadata = { title: "אבחון | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
-// בדיקת הכניסה בעמדת האבחון. תשעה פריטים, שלושה צבעים. ירוק — לחיצה אחת וזהו.
+// האבחון, על הליפט (רועי, 28.9): הראשון והאחרון, ואחריו עובדים. תשעה פריטים,
+// שלושה צבעים. ירוק — לחיצה אחת וזהו.
 // צהוב או אדום — צילום ודיבור, ודניאל מקבל טיוטה עם העבודה שכנראה תידרש.
 
 const LIGHTS = [
@@ -59,7 +60,7 @@ export default async function InspectPage({
         <div>
           <Link className="staff-back" href="/staff/lift">חזרה לעמדה</Link>
           <h1>
-            בדיקת כניסה · <span className="plate-chip num" dir="ltr">{job.plate}</span>
+            אבחון · <span className="plate-chip num" dir="ltr">{job.plate}</span>
           </h1>
           <p>
             {[job.vehicle_make, job.vehicle_model].filter(Boolean).join(" ") || "רכב"}
@@ -68,7 +69,7 @@ export default async function InspectPage({
         </div>
       </header>
 
-      {job.inspected_at && <p className="staff-note">הבדיקה הסתיימה. הרכב מחכה לליפט.</p>}
+      {job.inspected_at && <p className="staff-note">האבחון הסתיים. אפשר לעבוד לפי מה שאושר.</p>}
       {e === "incomplete" && (
         <p className="staff-error" role="alert">
           כל תשעת הפריטים צריכים צבע, וכל צהוב או אדום צריך צילום ודיבור. חסר עוד.
@@ -125,7 +126,7 @@ export default async function InspectPage({
       <form action={completeInspection} className="inspect-finish">
         <input type="hidden" name="job_id" value={job.id} />
         <button className="btn" type="submit" disabled={!p.complete || undocumented.length > 0 || Boolean(job.inspected_at)}>
-          סיום בדיקה, הרכב מוכן לליפט
+          סיום אבחון, מתחילים לעבוד
         </button>
         {!p.complete && <span className="staff-meta">עוד {p.total - p.done} פריטים.</span>}
         {p.complete && undocumented.length > 0 && (

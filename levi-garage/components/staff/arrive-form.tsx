@@ -96,11 +96,18 @@ export function ArriveForm({
         <span>הסברתי ללקוח את ההבדל בין חלק מקורי לחלופי, את האחריות ואת שעות העבודה</span>
       </label>
 
+      <label className="arrive-check">
+        <input type="checkbox" name="approved" required />
+        <span>
+          <b>הלקוח אישר את ההצעה לטיפול הזה, כולל האבחון.</b> כל דבר נוסף שיימצא ברכב יישלח אליו לאישור בנפרד.
+        </span>
+      </label>
+
       <button className="btn" type="submit" disabled={busy || !item}>
         {busy ? "פותחים כרטיס..." : "קבלת רכב ושליחת הצעת מחיר"}
       </button>
       <p className="staff-meta">
-        בלי אישור הלקוח לא מבצעים שום עבודה שלא בהצעה. הרכב עובר עכשיו לבדיקת כניסה בעמדת האבחון.
+        בלי אישור הלקוח לא מבצעים שום עבודה שלא בהצעה. הרכב עובר לחניה ומחכה לליפט פנוי, והאבחון נעשה על הליפט.
       </p>
     </form>
   )

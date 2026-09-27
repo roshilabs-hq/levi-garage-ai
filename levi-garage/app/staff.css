@@ -1023,3 +1023,42 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .add-photo .missing-photo { margin-inline-start: 0; }
 .finding-photos { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .finding-photos img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; display: block; }
+
+/* ---------- הליפט לא מחכה (018) ---------- */
+.lift-diagnose { margin-top: 16px; width: 100%; }
+.lift-queue { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+.lift-queue li {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  padding: 12px 14px; border-radius: var(--radius); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
+}
+.lift-queue li.next { box-shadow: inset 0 0 0 2px var(--ink); }
+.lift-queue li .staff-meta { display: block; grid-column: auto; }
+.lift-queue li:not(.next) { opacity: 0.75; }
+@media (max-width: 560px) {
+  .lift-queue li { grid-template-columns: auto 1fr; }
+  .lift-queue li > form, .lift-queue li > .staff-meta:last-child { grid-column: 1 / -1; }
+  .lift-queue li > form .btn { width: 100%; }
+}
+.lift-lower { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.lift-lower.hot { border-top-color: var(--ink); }
+.lift-lower .staff-meta { margin-bottom: 8px; }
+
+.pick { margin-top: 14px; border-radius: var(--radius); background: var(--sunk); padding: 4px 14px; }
+.pick summary { cursor: pointer; font-weight: 700; padding: 12px 0; min-height: 48px; display: flex; align-items: center; }
+.pick[open] { padding-bottom: 14px; }
+.pick-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.pick-quick form { display: contents; }
+.pick-btn {
+  display: grid; gap: 4px; align-content: center; min-height: 72px; padding: 10px; border: 0; border-radius: var(--radius);
+  background: var(--surface); box-shadow: inset 0 0 0 2px var(--line); color: var(--ink);
+  font: inherit; font-weight: 700; cursor: pointer; touch-action: manipulation; text-align: center;
+}
+.pick-btn small { color: var(--muted); font-weight: 600; }
+.pick-btn:active { transform: scale(0.98); box-shadow: inset 0 0 0 2px var(--ink); }
+.pick-btn:disabled { opacity: 0.5; }
+.pick-more { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pick-more select { flex: 1 1 200px; min-height: 48px; border-radius: 10px; padding: 0 10px; font: inherit; }
+.pick-msg { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-weight: 600; }
+.pick-msg.sent { background: color-mix(in srgb, var(--forest) 16%, var(--surface)); }
+.pick-msg.draft { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.pick-msg.error { background: color-mix(in srgb, #c0392b 14%, var(--surface)); }

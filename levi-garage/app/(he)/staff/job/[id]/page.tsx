@@ -230,7 +230,7 @@ export default async function JobCardPage({
 
       {inspection && (
         <section className="staff-section" aria-labelledby="ins-title">
-          <h2 id="ins-title">בדיקת כניסה {inspection.completed_at ? `· הסתיימה ${fmtStamp(inspection.completed_at)}` : "· בתהליך"}</h2>
+          <h2 id="ins-title">אבחון {inspection.completed_at ? `· הסתיימה ${fmtStamp(inspection.completed_at)}` : "· בתהליך"}</h2>
           <ul className="inspect-summary">
             {INSPECTION_ITEMS.map((item) => {
               const light = insItems[item.key]?.light

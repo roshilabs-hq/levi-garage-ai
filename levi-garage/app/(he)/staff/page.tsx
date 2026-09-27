@@ -6,7 +6,8 @@ import { requireStaff } from "@/lib/staff/session"
 import { elapsed, fmtStamp, fmtTime } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
 import { Since } from "@/components/staff/since"
-import { markSafetyReported, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
+import { markSafetyReported, requeueCar, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
+import { approvedWaitingForUs } from "@/lib/staff/queue"
 
 export const metadata: Metadata = { title: "לוח היום | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -50,10 +51,10 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
   const twoWeeks = new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000)
 
-  const [{ data: cards }, { data: booked }, { data: later }, { data: drafts }, { data: calls }, { data: safety }] = await Promise.all([
+  const [{ data: cards }, { data: booked }, { data: later }, { data: drafts }, { data: calls }, { data: safety }, { data: pending }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name")
+      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, parked_at, outside_at, priority_at")
       .not("status", "in", "(delivered,cancelled)")
       .order("opened_at", { ascending: true }),
     supabase
@@ -93,6 +94,13 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
       .eq("status", "declined")
       .eq("safety", true)
       .is("safety_reported_at", null),
+    // קישורים שנשלחו ועוד לא נענו. אחרי 30 דקות יוצאת תזכורת לבד (018);
+    // אחרי שעה — דניאל מתקשר. זה ההבדל בין ליפט מת לבין שיחה של דקה.
+    supabase
+      .from("findings")
+      .select("id, title, summary, approvals!inner(sent_at, nudged_at, decision), job_cards!inner(id, plate, customer_name, customer_phone)")
+      .eq("status", "sent")
+      .is("approvals.decision", null),
   ])
 
   const all = cards ?? []
@@ -113,6 +121,13 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
   const reminderTag = (id: number) =>
     reminderOf.get(id) === "sent" ? " · ✓ נשלחה תזכורת" : reminderOf.get(id) === "skipped" ? " · בלי תזכורת (לא כתב לנו)" : ""
   const canRemind = staff.role === "owner" || staff.role === "manager"
+  // הלקוח ענה, והרכב עדיין בחניה: מחזירים לתור (דניאל, לא המכונאי).
+  const backToQueue = all.filter(approvedWaitingForUs)
+  const HOUR = 60 * 60 * 1000
+  const toCall = (pending ?? [])
+    .map((f) => ({ f, a: one(f.approvals), job: one(f.job_cards) }))
+    .filter((x) => x.a && x.job && Date.now() - new Date(x.a.sent_at).getTime() > HOUR)
+    .sort((x, y) => x.a!.sent_at.localeCompare(y.a!.sent_at))
   const queue = [...(drafts ?? [])].sort(
     (a, b) => Number(b.urgency === "red") - Number(a.urgency === "red") || a.created_at.localeCompare(b.created_at),
   )
@@ -141,7 +156,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
                   <div>
                     <b>
                       {c.kind === "done" ? "סיים את העבודה" : "צריך אותך בעמדה"}
-                      {c.lift ? ` · ליפט ${c.lift}` : " · עמדת האבחון"}
+                      {c.lift ? ` · ליפט ${c.lift}` : " · בחניה"}
                     </b>
                     <span className="staff-meta">
                       {who?.full_name ?? "מכונאי"} · לפני <Since iso={c.created_at} initial={elapsed(c.created_at)} />
@@ -160,6 +175,59 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
                 </li>
               )
             })}
+          </ul>
+        </section>
+      )}
+
+      {backToQueue.length > 0 && (
+        <section className="board-group hot" aria-labelledby="g-requeue">
+          <h2 id="g-requeue">הלקוח אישר: להחזיר לתור</h2>
+          <p className="board-why">הרכבים האלה הורדו לחניה כדי לא לתפוס ליפט. הלקוח ענה, והם חוזרים לראש התור — המכונאי הבא שיתפנה ימשוך.</p>
+          <ul className="board-rows">
+            {backToQueue.map((c) => (
+              <li key={c.id}>
+                <Plate value={c.plate} />
+                <div>
+                  <b>{carName(c)}</b>
+                  <span className="staff-meta">
+                    {c.customer_name || "ללא שם"} · בחניה <Since iso={c.parked_at!} initial={elapsed(c.parked_at!)} />
+                  </span>
+                </div>
+                {canRemind && (
+                  <form action={requeueCar}>
+                    <input type="hidden" name="job_id" value={c.id} />
+                    <button className="btn" type="submit">להחזיר לתור</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {toCall.length > 0 && (
+        <section className="board-group hot" aria-labelledby="g-call">
+          <h2 id="g-call">שעה בלי תשובה: להתקשר</h2>
+          <p className="board-why">הלקוח קיבל קישור, ואחרי חצי שעה גם תזכורת. שיחה של דקה עכשיו חוסכת שעה של רכב שמחכה.</p>
+          <ul className="board-rows">
+            {toCall.map(({ f, a, job }) => (
+              <li key={f.id}>
+                <Plate value={job!.plate} />
+                <div>
+                  <b>{f.title || f.summary || "ממצא"}</b>
+                  <span className="staff-meta">
+                    {job!.customer_name || "ללא שם"} · נשלח לפני <Since iso={a!.sent_at} initial={elapsed(a!.sent_at)} />
+                    {a!.nudged_at ? " · קיבל תזכורת" : ""}
+                  </span>
+                </div>
+                <div className="board-actions">
+                  {job!.customer_phone && (
+                    <a className="btn" href={`tel:${job!.customer_phone}`} dir="ltr">{job!.customer_phone}</a>
+                  )}
+                  <Link className="btn quiet" href={`/staff/job/${job!.id}#f-${f.id}`}>הכרטיס</Link>
+                </div>
+              </li>
+            ))}
           </ul>
         </section>
       )}
@@ -185,7 +253,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
                       )}
                     </b>
                     <span className="staff-meta">
-                      {carName(job)} · {f.source === "intake" ? "בדיקת כניסה" : job.lift ? `ליפט ${job.lift}` : "בלי ליפט"} · מחכה{" "}
+                      {carName(job)} · {f.source === "intake" ? "אבחון" : f.source === "pricelist" ? "מהמחירון" : job.lift ? `ליפט ${job.lift}` : "בלי ליפט"} · מחכה{" "}
                       <Since iso={f.created_at} initial={elapsed(f.created_at)} />
                     </span>
                   </div>
@@ -346,7 +414,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
           <p className="staff-empty">כל מי שהיה אמור להגיע היום, הגיע.</p>
         ) : (
           <>
-            <p className="board-why">כשהרכב מגיע: "קבלת רכב". בוחרים את השירות מהמחירון, והצעת המחיר הראשונה יוצאת ללקוח במייל. משם הרכב הולך לבדיקת כניסה.</p>
+            <p className="board-why">כשהרכב מגיע: "קבלת רכב". בוחרים את השירות מהמחירון, והצעת המחיר הראשונה יוצאת ללקוח במייל. הלקוח מאשר בדלפק, והרכב עובר לחניה, לתור של הליפטים.</p>
             <ul className="board-rows arriving">
               {arriving.map((b) => (
                 <li key={b.id}>

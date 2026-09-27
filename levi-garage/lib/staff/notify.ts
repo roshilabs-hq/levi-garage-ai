@@ -172,3 +172,41 @@ export async function sendDueReminders(): Promise<ReminderRun> {
   }
   return run
 }
+
+/**
+ * תזכורת ללקוח שלא ענה על קישור לאישור תוך 30 דקות (018). pg_cron במסד קורא
+ * לאתר כל 5 דקות, והמסד תופס כל קישור פעם אחת בלבד, ורק בשעות העבודה.
+ * הבוט מקבל את אותו סוג הודעה כמו הקישור המקורי: אותו קישור, שוב.
+ */
+export async function sendDueNudges(): Promise<ReminderRun> {
+  const run: ReminderRun = { due: 0, sent: 0, skipped: 0, failed: 0 }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  const secret = process.env.GARAGE_BOT_TOKEN
+  if (!url || !key || !secret || !process.env.GARAGE_NOTIFY_URL || !process.env.GARAGE_NOTIFY_TOKEN) return run
+
+  const rpc = (name: string, args: Record<string, unknown>) =>
+    fetch(`${url}/rest/v1/rpc/${name}`, {
+      method: "POST",
+      headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ p_secret: secret, ...args }),
+      cache: "no-store",
+    })
+
+  const res = await rpc("claim_due_nudges", {})
+  if (!res.ok) {
+    console.error("claim_due_nudges failed:", res.status)
+    return run
+  }
+  const claims = ((await res.json()) ?? []) as Claim[]
+  run.due = claims.length
+
+  for (const claim of claims) {
+    const to = toWaNumber(claim.phone)
+    const outcome: Outcome = to ? await ask("quote", claim, to) : { status: "skipped", reason: "bad_phone" }
+    run[outcome.status]++
+    const done = await rpc("finish_nudge", { p_id: claim.id, p_status: outcome.status, p_reason: outcome.reason ?? null })
+    if (!done.ok) console.error("finish_nudge failed:", done.status)
+  }
+  return run
+}

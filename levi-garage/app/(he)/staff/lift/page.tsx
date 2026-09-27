@@ -4,19 +4,22 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { CaptureButton } from "@/components/staff/capture-button"
-import { callManager, takeCar } from "../actions"
+import { PricePick, type PickItem } from "@/components/staff/price-pick"
+import { callManager, lowerCar, takeCar } from "../actions"
 import { TopBar } from "@/components/staff/top-bar"
 import { elapsed } from "@/lib/staff/format"
+import { ACTIVE, queueOf } from "@/lib/staff/queue"
 import { StationIdle } from "@/components/staff/station-idle"
 
 export const metadata: Metadata = { title: "הליפט שלי | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
-// דף המכונאי. מה שהוא צריך לדעת ליד הרכב, ושלושה כפתורים גדולים:
-//   "צילום ודיווח" — ממצא חדש, בלי מחיר ובלי הקלדה (המחיר מהמחירון, אצל דניאל).
-//   "דניאל, בוא לעמדה" — כשאין לו יד פנויה אפילו לזה.
-//   "סיימתי" — דניאל בודק ומסמן מוכן.
-// ומה מותר לבצע: רק מה שבהצעה או שאושר (תקנה 8). "מחכה ללקוח" ו"נדחה" כתובים
-// גדול, כדי שאף אחד לא יתחיל תיקון שהלקוח לא אישר.
+// דף העמדה של המכונאי (רועי, 28.9). הליפט הוא המשאב היקר, ולכן הדף בנוי סביב
+// שאלה אחת: מה הליפט הזה עושה עכשיו.
+//
+//   ליפט פנוי — הבא בתור, וכפתור אחד למשוך אותו.
+//   רכב שעוד לא אובחן — רק "להתחיל אבחון". האבחון נעשה כאן, על הליפט.
+//   רכב שאובחן — מה מותר לבצע (תקנה 8), צילום ודיבור, ממצא מהמחירון,
+//     "דניאל, בוא", "סיימתי", ו"להוריד מהליפט" כשמחכים ללקוח ואין מה לעשות.
 
 type Card = {
   id: number
@@ -29,6 +32,9 @@ type Card = {
   lift: number | null
   inspected_at: string | null
   opened_at: string
+  parked_at: string | null
+  outside_at: string | null
+  priority_at: string | null
 }
 
 type Finding = {
@@ -40,21 +46,56 @@ type Finding = {
   approvals: { part_choice: string | null } | { part_choice: string | null }[] | null
 }
 
+type Line = { job_card_id: number; title: string; part_choice: string }
+
 const partName = (c: string | null | undefined) => (c === "aftermarket" ? "חלק חלופי" : "חלק מקורי")
 const choiceOf = (f: Finding) => (Array.isArray(f.approvals) ? f.approvals[0] : f.approvals)?.part_choice
+const carName = (c: Card) =>
+  ([c.vehicle_make, c.vehicle_model].filter(Boolean).join(" ") || "רכב") + (c.vehicle_year ? `, ${c.vehicle_year}` : "")
+
+function Head({ card }: { card: Card }) {
+  return (
+    <div className="lift-car-head">
+      <span className="plate-chip num" dir="ltr">{card.plate}</span>
+      <div>
+        <b>{carName(card)}</b>
+        {card.engine_code && <span className="staff-meta"> מנוע {card.engine_code}</span>}
+      </div>
+    </div>
+  )
+}
+
+/** רכב שעלה לליפט ועוד לא אובחן: זה הדבר היחיד שאפשר לעשות בו. */
+function DiagnoseFirst({ card, lines }: { card: Card; lines: Line[] }) {
+  return (
+    <li className="lift-car">
+      <Head card={card} />
+      <div className="gate">
+        <h3>הלקוח אישר בקבלה</h3>
+        <ul className="gate-ok">
+          {lines.map((l, i) => (
+            <li key={i}>✓ {l.title} · {partName(l.part_choice)}</li>
+          ))}
+        </ul>
+      </div>
+      <Link className="btn big lift-diagnose" href={`/staff/inspect/${card.id}`}>להתחיל אבחון</Link>
+      <p className="staff-meta">תשעה פריטים ברמזור. מה שלא תקין — צילום ודיבור. בלי אבחון לא מתחילים לעבוד.</p>
+    </li>
+  )
+}
 
 function Car({
   card,
   lines,
   findings,
   calls,
-  canTake,
+  pick,
 }: {
   card: Card
-  lines: { title: string; part_choice: string }[]
+  lines: Line[]
   findings: Finding[]
   calls: { kind: string; created_at: string }[]
-  canTake?: boolean
+  pick: PickItem[]
 }) {
   const approved = findings.filter((f) => f.status === "approved")
   const waiting = findings.filter((f) => f.status === "sent")
@@ -65,16 +106,7 @@ function Car({
 
   return (
     <li className="lift-car">
-      <div className="lift-car-head">
-        <span className="plate-chip num" dir="ltr">{card.plate}</span>
-        <div>
-          <b>
-            {[card.vehicle_make, card.vehicle_model].filter(Boolean).join(" ") || "רכב"}
-            {card.vehicle_year ? `, ${card.vehicle_year}` : ""}
-          </b>
-          {card.engine_code && <span className="staff-meta"> מנוע {card.engine_code}</span>}
-        </div>
-      </div>
+      <Head card={card} />
 
       <div className="gate">
         <h3>מה מותר לבצע</h3>
@@ -83,7 +115,7 @@ function Car({
         ) : (
           <ul className="gate-ok">
             {lines.map((l, i) => (
-              <li key={`l${i}`}>✓ {l.title} · {partName(l.part_choice)}</li>
+              <li key={`l${i}`}>✓ {l.title} · {partName(l.part_choice)} · אושר בקבלה</li>
             ))}
             {approved.map((f) => (
               <li key={f.id}>✓ {f.title || f.summary} · {partName(choiceOf(f))} · הלקוח אישר</li>
@@ -113,32 +145,34 @@ function Car({
         )}
       </div>
 
-      {canTake ? (
-        <form action={takeCar} className="lift-take">
+      <CaptureButton jobId={card.id} />
+      <PricePick jobId={card.id} items={pick} />
+
+      <div className="lift-calls">
+        <form action={callManager}>
           <input type="hidden" name="job_id" value={card.id} />
-          <button className="btn" type="submit">קח לליפט שלי</button>
+          <input type="hidden" name="kind" value="help" />
+          <button className="btn quiet big" type="submit" disabled={Boolean(helpCall)}>
+            {helpCall ? `דניאל בדרך · קראת לפני ${elapsed(helpCall.created_at)}` : "דניאל, בוא לעמדה"}
+          </button>
         </form>
-      ) : (
-        <>
-          <CaptureButton jobId={card.id} />
-          <div className="lift-calls">
-            <form action={callManager}>
-              <input type="hidden" name="job_id" value={card.id} />
-              <input type="hidden" name="kind" value="help" />
-              <button className="btn quiet big" type="submit" disabled={Boolean(helpCall)}>
-                {helpCall ? `דניאל בדרך · קראת לפני ${elapsed(helpCall.created_at)}` : "דניאל, בוא לעמדה"}
-              </button>
-            </form>
-            <form action={callManager}>
-              <input type="hidden" name="job_id" value={card.id} />
-              <input type="hidden" name="kind" value="done" />
-              <button className="btn quiet big" type="submit" disabled={Boolean(doneCall) || waiting.length > 0 || drafts.length > 0}>
-                {doneCall ? "דניאל יודע שסיימת" : "סיימתי את העבודה"}
-              </button>
-            </form>
-          </div>
-        </>
-      )}
+        <form action={callManager}>
+          <input type="hidden" name="job_id" value={card.id} />
+          <input type="hidden" name="kind" value="done" />
+          <button className="btn quiet big" type="submit" disabled={Boolean(doneCall) || waiting.length > 0 || drafts.length > 0}>
+            {doneCall ? "דניאל יודע שסיימת" : "סיימתי את העבודה"}
+          </button>
+        </form>
+      </div>
+
+      {/* הליפט לא מחכה לתשובה של לקוח. דניאל יחזיר את הרכב לתור כשיאשר. */}
+      <form action={lowerCar} className={waiting.length + drafts.length > 0 ? "lift-lower hot" : "lift-lower"}>
+        <input type="hidden" name="job_id" value={card.id} />
+        {waiting.length + drafts.length > 0 && (
+          <p className="staff-meta">סיימת את מה שמאושר ומחכים ללקוח? להוריד לחניה, והליפט עובר לבא בתור.</p>
+        )}
+        <button className="btn quiet" type="submit">להוריד מהליפט לחניה</button>
+      </form>
 
       <Link className="lift-link" href={`/staff/job/${card.id}`}>הכרטיס המלא</Link>
     </li>
@@ -148,15 +182,23 @@ function Car({
 export default async function LiftPage() {
   const staff = await requireStaff()
   const supabase = await createClient()
+  const atDiag = staff.lift === null
 
-  const { data: cards } = await supabase
-    .from("job_cards")
-    .select("id, plate, vehicle_make, vehicle_model, vehicle_year, engine_code, status, lift, inspected_at, opened_at")
-    .in("status", ["open", "in_progress", "waiting_quote", "waiting_approval"])
-    .order("opened_at", { ascending: true })
+  const [{ data: cards }, { data: priceList }] = await Promise.all([
+    supabase
+      .from("job_cards")
+      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, engine_code, status, lift, inspected_at, opened_at, parked_at, outside_at, priority_at")
+      .in("status", [...ACTIVE])
+      .order("opened_at", { ascending: true }),
+    supabase.from("price_list").select("id, title, price_original, fixed_price").eq("active", true).order("sort"),
+  ])
 
   const all = (cards ?? []) as Card[]
-  const ids = all.map((c) => c.id)
+  const mine = atDiag ? [] : all.filter((c) => c.lift === staff.lift)
+  const queue = queueOf(all)
+  const toInspect = queue.filter((c) => !c.inspected_at)
+
+  const ids = [...new Set([...mine, ...queue].map((c) => c.id))]
   const [{ data: lines }, { data: findings }, { data: calls }] = ids.length
     ? await Promise.all([
         supabase.from("quote_items").select("job_card_id, title, part_choice").in("job_card_id", ids),
@@ -169,14 +211,10 @@ export default async function LiftPage() {
       ])
     : [{ data: [] }, { data: [] }, { data: [] }]
 
-  const linesOf = (id: number) => (lines ?? []).filter((l) => l.job_card_id === id)
+  const linesOf = (id: number) => ((lines ?? []) as Line[]).filter((l) => l.job_card_id === id)
   const findingsOf = (id: number) => ((findings ?? []) as Finding[]).filter((f) => f.job_card_id === id)
   const callsOf = (id: number) => (calls ?? []).filter((c) => c.job_card_id === id)
-
-  const atDiag = staff.lift === null
-  const toInspect = all.filter((c) => !c.inspected_at && c.status === "open")
-  const mine = staff.lift ? all.filter((c) => c.lift === staff.lift) : []
-  const unassigned = all.filter((c) => c.lift === null && c.inspected_at && c.status !== "waiting_approval")
+  const pick = (priceList ?? []) as PickItem[]
 
   return (
     <main className="staff-wrap lift-page">
@@ -188,60 +226,74 @@ export default async function LiftPage() {
           <h1>{staff.lift ? `ליפט ${staff.lift}` : "עמדת אבחון"}</h1>
           <p>
             {atDiag
-              ? "כל רכב שמתקבל עובר כאן בדיקת כניסה: תשעה פריטים, וצילום ודיבור לכל מה שלא תקין."
-              : "הרכב שעל הליפט שלך, ומה מותר לבצע בו. ממצא חדש: צילום ודיבור. בלי מחירים — דניאל מתמחר."}
+              ? "אבחון מחשב וחשמל לרכב שלא צריך להרים. רוב האבחונים נעשים על הליפט."
+              : "הרכב שעל הליפט שלך, ומה מותר לבצע בו. ממצא חדש: צילום ודיבור, או מהמחירון. בלי מחירים — הם מהמחירון."}
           </p>
         </div>
-
-        {/* איפה הוא עובד נקבע לפי העמדה שממנה נכנס (016), לא לפי בחירה. */}
       </header>
 
-      {atDiag && (
-        <section className="staff-section" aria-labelledby="inspect-title">
-          <h2 id="inspect-title">ממתינים לבדיקת כניסה</h2>
-          {toInspect.length === 0 ? (
-            <p className="staff-empty">אין כרגע רכב שמחכה לבדיקה. כשדניאל מקבל רכב בדלפק, הוא מופיע כאן.</p>
+      {!atDiag && mine.length > 0 && (
+        <ul className="lift-list">
+          {mine.map((c) =>
+            c.inspected_at ? (
+              <Car key={c.id} card={c} lines={linesOf(c.id)} findings={findingsOf(c.id)} calls={callsOf(c.id)} pick={pick} />
+            ) : (
+              <DiagnoseFirst key={c.id} card={c} lines={linesOf(c.id)} />
+            ),
+          )}
+        </ul>
+      )}
+
+      {!atDiag && (
+        <section className="staff-section" aria-labelledby="queue-title">
+          <h2 id="queue-title">{mine.length ? "הבא בתור" : `ליפט ${staff.lift} פנוי · הבא בתור`}</h2>
+          {queue.length === 0 ? (
+            <p className="staff-empty">אין רכב שמחכה לליפט. כשדניאל מקבל רכב בדלפק, הוא מופיע כאן.</p>
           ) : (
-            <ul className="lift-list">
-              {toInspect.map((c) => (
-                <li key={c.id} className="lift-car">
-                  <div className="lift-car-head">
-                    <span className="plate-chip num" dir="ltr">{c.plate}</span>
-                    <div>
-                      <b>
-                        {[c.vehicle_make, c.vehicle_model].filter(Boolean).join(" ") || "רכב"}
-                        {c.vehicle_year ? `, ${c.vehicle_year}` : ""}
-                      </b>
-                      <span className="staff-meta"> · התקבל לפני {elapsed(c.opened_at)}</span>
-                    </div>
+            <ol className="lift-queue">
+              {queue.slice(0, 4).map((c, i) => (
+                <li key={c.id} className={i === 0 ? "next" : ""}>
+                  <span className="plate-chip num" dir="ltr">{c.plate}</span>
+                  <div>
+                    <b>{carName(c)}</b>
+                    <span className="staff-meta">
+                      {linesOf(c.id).map((l) => l.title).join(", ") || "טיפול"}
+                      {c.priority_at ? " · דניאל הקדים" : ` · הגיע לפני ${elapsed(c.opened_at)}`}
+                      {!c.inspected_at ? " · לפני אבחון" : ""}
+                    </span>
                   </div>
-                  <Link className="btn big" href={`/staff/inspect/${c.id}`}>להתחיל בדיקת כניסה</Link>
+                  {i === 0 &&
+                    (mine.length === 0 ? (
+                      <form action={takeCar}>
+                        <input type="hidden" name="job_id" value={c.id} />
+                        <button className="btn big" type="submit">למשוך לליפט {staff.lift}</button>
+                      </form>
+                    ) : (
+                      <span className="staff-meta">כשהליפט יתפנה</span>
+                    ))}
                 </li>
               ))}
-            </ul>
+            </ol>
           )}
         </section>
       )}
 
-      {!atDiag &&
-        (mine.length > 0 ? (
-          <ul className="lift-list">
-            {mine.map((c) => (
-              <Car key={c.id} card={c} lines={linesOf(c.id)} findings={findingsOf(c.id)} calls={callsOf(c.id)} />
-            ))}
-          </ul>
-        ) : (
-          <p className="staff-empty">אין כרגע רכב על ליפט {staff.lift}. כשדניאל מעלה רכב לליפט הזה, הוא יופיע כאן.</p>
-        ))}
-
-      {!atDiag && unassigned.length > 0 && (
-        <section className="staff-section" aria-labelledby="unassigned-title">
-          <h2 id="unassigned-title">עברו בדיקת כניסה ומחכים לליפט</h2>
-          <ul className="lift-list">
-            {unassigned.map((c) => (
-              <Car key={c.id} card={c} lines={linesOf(c.id)} findings={findingsOf(c.id)} calls={callsOf(c.id)} canTake />
-            ))}
-          </ul>
+      {atDiag && (
+        <section className="staff-section" aria-labelledby="inspect-title">
+          <h2 id="inspect-title">בתור, עוד לא אובחנו</h2>
+          {toInspect.length === 0 ? (
+            <p className="staff-empty">אין כרגע רכב שמחכה לאבחון.</p>
+          ) : (
+            <ul className="lift-list">
+              {toInspect.map((c) => (
+                <li key={c.id} className="lift-car">
+                  <Head card={c} />
+                  <span className="staff-meta">הגיע לפני {elapsed(c.opened_at)}</span>
+                  <Link className="btn big" href={`/staff/inspect/${c.id}`}>להתחיל אבחון</Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
     </main>
