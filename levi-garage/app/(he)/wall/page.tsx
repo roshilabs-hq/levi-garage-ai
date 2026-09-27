@@ -46,7 +46,7 @@ function Cube({ card }: { card: Card }) {
       <span className="cube-clock">
         {label} <Since iso={iso} initial={elapsed(iso)} />
       </span>
-      <small>{card.lift ? `ליפט ${card.lift}` : "לא על תא"}</small>
+      <small>{card.lift ? `ליפט ${card.lift}` : card.status === "ready" ? "בחצר, מחכה ללקוח" : "מחכה לליפט"}</small>
     </li>
   )
 }
@@ -145,7 +145,7 @@ export default async function WallPage() {
             מחכים לתשובה <span className="num">{waiting.length}</span>
           </h1>
           {waiting.length === 0 ? (
-            <Empty text="אף אחד לא מחכה. כל התאים עובדים." />
+            <Empty text="אף אחד לא מחכה. כל הליפטים עובדים." />
           ) : (
             <ul className="cubes">
               {waiting.map((c) => (
@@ -173,7 +173,7 @@ export default async function WallPage() {
 
       <footer className="wall-foot">
         <span>
-          ירוק בתוך הזמן · כתום מעבר לסף · אדום מעבר לכפול ({TOO_LONG.lift / 60} שע׳ על תא, {TOO_LONG.customer / 60} שע׳ אצל הלקוח)
+          ירוק בתוך הזמן · כתום מעבר לסף · אדום מעבר לכפול ({TOO_LONG.lift / 60} שע׳ על ליפט, {TOO_LONG.customer / 60} שע׳ אצל הלקוח)
         </span>
         <span className="wall-foot-links">
           {/* המסך הזה תלוי מול חלון או מול מנורה, ולכן התאורה נקבעת עליו

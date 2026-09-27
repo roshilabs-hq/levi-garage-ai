@@ -222,7 +222,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
             <h2 id="c2">בטיפול</h2>
             <span className="chain-count num">{working}</span>
           </div>
-          <p className="chain-why">מכאן והלאה הזמן נספר. מי שעל תא נמדד מרגע שעלה, ומי שממתין נמדד מרגע שהגיע.</p>
+          <p className="chain-why">מכאן והלאה הזמן נספר. מי שעל ליפט נמדד מרגע שעלה, ומי שממתין נמדד מרגע שהגיע.</p>
 
           {working === 0 ? (
             <p className="chain-empty">אין רכב בעבודה.</p>
@@ -291,7 +291,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                       </button>
                     </form>
                   ) : (
-                    <p className="chain-note">אין תא פנוי. הוא יעלה כשמישהו יסיים.</p>
+                    <p className="chain-note">אין ליפט פנוי. הוא יעלה כשמישהו יסיים.</p>
                   )}
                 </li>
               ))}
@@ -309,7 +309,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
             <span className="chain-count num">{waiting}</span>
           </div>
           <p className="chain-why">
-            התא תפוס, ואנחנו לא עובדים. ברגע שהלקוח עונה, הרכב חוזר לבד ל"בטיפול".
+            הליפט תפוס, ואנחנו לא עובדים. ברגע שהלקוח עונה, הרכב חוזר לבד ל"בטיפול".
           </p>
 
           {waiting === 0 ? (
@@ -387,7 +387,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
             <h2 id="c4">הסתיים</h2>
             <span className="chain-count num">{done.length}</span>
           </div>
-          <p className="chain-why">התא כבר התפנה. הרכב מחכה בחצר שהלקוח יגיע לקחת אותו.</p>
+          <p className="chain-why">הליפט כבר התפנה. הרכב מחכה בחצר שהלקוח יגיע לקחת אותו.</p>
 
           {done.length === 0 ? (
             <p className="chain-empty">עוד לא סיימנו רכב היום.</p>

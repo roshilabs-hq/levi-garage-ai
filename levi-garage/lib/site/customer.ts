@@ -48,13 +48,33 @@ const when = new Intl.DateTimeFormat("he-IL", {
   minute: "2-digit",
 })
 
+// בלי לשון זכר: המגדר של הלקוח לא ידוע, ו-Gemini מעתיק את הלשון של העובדות.
+// עד 27.9 היה כתוב כאן "יש לו תור" ו"הוא יקבל", והלקוחה קיבלה "תקבל".
 const JOB_STATE: Record<string, string> = {
   open: "הגיע אלינו ומחכה לליפט",
   in_progress: "בעבודה אצלנו עכשיו",
-  waiting_quote: "המכונאי סיים לבדוק, והצעת מחיר תישלח אליו בוואטסאפ בקרוב",
-  waiting_approval: "מחכה לאישור שלו: נשלח אליו בוואטסאפ קישור עם מה שמצאנו והמחיר, ושם מאשרים או דוחים",
+  waiting_quote: "המכונאי סיים לבדוק, והצעת מחיר תישלח בוואטסאפ בקרוב",
+  waiting_approval: "מחכה לאישור: נשלח בוואטסאפ קישור עם מה שמצאנו והמחיר, ושם מאשרים או דוחים",
   ready: "מוכן לאיסוף. אפשר לאסוף א׳–ה׳ עד 17:00, ו׳ עד 12:00",
-  delivered: "נמסר לו",
+  delivered: "נמסר",
+}
+
+/** איך קוראים לרכב, תמיד באותו ניסוח: "מיצובישי אאוטלנדר (מספר רישוי שמסתיים ב-311)". */
+export function carLabel(c: Pick<CustomerCar, "car" | "plate_tail">): string {
+  const tail = c.plate_tail ? `מספר רישוי שמסתיים ב-${c.plate_tail}` : ""
+  if (c.car && tail) return `${c.car} (${tail})`
+  return c.car || (tail ? `הרכב (${tail})` : "הרכב")
+}
+
+/**
+ * השם הפרטי של השולח, מהתור או מהכרטיס הראשון שיש בו שם.
+ * השם הוקלד על ידי הלקוח בטופס, והוא נכנס להנחיות של Gemini — ולכן רק אותיות
+ * (כל שפה), מקף וגרש, עד 20 תווים. "התעלם מההוראות" לא עובר את הסינון הזה.
+ */
+export function firstName(cars: CustomerCar[]): string | null {
+  const raw = cars.find((c) => c.name)?.name ?? ""
+  const clean = raw.normalize("NFC").replace(/[^\p{L}\p{M}'\-]/gu, "").slice(0, 20)
+  return clean.length >= 2 ? clean : null
 }
 
 /**
@@ -64,10 +84,10 @@ const JOB_STATE: Record<string, string> = {
 export function describeCars(cars: CustomerCar[]): string {
   return cars
     .map((c) => {
-      const car = [c.car, c.plate_tail && `לוחית שמסתיימת ב-${c.plate_tail}`].filter(Boolean).join(", ") || "הרכב"
+      const car = carLabel(c)
       if (c.kind === "booking") {
         const at = c.drop_off_at ? when.format(new Date(c.drop_off_at)) : "מועד לא ידוע"
-        return `- ${car}: יש לו תור למסירת הרכב ב${at}. התור נקלט במערכת. יום לפני הוא יקבל תזכורת בוואטסאפ.`
+        return `- ${car}: יש תור לטיפול ברכב, מסירה ב${at}. התור נקלט במערכת. יום לפני תישלח תזכורת בוואטסאפ.`
       }
       const state = JOB_STATE[c.status] ?? "אצלנו במוסך"
       const eta = c.eta && c.status !== "ready" && c.status !== "delivered" ? ` זמן מוכן משוער: ${c.eta}.` : ""

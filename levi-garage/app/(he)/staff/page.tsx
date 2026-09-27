@@ -121,7 +121,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
       {toSend.length > 0 && (
         <section className="board-group hot" aria-labelledby="g-tosend">
           <h2 id="g-tosend">מחכים שנשלח ללקוח</h2>
-          <p className="board-why">המכונאי סיים. עד שלא נשלח מחיר, הרכב תקוע והתא תפוס בגללנו.</p>
+          <p className="board-why">המכונאי סיים. עד שלא נשלח מחיר, הרכב תקוע והליפט תפוס בגללנו.</p>
           <ul className="board-rows">
             {toSend.map((c) => (
               <li key={c.id}>
