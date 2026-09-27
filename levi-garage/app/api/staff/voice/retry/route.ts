@@ -47,13 +47,24 @@ export async function POST(req: Request) {
   }
 
   try {
+    // התמונה שצולמה יחד עם ההקלטה (אותה לכידה, בלי ממצא) עוברת גם היא.
+    const { data: siblings } = await supabase
+      .from("media")
+      .select("storage_path, kind, mime, created_at")
+      .eq("job_card_id", media.job_card_id)
+      .is("finding_id", null)
+      .eq("kind", "photo")
+      .like("storage_path", `${media.storage_path.replace(/\.[a-z0-9]+$/, "")}%`)
+    const photoPath = siblings?.[0]?.storage_path
+    const photoFile = photoPath ? await supabase.storage.from("job-media").download(photoPath) : null
+
     const { finding_id, report } = await createFindingFromAudio({
       supabase,
       job,
-      bytes: Buffer.from(await file.data.arrayBuffer()),
-      mime: media.mime || "audio/webm",
+      audio: { bytes: Buffer.from(await file.data.arrayBuffer()), mime: media.mime || "audio/webm" },
+      photo: photoFile?.data ? { bytes: Buffer.from(await photoFile.data.arrayBuffer()), mime: siblings?.[0]?.mime || "image/jpeg" } : null,
       staffId: staff.id,
-      storagePath: media.storage_path,
+      mediaPaths: [media.storage_path, ...(photoPath ? [photoPath] : [])],
     })
     return NextResponse.json({ ok: true, finding_id, summary: report.summary, red_list: report.red_list })
   } catch (e) {

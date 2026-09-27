@@ -158,7 +158,20 @@ try {
       await service(`/rest/v1/findings`, {
         method: "POST",
         headers: { prefer: "return=representation" },
-        body: JSON.stringify({ job_card_id: jobId, source: "manual", summary: "בדיקה", customer_text: "צריך להחליף רפידות", status: "draft" }),
+        body: JSON.stringify({
+          job_card_id: jobId,
+          source: "manual",
+          summary: "בדיקה",
+          customer_text: "צריך להחליף רפידות",
+          status: "draft",
+          // הצעה שלמה לפי החוק (014): שני סוגים, שעות, אחריות, וההבדל.
+          price_original: 780,
+          price_aftermarket: 520,
+          labor_hours: 1,
+          warranty_original: "12 חודשים",
+          warranty_aftermarket: "6 חודשים",
+          part_diff: "מקורי מול חלופי בתקן אירופי",
+        }),
       })
     ).json()
     return row
@@ -210,7 +223,9 @@ try {
   r = await rpc("claim_quote_notice", { p_finding_id: xf.id }, manager)
   ok("קישור שפג תוקפו: לא נשלח", r.body === null)
 
-  const y = await job({ status: "in_progress", whatsapp_consent: false, customer_phone: PHONE })
+  // הלקוח הסכים לעדכונים באמצעי אלקטרוני (ס' 132(ב)), אבל לא לוואטסאפ: ההצעה
+  // מותרת, והקישור לא יוצא בוואטסאפ.
+  const y = await job({ status: "in_progress", whatsapp_consent: false, updates_consent_at: new Date().toISOString(), customer_phone: PHONE })
   const yf = await finding(y.id)
   await rpc("send_finding", { p_finding_id: yf.id, p_message: "בדיקה", p_channel: "link" }, manager)
   r = await rpc("claim_quote_notice", { p_finding_id: yf.id }, manager)

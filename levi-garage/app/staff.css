@@ -798,3 +798,154 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .board-remind { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; }
 .board-remind .board-why { margin: 0; }
 .board-remind .btn { min-height: 40px; padding-inline: 14px; font-size: 14px; }
+
+/* ---------- הלכידה של המכונאי (27.9): כפתור אחד, תמונה ודיבור ---------- */
+.capture { margin-top: 18px; }
+.capture.small { margin-top: 10px; }
+.capture-btn {
+  width: 100%; min-height: 84px; border: 0; border-radius: 999px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  background: var(--amber); color: var(--amber-ink);
+  font: 800 21px/1.2 var(--font-body), sans-serif; padding-inline: 20px; text-align: center;
+  transition: background-color 160ms ease-out, transform 160ms var(--ease-out);
+  touch-action: manipulation;
+}
+.capture.small .capture-btn { min-height: 60px; font-size: 17px; }
+.capture-btn:active { transform: scale(0.985); }
+.capture-btn[disabled] { opacity: .7; cursor: default; }
+.capture-btn.recording { background: #c0392b; color: #fff; }
+.capture-dot { width: 14px; height: 14px; border-radius: 50%; background: currentColor; opacity: .85; flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .capture-btn.recording .capture-dot { animation: voice-pulse 1.1s ease-in-out infinite; }
+}
+.capture-alt {
+  display: block; margin: 10px auto 0; background: none; border: 0; cursor: pointer;
+  color: var(--muted); font: 600 15px/1 var(--font-body), sans-serif; padding: 12px; min-height: 44px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.capture-msg { margin-top: 10px; font-size: 15.5px; line-height: 1.6; }
+.capture-msg.error { color: #c0392b; font-weight: 600; }
+.capture-msg.done { color: var(--muted); }
+
+.lift-calls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.lift-calls form { display: contents; }
+.btn.big { min-height: 60px; font-size: 16px; width: 100%; }
+@media (max-width: 520px) { .lift-calls { grid-template-columns: 1fr; } }
+
+/* מה מותר לבצע: תקנה 8, גדול וברור ליד הרכב */
+.gate { margin-top: 16px; padding: 14px 16px; border-radius: var(--radius); background: var(--bg); }
+.gate h3 { font-size: 15px; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+.gate ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; font-size: 16px; line-height: 1.5; }
+.gate-ok li { color: var(--ink); }
+.gate-wait li { color: #8a5a00; font-weight: 600; }
+.gate-no li { color: #b3261e; font-weight: 700; }
+
+/* ---------- בדיקת הכניסה ---------- */
+.inspect-list { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 12px; }
+.inspect-item {
+  background: var(--surface); border-radius: calc(var(--radius) + 2px); box-shadow: var(--shadow);
+  padding: 16px; border-inline-start: 8px solid var(--line);
+}
+.inspect-item.green { border-inline-start-color: #3fa66a; }
+.inspect-item.yellow { border-inline-start-color: var(--amber); }
+.inspect-item.red { border-inline-start-color: #b3261e; }
+.inspect-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.inspect-head b { font-size: 18px; }
+.inspect-head .staff-meta { flex-basis: 100%; }
+.inspect-safety { font-size: 12.5px; font-weight: 700; color: #b3261e; border: 1px solid currentColor; border-radius: 999px; padding: 1px 8px; }
+.inspect-lights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.inspect-lights form { display: contents; }
+.light-btn {
+  min-height: 56px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); cursor: pointer;
+  font: 700 16px/1 var(--font-body), sans-serif; color: var(--ink); touch-action: manipulation;
+}
+.light-btn.green.on { background: #3fa66a; border-color: #3fa66a; color: #fff; }
+.light-btn.yellow.on { background: var(--amber); border-color: var(--amber); color: var(--amber-ink); }
+.light-btn.red.on { background: #b3261e; border-color: #b3261e; color: #fff; }
+.inspect-done { margin-top: 10px; color: var(--muted); font-size: 15px; }
+.inspect-finish { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.inspect-finish .btn { min-height: 60px; }
+
+.light-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-inline-end: 7px; vertical-align: 1px; background: var(--line); }
+.light-dot.green { background: #3fa66a; }
+.light-dot.yellow { background: var(--amber); }
+.light-dot.red { background: #b3261e; }
+.inspect-summary { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 15px; }
+
+/* ---------- קבלת רכב ---------- */
+.arrive-form { margin-top: 22px; display: grid; gap: 8px; max-width: 620px; }
+.arrive-form > label { font-weight: 700; font-size: 15px; margin-top: 10px; }
+.arrive-form input:not([type="checkbox"]):not([type="radio"]), .draft-grid input, .job-draft select { width: 100%; min-height: 48px; }
+.arrive-offer { background: var(--bg); border-radius: var(--radius); padding: 14px 16px; margin-top: 4px; }
+.arrive-offer fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.arrive-offer legend { font-weight: 700; margin-bottom: 8px; }
+.arrive-offer label {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center;
+  padding: 10px 12px; border-radius: 10px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer;
+}
+.arrive-offer label.picked { box-shadow: inset 0 0 0 2.5px var(--forest); }
+.arrive-offer label small { grid-column: 2 / -1; color: var(--muted); }
+.arrive-offer input[type="radio"] { width: 20px; height: 20px; accent-color: var(--forest); }
+.arrive-diff { margin-top: 10px; line-height: 1.6; }
+.arrive-single { font-size: 16px; }
+.arrive-check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; line-height: 1.5; margin-top: 12px; cursor: pointer; }
+.arrive-check input { width: 22px; height: 22px; flex: none; accent-color: var(--forest); margin-top: 1px; }
+.arrive-form .btn { margin-top: 14px; min-height: 56px; }
+
+/* ---------- התמחור של דניאל ---------- */
+.draft-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.draft-grid label, .job-draft > label { display: grid; gap: 4px; font-size: 14.5px; font-weight: 600; }
+.draft-grid input[disabled] { opacity: .5; }
+.draft-check { display: flex !important; gap: 10px; align-items: center; font-weight: 500 !important; }
+.draft-check input { width: 20px; height: 20px; accent-color: var(--forest); }
+@media (max-width: 560px) { .draft-grid { grid-template-columns: 1fr; } }
+.job-finding.urgency-red { box-shadow: inset 4px 0 0 #b3261e; }
+.job-finding { scroll-margin-top: 90px; }
+
+.quote-lines, .quote-versions { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 15px; }
+.quote-versions { color: var(--muted); font-size: 14px; }
+.quote-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.quote-actions .btn { min-height: 44px; }
+
+/* ---------- לוח היום: קריאות ותור ---------- */
+.board-actions { display: flex; gap: 8px; }
+.board-rows li.urgency-red { box-shadow: inset 4px 0 0 #b3261e; padding-inline-start: 10px; }
+
+/* ---------- דף הלקוח ---------- */
+.approve-title { font-size: 20px; margin-top: 14px; }
+.approve-safety {
+  margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-weight: 600;
+  background: color-mix(in srgb, #b3261e 10%, var(--surface)); color: #8e1f18;
+}
+.approve-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 16px; }
+.approve-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; }
+.approve-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 14px 0 0; font-size: 15.5px; }
+.approve-facts dt { color: var(--muted); }
+.approve-facts dd { margin: 0; font-weight: 700; }
+.approve-diff { margin-top: 12px; line-height: 1.6; color: var(--muted); }
+.approve-choice label span small { display: block; color: var(--muted); font-weight: 500; font-size: 13.5px; margin-top: 2px; }
+
+/* ---------- הצעת מחיר להדפסה ---------- */
+.print-quote { max-width: 780px; margin: 0 auto; padding: 28px 24px 60px; background: #fff; color: #111; }
+.pq-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 24px; }
+.pq-head { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 12px; }
+.pq-head > div { display: grid; gap: 4px; }
+.pq-head h1 { font-size: 26px; }
+.pq-garage { font-size: 20px; }
+.pq-car { margin: 16px 0; font-size: 15.5px; }
+.pq-item { border: 1px solid #cfd4cf; border-radius: 8px; padding: 12px 14px; margin-top: 12px; break-inside: avoid; }
+.pq-item h3 { font-size: 17px; }
+.pq-status { color: #444; font-size: 14px; margin-top: 2px; }
+.pq-item table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+.pq-item th, .pq-item td { text-align: start; padding: 5px 6px; border-bottom: 1px solid #e3e6e2; }
+.pq-item p { font-size: 14px; margin-top: 4px; }
+.pq-total { margin-top: 18px; font-size: 17px; }
+.pq-foot { margin-top: 26px; font-size: 13px; color: #333; line-height: 1.6; }
+.pq-sign { display: flex; justify-content: space-between; gap: 16px; margin-top: 26px; font-size: 14px; }
+.pq-demo { color: #777; margin-top: 16px; }
+@media print {
+  .no-print, .staff-nav, .skip { display: none !important; }
+  .print-quote { padding: 0; }
+  body { background: #fff !important; }
+}
+.arrive-form .staff-meta, .job-draft .staff-meta { grid-column: auto; }

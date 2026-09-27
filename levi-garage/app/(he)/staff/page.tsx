@@ -6,7 +6,7 @@ import { requireStaff } from "@/lib/staff/session"
 import { elapsed, fmtStamp, fmtTime } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
 import { Since } from "@/components/staff/since"
-import { openJobCard, sendRemindersNow, setJobStatus } from "./actions"
+import { markSafetyReported, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
 
 export const metadata: Metadata = { title: "לוח היום | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -16,6 +16,11 @@ export const metadata: Metadata = { title: "לוח היום | מוסך לוי ו
 
 function Plate({ value }: { value: string }) {
   return <span className="plate-chip num" dir="ltr">{value}</span>
+}
+
+// צירוף ב-Supabase חוזר כאובייקט או כמערך, לפי איך שהקשר מוגדר. זה מיישר.
+function one<T>(v: T | T[] | null | undefined): T | null {
+  return Array.isArray(v) ? (v[0] ?? null) : (v ?? null)
 }
 
 function carName(c: { vehicle_make: string | null; vehicle_model: string | null; vehicle_year?: number | null }) {
@@ -45,7 +50,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
   const twoWeeks = new Date(today.getTime() + 15 * 24 * 60 * 60 * 1000)
 
-  const [{ data: cards }, { data: booked }, { data: later }] = await Promise.all([
+  const [{ data: cards }, { data: booked }, { data: later }, { data: drafts }, { data: calls }, { data: safety }] = await Promise.all([
     supabase
       .from("job_cards")
       .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name")
@@ -68,6 +73,26 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
       .in("status", ["booked", "rescheduled"])
       .order("drop_off_at", { ascending: true })
       .limit(40),
+    // הממצאים שמחכים לדניאל. זה התור שהמחקר מצא שהוא צוואר הבקבוק האמיתי:
+    // שישה מכונאים מול מנהל עבודה אחד. אדום קודם, ובתוך צבע — הוותיק קודם.
+    supabase
+      .from("findings")
+      .select("id, title, summary, urgency, safety, red_list, source, created_at, job_cards!inner(id, plate, vehicle_make, vehicle_model, lift)")
+      .eq("status", "draft")
+      .order("created_at", { ascending: true }),
+    // "בוא לעמדה" ו"סיימתי" שעוד לא טופלו.
+    supabase
+      .from("help_calls")
+      .select("id, kind, lift, created_at, job_card_id, job_cards(plate, vehicle_make, vehicle_model), staff:requested_by(full_name)")
+      .is("resolved_at", null)
+      .order("created_at", { ascending: true }),
+    // ליקוי בטיחותי שהלקוח דחה ועוד לא דווח (תקנה 6: תוך יום עבודה מהמסירה).
+    supabase
+      .from("findings")
+      .select("id, title, summary, job_cards!inner(id, plate, status, delivered_at, customer_name)")
+      .eq("status", "declined")
+      .eq("safety", true)
+      .is("safety_reported_at", null),
   ])
 
   const all = cards ?? []
@@ -88,6 +113,9 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
   const reminderTag = (id: number) =>
     reminderOf.get(id) === "sent" ? " · ✓ נשלחה תזכורת" : reminderOf.get(id) === "skipped" ? " · בלי תזכורת (לא כתב לנו)" : ""
   const canRemind = staff.role === "owner" || staff.role === "manager"
+  const queue = [...(drafts ?? [])].sort(
+    (a, b) => Number(b.urgency === "red") - Number(a.urgency === "red") || a.created_at.localeCompare(b.created_at),
+  )
 
   return (
     <main className="staff-wrap">
@@ -99,6 +127,102 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
           כל רכב שנמצא אצלנו עכשיו, ומה הצעד הבא בכל אחד. איפה כל אחד עומד פיזית, ב<Link href="/staff/floor">מפת המוסך</Link>.
         </p>
       </header>
+
+      {(calls ?? []).length > 0 && (
+        <section className="board-group hot calls" aria-labelledby="g-calls">
+          <h2 id="g-calls">קוראים לך</h2>
+          <ul className="board-rows">
+            {(calls ?? []).map((c) => {
+              const job = one(c.job_cards)
+              const who = one(c.staff)
+              return (
+                <li key={c.id}>
+                  {job && <Plate value={job.plate} />}
+                  <div>
+                    <b>
+                      {c.kind === "done" ? "סיים את העבודה" : "צריך אותך בעמדה"}
+                      {c.lift ? ` · ליפט ${c.lift}` : " · עמדת האבחון"}
+                    </b>
+                    <span className="staff-meta">
+                      {who?.full_name ?? "מכונאי"} · לפני <Since iso={c.created_at} initial={elapsed(c.created_at)} />
+                      {c.kind === "done" ? " · לבדוק ולסמן מוכן בכרטיס" : ""}
+                    </span>
+                  </div>
+                  <div className="board-actions">
+                    <Link className="btn quiet" href={`/staff/job/${c.job_card_id}`}>הכרטיס</Link>
+                    {canRemind && (
+                      <form action={resolveCall}>
+                        <input type="hidden" name="call_id" value={c.id} />
+                        <button className="btn" type="submit">{c.kind === "done" ? "טופל" : "הגעתי"}</button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+
+      {queue.length > 0 && (
+        <section className="board-group hot" aria-labelledby="g-queue">
+          <h2 id="g-queue">ממצאים שמחכים לך</h2>
+          <p className="board-why">בוחרים עבודה מהמחירון, והמחיר, השעות והאחריות מתמלאים. אדום קודם.</p>
+          <ul className="board-rows">
+            {queue.map((f) => {
+              const job = one(f.job_cards)!
+              return (
+                <li key={f.id} className={`urgency-${f.urgency ?? "yellow"}`}>
+                  <Plate value={job.plate} />
+                  <div>
+                    <b>
+                      <span className={`light-dot ${f.urgency === "red" ? "red" : "yellow"}`} aria-hidden />
+                      {f.title || f.summary || "ממצא"}
+                      {f.safety ? " · בטיחות" : ""}
+                      {f.red_list ? " · רשימה אדומה" : ""}
+                    </b>
+                    <span className="staff-meta">
+                      {carName(job)} · {f.source === "intake" ? "בדיקת כניסה" : job.lift ? `ליפט ${job.lift}` : "בלי ליפט"} · מחכה{" "}
+                      <Since iso={f.created_at} initial={elapsed(f.created_at)} />
+                    </span>
+                  </div>
+                  <Link className="btn" href={`/staff/job/${job.id}#f-${f.id}`}>לתמחר ולשלוח</Link>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+
+      {(safety ?? []).length > 0 && (
+        <section className="board-group hot" aria-labelledby="g-safety">
+          <h2 id="g-safety">ליקוי בטיחותי שלא תוקן: לדווח</h2>
+          <p className="board-why">הלקוח דחה תיקון בטיחותי. לפי תקנה 6 מדווחים לרשות הרישוי עד יום עבודה אחרי מסירת הרכב.</p>
+          <ul className="board-rows">
+            {(safety ?? []).map((f) => {
+              const job = one(f.job_cards)!
+              return (
+                <li key={f.id}>
+                  <Plate value={job.plate} />
+                  <div>
+                    <b>{f.title || f.summary || "ליקוי בטיחותי"}</b>
+                    <span className="staff-meta">
+                      {job.customer_name || "ללא שם"} ·{" "}
+                      {job.delivered_at ? `נמסר ${fmtStamp(job.delivered_at)} · לדווח עד יום העבודה הבא` : "הרכב עוד אצלנו"}
+                    </span>
+                  </div>
+                  {canRemind && (
+                    <form action={markSafetyReported}>
+                      <input type="hidden" name="finding_id" value={f.id} />
+                      <button className="btn quiet" type="submit">דווח</button>
+                    </form>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       <div className="board-counts" aria-label="סיכום">
         <span className={toSend.length ? "hot" : ""}>
@@ -219,7 +343,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
           <p className="staff-empty">כל מי שהיה אמור להגיע היום, הגיע.</p>
         ) : (
           <>
-            <p className="board-why">כשהרכב מגיע בפועל, בוחרים ליפט ולוחצים. הכרטיס נפתח מעצמו, בלי להקליד כלום.</p>
+            <p className="board-why">כשהרכב מגיע: "קבלת רכב". בוחרים את השירות מהמחירון, והצעת המחיר הראשונה יוצאת ללקוח במייל. משם הרכב הולך לבדיקת כניסה.</p>
             <ul className="board-rows arriving">
               {arriving.map((b) => (
                 <li key={b.id}>
@@ -232,17 +356,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
                       {reminderTag(b.id)}
                     </span>
                   </div>
-                  <form action={openJobCard} className="board-arrive">
-                    <label className="sr-only" htmlFor={`lift-${b.id}`}>ליפט</label>
-                    <select id={`lift-${b.id}`} name="lift" defaultValue={staff.lift ?? ""}>
-                      <option value="">בלי ליפט</option>
-                      {[1, 2, 3, 4].map((n) => (
-                        <option key={n} value={n}>ליפט {n}</option>
-                      ))}
-                    </select>
-                    <input type="hidden" name="booking_id" value={b.id} />
-                    <button className="btn" type="submit">הגיע</button>
-                  </form>
+                  <Link className="btn" href={`/staff/arrive/${b.id}`}>קבלת רכב</Link>
                 </li>
               ))}
             </ul>
@@ -273,17 +387,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
                     {reminderTag(b.id)}
                   </span>
                 </div>
-                <form action={openJobCard} className="board-arrive">
-                  <label className="sr-only" htmlFor={`lift-${b.id}`}>ליפט</label>
-                  <select id={`lift-${b.id}`} name="lift" defaultValue={staff.lift ?? ""}>
-                    <option value="">בלי ליפט</option>
-                    {[1, 2, 3, 4].map((n) => (
-                      <option key={n} value={n}>ליפט {n}</option>
-                    ))}
-                  </select>
-                  <input type="hidden" name="booking_id" value={b.id} />
-                  <button className="btn quiet" type="submit">הגיע מוקדם</button>
-                </form>
+                <Link className="btn quiet" href={`/staff/arrive/${b.id}`}>הגיע מוקדם</Link>
               </li>
             ))}
           </ul>

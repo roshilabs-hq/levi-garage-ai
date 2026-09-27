@@ -67,6 +67,8 @@ const jobRes = await service(`/rest/v1/job_cards`, {
     customer_phone: "0500000000",
     lift: 2,
     status: "in_progress",
+    whatsapp_consent: true,
+    updates_consent_at: new Date().toISOString(),
     notes: "רשומת בדיקה אוטומטית",
   }),
 })
@@ -83,6 +85,11 @@ const findRes = await service(`/rest/v1/findings`, {
     customer_text: "מצאנו נזילה ממשאבת המים. מקורי 800 ש\"ח, חלופי 500 ש\"ח. אם מאשרים עכשיו, הרכב מוכן היום ב-15:00.",
     price_original: 800,
     price_aftermarket: 500,
+    // מה שהחוק דורש בהצעה (ס' 131–132, נאכף ב-014): שעות, אחריות לכל סוג, וההבדל.
+    labor_hours: 3,
+    warranty_original: "12 חודשים",
+    warranty_aftermarket: "6 חודשים",
+    part_diff: "מקורי: של יצרן הרכב. חלופי: יצרן מוכר באותו מפרט.",
     eta: "היום ב-15:00",
     model: "gemini-2.5-pro",
   }),

@@ -30,6 +30,7 @@ type Card = {
   lift: number | null
   lift_since: string | null
   status_since: string
+  inspected_at: string | null
 }
 
 const carName = (c: { vehicle_make: string | null; vehicle_model: string | null }) =>
@@ -46,7 +47,7 @@ function Cube({ card }: { card: Card }) {
       <span className="cube-clock">
         {label} <Since iso={iso} initial={elapsed(iso)} />
       </span>
-      <small>{card.lift ? `ליפט ${card.lift}` : card.status === "ready" ? "בחצר, מחכה ללקוח" : "מחכה לליפט"}</small>
+      <small>{card.lift ? `ליפט ${card.lift}` : card.status === "ready" ? "בחצר, מחכה ללקוח" : card.inspected_at ? "מחכה לליפט" : "בבדיקת כניסה"}</small>
     </li>
   )
 }
@@ -90,7 +91,7 @@ export default async function WallPage() {
   const [{ data: cards }, { data: booked }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, status, lift, lift_since, status_since")
+      .select("id, plate, vehicle_make, vehicle_model, status, lift, lift_since, status_since, inspected_at")
       .not("status", "in", "(delivered,cancelled)")
       .order("status_since", { ascending: true }),
     supabase

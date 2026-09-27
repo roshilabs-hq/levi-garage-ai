@@ -4,9 +4,12 @@ import { notFound } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
-import { resendQuoteNotice, resendReadyNotice, setJobStatus } from "../../actions"
+import { reissueQuote, resendQuoteNotice, resendReadyNotice, setJobStatus } from "../../actions"
 import { noticeLabel } from "@/lib/staff/notify"
 import { DraftForm } from "@/components/staff/draft-form"
+import type { PriceItem } from "@/components/staff/arrive-form"
+import { INSPECTION_ITEMS, type InspectionState } from "@/lib/staff/inspection"
+import { money } from "@/lib/staff/quote"
 import { RetryButton } from "@/components/staff/retry-button"
 import { fmtStamp } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
@@ -51,9 +54,22 @@ function QuoteNoticeLine({
   )
 }
 
-export default async function JobCardPage({ params }: { params: Promise<{ id: string }> }) {
+const QUOTE_NOTE: Record<string, string> = {
+  sent: "הצעת המחיר נשלחה ללקוח במייל.",
+  noemail: "שליחת מייל עוד לא מחוברת. להדפיס את ההצעה ולתת ללקוח ביד.",
+  failed: "המייל עם הצעת המחיר לא נשלח. אפשר לשלוח שוב, או להדפיס.",
+}
+
+export default async function JobCardPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ quote?: string }>
+}) {
   const staff = await requireStaff()
   const { id } = await params
+  const { quote } = await searchParams
   const jobId = Number(id)
   if (!Number.isFinite(jobId)) notFound()
 
@@ -71,6 +87,20 @@ export default async function JobCardPage({ params }: { params: Promise<{ id: st
     .select("*, approvals(token, decision, decided_at, part_choice, price_chosen, message_text)")
     .eq("job_card_id", jobId)
     .order("created_at", { ascending: false })
+
+  const [{ data: lines }, { data: versions }, { data: priceItems }, { data: inspection }] = await Promise.all([
+    supabase.from("quote_items").select("title, part_choice, price_original, price_aftermarket, labor_hours").eq("job_card_id", jobId),
+    supabase.from("quote_versions").select("version, reason, channel, status, error, sent_at, created_at").eq("job_card_id", jobId).order("version", { ascending: false }),
+    supabase.from("price_list").select("*").eq("active", true).order("sort", { ascending: true }),
+    supabase.from("inspections").select("items, completed_at").eq("job_card_id", jobId).maybeSingle(),
+  ])
+  const insItems = (inspection?.items as InspectionState) ?? {}
+  // ממצא מבדיקת הכניסה יודע מאיזה פריט הוא בא, והפריט יודע איזו עבודה כנראה תידרש.
+  const suggestFor = new Map<number, string>()
+  for (const item of INSPECTION_ITEMS) {
+    const fid = insItems[item.key]?.finding_id
+    if (fid && item.suggest) suggestFor.set(fid, item.suggest)
+  }
 
   const { data: media } = await supabase
     .from("media")
@@ -153,6 +183,66 @@ export default async function JobCardPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {quote && QUOTE_NOTE[quote] && (
+        <p className={`staff-note ${quote === "sent" ? "notice-sent" : "notice-failed"}`} role="status">
+          {QUOTE_NOTE[quote]}
+        </p>
+      )}
+
+      <section className="staff-section" aria-labelledby="quote-title">
+        <h2 id="quote-title">הצעת המחיר</h2>
+        {(lines ?? []).length === 0 ? (
+          <p className="staff-empty">לרכב הזה אין הצעה מהקבלה (נפתח לפני שהקבלה עברה לדלפק).</p>
+        ) : (
+          <ul className="quote-lines">
+            {(lines ?? []).map((l, i) => (
+              <li key={i}>
+                <b>{l.title}</b> · {l.part_choice === "aftermarket" ? "חלק חלופי" : "חלק מקורי"} ·{" "}
+                {money(l.part_choice === "aftermarket" ? l.price_aftermarket : l.price_original)} · {Number(l.labor_hours)} שע׳
+              </li>
+            ))}
+          </ul>
+        )}
+        {(versions ?? []).length > 0 && (
+          <ul className="quote-versions">
+            {(versions ?? []).map((v) => (
+              <li key={v.version}>
+                גרסה {v.version} · {v.reason === "intake" ? "בקבלה" : "עדכון"} · {v.channel === "email" ? "מייל" : "מודפסת"} ·{" "}
+                {v.status === "sent" ? `יצאה ${fmtStamp(v.sent_at)}` : v.status === "failed" ? "לא יצאה" : "ממתינה"}
+              </li>
+            ))}
+          </ul>
+        )}
+        {canSend && (lines ?? []).length > 0 && (
+          <div className="quote-actions">
+            <form action={reissueQuote}>
+              <input type="hidden" name="job_id" value={job.id} />
+              <input type="hidden" name="channel" value="email" />
+              <button className="btn quiet" type="submit" disabled={!job.customer_email}>
+                {job.customer_email ? "לשלוח את ההצעה המעודכנת במייל" : "אין מייל ללקוח"}
+              </button>
+            </form>
+            <Link className="btn quiet" href={`/staff/job/${job.id}/quote`}>להדפסה</Link>
+          </div>
+        )}
+      </section>
+
+      {inspection && (
+        <section className="staff-section" aria-labelledby="ins-title">
+          <h2 id="ins-title">בדיקת כניסה {inspection.completed_at ? `· הסתיימה ${fmtStamp(inspection.completed_at)}` : "· בתהליך"}</h2>
+          <ul className="inspect-summary">
+            {INSPECTION_ITEMS.map((item) => {
+              const light = insItems[item.key]?.light
+              return (
+                <li key={item.key} className={light ?? "none"}>
+                  <span className={`light-dot ${light ?? "none"}`} aria-hidden /> {item.label}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
+
       <section className="staff-section" aria-labelledby="findings-title">
         <h2 id="findings-title">מה נמצא ברכב</h2>
 
@@ -165,9 +255,14 @@ export default async function JobCardPage({ params }: { params: Promise<{ id: st
             {(findings ?? []).map((f) => {
               const approval = Array.isArray(f.approvals) ? f.approvals[0] : f.approvals
               return (
-                <li key={f.id} className={`job-finding status-${f.status}`}>
+                <li key={f.id} id={`f-${f.id}`} className={`job-finding status-${f.status}${f.urgency ? ` urgency-${f.urgency}` : ""}`}>
                   <div className="job-finding-head">
-                    <b>{findingStatus[f.status] ?? f.status}</b>
+                    <b>
+                      {f.urgency && <span className={`light-dot ${f.urgency}`} aria-hidden />}
+                      {f.title ? `${f.title} · ` : ""}
+                      {findingStatus[f.status] ?? f.status}
+                      {f.safety ? " · בטיחות" : ""}
+                    </b>
                     <span className="staff-meta">{fmtStamp(f.created_at)}{f.model ? ` · ${f.model}` : ""}</span>
                     {f.red_list && <span className="job-red">רשימה אדומה: לעצור ולקרוא לאבי</span>}
                   </div>
@@ -181,14 +276,7 @@ export default async function JobCardPage({ params }: { params: Promise<{ id: st
 
                   {f.status === "draft" ? (
                     canSend ? (
-                      <DraftForm
-                        findingId={f.id}
-                        jobId={job.id}
-                        text={f.customer_text ?? ""}
-                        priceOriginal={f.price_original}
-                        priceAftermarket={f.price_aftermarket}
-                        eta={f.eta}
-                      />
+                      <DraftForm jobId={job.id} draft={f} items={(priceItems ?? []) as PriceItem[]} suggest={suggestFor.get(f.id)} />
                     ) : (
                       <p className="job-note">
                         הטיוטה מוכנה. <b>מנהל עבודה או הבעלים שולחים ללקוח</b>, לא מכונאי.

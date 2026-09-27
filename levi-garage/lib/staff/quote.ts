@@ -1,0 +1,170 @@
+// הצעת המחיר, כפי שהלקוח מקבל אותה: במייל, בדף מודפס בדלפק, ובגרסאות שנשמרות.
+//
+// מקור אחד לשלושתם (private.quote_snapshot במסד), כדי שמה שנשלח, מה שהודפס
+// ומה שנשמר יהיו אותו דבר. החוק (ס' 132(א)) דורש בהצעה: הפעולות, שעות העבודה
+// הצפויות, סוגי החלקים שהוצעו והסבר ההבדל, היקף האחריות, והתשלום.
+
+export type QuoteOption = {
+  title: string
+  labor_hours: number | null
+  price_original: number | null
+  price_aftermarket: number | null
+  warranty_original: string | null
+  warranty_aftermarket: string | null
+  part_diff: string | null
+  single_reason: string | null
+  part_choice: "original" | "aftermarket" | null
+  price: number | null
+}
+
+export type QuoteFinding = QuoteOption & {
+  id: number
+  text: string | null
+  status: "sent" | "approved" | "declined"
+  safety: boolean
+  decided_at: string | null
+}
+
+export type QuoteSnapshot = {
+  job: {
+    id: number
+    plate: string
+    vehicle: string | null
+    year: number | null
+    customer: string | null
+    odometer_km: number | null
+    opened_at: string
+  }
+  lines: QuoteOption[]
+  findings: QuoteFinding[]
+}
+
+// העסק בדוי, והפרטים בהתאם. לא ממציאים מספר רישיון מוסך.
+export const GARAGE = {
+  name: "מוסך לוי ובניו",
+  address: "אזור התעשייה, קריית ביאליק",
+  phone: "04-0000000",
+  manager: "דניאל לוי",
+  managerTitle: "מנהל מקצועי",
+}
+
+const TZ = "Asia/Jerusalem"
+const dateFmt = new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric", year: "numeric" })
+const stampFmt = new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })
+
+export const money = (n: number | null | undefined) =>
+  n === null || n === undefined ? "—" : `${Number(n).toLocaleString("he-IL")} ש"ח`
+
+export const hours = (n: number | null | undefined) =>
+  n === null || n === undefined ? "—" : `${Number(n).toLocaleString("he-IL")} שע׳`
+
+const partName = (c: "original" | "aftermarket" | null) => (c === "aftermarket" ? "חלק חלופי" : "חלק מקורי")
+
+/** מה שמשולם בפועל: שורות הקבלה + ממצאים שאושרו. ממצא שנדחה או ממתין לא נספר. */
+export function totals(s: QuoteSnapshot) {
+  const agreed = s.lines.reduce((sum, l) => sum + Number(l.price ?? 0), 0)
+  const approved = s.findings.filter((f) => f.status === "approved").reduce((sum, f) => sum + Number(f.price ?? 0), 0)
+  const pending = s.findings.filter((f) => f.status === "sent").length
+  return { agreed, approved, total: agreed + approved, pending }
+}
+
+const esc = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!)
+
+function optionRowsHtml(o: QuoteOption) {
+  const rows: string[] = []
+  if (o.price_aftermarket !== null && o.price_aftermarket !== undefined) {
+    rows.push(
+      `<tr><td>חלק מקורי</td><td>${money(o.price_original)}</td><td>${esc(o.warranty_original)}</td></tr>`,
+      `<tr><td>חלק חלופי</td><td>${money(o.price_aftermarket)}</td><td>${esc(o.warranty_aftermarket)}</td></tr>`,
+    )
+  } else {
+    rows.push(`<tr><td>מחיר</td><td>${money(o.price_original)}</td><td>${esc(o.warranty_original)}</td></tr>`)
+  }
+  return rows.join("")
+}
+
+function blockHtml(o: QuoteOption, status: string) {
+  return `
+  <div style="border:1px solid #d9ddd8;border-radius:10px;padding:14px 16px;margin:12px 0">
+    <div style="font-weight:700;font-size:16px">${esc(o.title)}</div>
+    <div style="color:#4f5b54;font-size:14px;margin-top:4px">${status}</div>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px" cellpadding="6">
+      <tr style="background:#f1f3f0"><th align="right">סוג</th><th align="right">מחיר כולל מע"מ</th><th align="right">אחריות</th></tr>
+      ${optionRowsHtml(o)}
+    </table>
+    <div style="font-size:14px;margin-top:8px">שעות עבודה צפויות: <b>${hours(o.labor_hours)}</b></div>
+    ${o.part_diff ? `<div style="font-size:14px;margin-top:6px;color:#4f5b54">ההבדל בין סוגי החלקים: ${esc(o.part_diff)}</div>` : ""}
+    ${o.single_reason ? `<div style="font-size:14px;margin-top:6px;color:#4f5b54">למה אין חלופה: ${esc(o.single_reason)}</div>` : ""}
+  </div>`
+}
+
+function findingStatus(f: QuoteFinding) {
+  if (f.status === "approved") return `אושר על ידך${f.decided_at ? ` ב-${stampFmt.format(new Date(f.decided_at))}` : ""}: ${partName(f.part_choice)}, ${money(f.price)}`
+  if (f.status === "declined") return `לא אושר על ידך${f.decided_at ? ` (${stampFmt.format(new Date(f.decided_at))})` : ""}. לא נבצע את העבודה הזו.`
+  return "ממתין לתשובה שלך בקישור ששלחנו בוואטסאפ"
+}
+
+export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" | "update") {
+  const t = totals(s)
+  const car = [s.job.vehicle, s.job.year].filter(Boolean).join(" ")
+  const subject =
+    reason === "intake"
+      ? `הצעת מחיר לרכב ${s.job.plate} | ${GARAGE.name}`
+      : `הצעת המחיר עודכנה (גרסה ${version}) לרכב ${s.job.plate} | ${GARAGE.name}`
+
+  const html = `<!doctype html><html lang="he" dir="rtl"><body style="margin:0;background:#f4f5f2">
+  <div style="max-width:640px;margin:0 auto;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#1b2620;direction:rtl;text-align:right">
+    <div style="font-size:20px;font-weight:700">${GARAGE.name}</div>
+    <div style="color:#4f5b54;font-size:13px">${GARAGE.address} · ${GARAGE.phone}</div>
+    <h1 style="font-size:22px;margin:22px 0 4px">${reason === "intake" ? "הצעת מחיר" : `הצעת מחיר מעודכנת · גרסה ${version}`}</h1>
+    <div style="color:#4f5b54;font-size:14px">מספר ${s.job.id}-${version} · ${dateFmt.format(new Date())}</div>
+    <p style="font-size:15px;margin:16px 0">
+      שלום${s.job.customer ? ` ${esc(s.job.customer.split(" ")[0])}` : ""},<br>
+      ${reason === "intake"
+        ? "זו הצעת המחיר לעבודה שסיכמנו בקבלת הרכב. בלי אישור שלך לא נבצע שום עבודה אחרת."
+        : "עדכנו את הצעת המחיר לפי התשובה שלך בקישור. זו הגרסה המלאה והעדכנית."}
+    </p>
+    <div style="background:#fff;border-radius:12px;padding:6px 16px 12px">
+      <div style="font-size:14px;margin-top:10px">רכב: <b>${esc(car || "—")}</b> · מספר רישוי <b dir="ltr">${esc(s.job.plate)}</b>${s.job.odometer_km ? ` · ${Number(s.job.odometer_km).toLocaleString("he-IL")} ק"מ בקבלה` : ""}</div>
+      ${s.lines.map((l) => blockHtml(l, `סוכם בקבלה: ${partName(l.part_choice)}, ${money(l.price)}`)).join("")}
+      ${s.findings.map((f) => blockHtml(f, findingStatus(f))).join("")}
+      <div style="font-size:16px;margin:14px 0 4px">סה"כ לתשלום לפי מה שסוכם ואושר: <b>${money(t.total)}</b> (כולל מע"מ)</div>
+      ${t.pending ? `<div style="font-size:14px;color:#8a5a00">${t.pending === 1 ? "פריט אחד ממתין" : `${t.pending} פריטים ממתינים`} לתשובה שלך, ולא נכללים בסכום.</div>` : ""}
+    </div>
+    <p style="font-size:13px;color:#4f5b54;margin-top:18px">
+      ההצעה ניתנת לפי חוק רישוי שירותים ומקצועות בענף הרכב, התשע"ו-2016: לכל חלק הוצע יותר מסוג אחד כשהדבר אפשרי,
+      עם הסבר על ההבדל, שעות העבודה הצפויות והאחריות. לא נבצע עבודה שלא מופיעה בהצעה הזו או בעדכון שאישרת.
+      <br>${GARAGE.manager}, ${GARAGE.managerTitle}.
+    </p>
+    <p style="font-size:12px;color:#8a938d">אתר הדגמה לפרויקט גמר. העסק, האנשים והמחירים בדויים.</p>
+  </div></body></html>`
+
+  const line = (o: QuoteOption, status: string) =>
+    [
+      `• ${o.title} — ${status}`,
+      o.price_aftermarket !== null && o.price_aftermarket !== undefined
+        ? `  מקורי ${money(o.price_original)} (אחריות: ${o.warranty_original}) · חלופי ${money(o.price_aftermarket)} (אחריות: ${o.warranty_aftermarket})`
+        : `  מחיר ${money(o.price_original)} (אחריות: ${o.warranty_original})`,
+      `  שעות עבודה צפויות: ${hours(o.labor_hours)}`,
+      o.part_diff ? `  ההבדל: ${o.part_diff}` : "",
+      o.single_reason ? `  למה אין חלופה: ${o.single_reason}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+
+  const text = [
+    `${GARAGE.name} · ${GARAGE.address} · ${GARAGE.phone}`,
+    reason === "intake" ? "הצעת מחיר" : `הצעת מחיר מעודכנת, גרסה ${version}`,
+    `רכב ${car} · ${s.job.plate}`,
+    "",
+    ...s.lines.map((l) => line(l, `סוכם בקבלה: ${partName(l.part_choice)}, ${money(l.price)}`)),
+    ...s.findings.map((f) => line(f, findingStatus(f))),
+    "",
+    `סה"כ לפי מה שסוכם ואושר: ${money(t.total)} כולל מע"מ`,
+    `${GARAGE.manager}, ${GARAGE.managerTitle}`,
+    "אתר הדגמה לפרויקט גמר. העסק, האנשים והמחירים בדויים.",
+  ].join("\n")
+
+  return { subject, html, text }
+}

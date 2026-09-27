@@ -8,7 +8,7 @@ import { TopBar } from "@/components/staff/top-bar"
 import { Since } from "@/components/staff/since"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { TOO_LONG, stageLabel, type Stage } from "@/lib/staff/stages"
-import { assignLift, openJobCard, setJobStatus } from "../actions"
+import { assignLift, setJobStatus } from "../actions"
 
 export const metadata: Metadata = { title: "מפת המוסך | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -37,6 +37,7 @@ type Card = {
   lift_since: string | null
   status_since: string
   customer_name: string | null
+  inspected_at: string | null
 }
 
 function carName(c: { vehicle_make: string | null; vehicle_model: string | null; vehicle_year?: number | null }) {
@@ -87,7 +88,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
     supabase
       .from("job_cards")
       .select(
-        "id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name",
+        "id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, inspected_at",
       )
       .not("status", "in", "(delivered,cancelled)")
       .order("opened_at", { ascending: true }),
@@ -199,13 +200,12 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                       {fmtTime(b.drop_off_at)} · {b.service || "ללא שירות"}
                       {b.vehicle_make ? ` · ${carName(b)}` : ""}
                     </span>
-                    <form action={openJobCard} className="chain-do">
-                      <input type="hidden" name="booking_id" value={b.id} />
-                      <LiftPicker free={[...free]} name="lift" />
-                      <button className="btn" type="submit">
-                        התקבל
-                      </button>
-                    </form>
+                    {/* קבלה = הצעת מחיר ראשונה ובדיקת כניסה, לא ליפט. ראו /staff/arrive. */}
+                    <div className="chain-do">
+                      <Link className="btn" href={`/staff/arrive/${b.id}`}>
+                        קבלת רכב
+                      </Link>
+                    </div>
                   </li>
                 )
               })}
@@ -244,14 +244,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                       className={minutesSince(c.lift_since ?? c.status_since) > TOO_LONG.lift ? "hot" : ""}
                     />
                   </p>
-                  <div className="chain-do two">
-                    <form action={setJobStatus}>
-                      <input type="hidden" name="job_id" value={c.id} />
-                      <input type="hidden" name="status" value="waiting_quote" />
-                      <button className="btn" type="submit">
-                        סיימתי, צריך אישור
-                      </button>
-                    </form>
+                  <div className="chain-do">
                     <form action={setJobStatus}>
                       <input type="hidden" name="job_id" value={c.id} />
                       <input type="hidden" name="status" value="ready" />
@@ -270,7 +263,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                 <li key={c.id} className="chain-card pale">
                   <div className="chain-card-top">
                     <Plate value={c.plate} />
-                    <span className="chain-tag wait">ממתין לליפט</span>
+                    <span className="chain-tag wait">{c.inspected_at ? "ממתין לליפט" : "בבדיקת כניסה"}</span>
                   </div>
                   <b>{carName(c)}</b>
                   <span className="staff-meta">{c.customer_name || "ללא שם"}</span>
@@ -282,7 +275,9 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                       className={minutesSince(c.status_since) > TOO_LONG.noLift ? "hot" : ""}
                     />
                   </p>
-                  {free.length > 0 ? (
+                  {!c.inspected_at ? (
+                    <p className="chain-note">עובר בדיקת כניסה בעמדת האבחון. אחריה אפשר להעלות לליפט.</p>
+                  ) : free.length > 0 ? (
                     <form action={assignLift} className="chain-do">
                       <input type="hidden" name="job_id" value={c.id} />
                       <LiftPicker free={[...free]} name="lift" />

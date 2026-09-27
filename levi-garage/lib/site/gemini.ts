@@ -42,11 +42,13 @@ async function accessToken() {
   return cached
 }
 
-// חלק בתוכן: טקסט, או קובץ (אודיו מהמכונאי, ובהמשך גם תמונה).
-export type Part = { text: string } | { audio: { data: string; mime: string } }
+// חלק בתוכן: טקסט, או קובץ (אודיו מהמכונאי, ותמונה שצילם).
+export type Part = { text: string } | { audio: { data: string; mime: string } } | { image: { data: string; mime: string } }
 
 function toApiPart(p: Part) {
-  return "text" in p ? { text: p.text } : { inlineData: { mimeType: p.audio.mime, data: p.audio.data } }
+  if ("text" in p) return { text: p.text }
+  const file = "audio" in p ? p.audio : p.image
+  return { inlineData: { mimeType: file.mime, data: file.data } }
 }
 
 export async function generateJson<T>(opts: {

@@ -26,3 +26,7 @@ gcp-sa*.json
 /levi-garage/design/screenshots/
 /levi-garage/design/assets/**/*.png
 /levi-garage/.impeccable/review/
+
+# מחקרים מקומיים (deep-research)
+research_notes/
+reports/

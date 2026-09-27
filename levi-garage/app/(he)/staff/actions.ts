@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { getStaff, requireStaff, requireManager, screenPath } from "@/lib/staff/session"
 import { notifyQuote, notifyReady, sendDueReminders } from "@/lib/staff/notify"
+import { INSPECTION_ITEMS, progress, type InspectionState, type Light } from "@/lib/staff/inspection"
+import { quoteEmail, type QuoteSnapshot } from "@/lib/staff/quote"
+import { sendEmail } from "@/lib/staff/email"
 
 // כל הפעולות של אזור הצוות עוברות כאן. הן רצות בשרת בזהות של המשתמש המחובר,
 // ולכן ה-RLS והפונקציות במסד אוכפים אותן שוב, גם אם מישהו יקרא להן ישירות.
@@ -39,41 +42,205 @@ export async function signOut() {
   redirect("/staff/login")
 }
 
-/** פותח כרטיס עבודה לרכב שהגיע, מתוך תור קיים. */
-export async function openJobCard(formData: FormData) {
-  const staff = await requireStaff()
+/**
+ * קבלת רכב בדלפק: נפתח כרטיס, נרשמת הצעת המחיר הראשונה לשירות שהוזמן, והיא
+ * יוצאת ללקוח במייל (ס' 132(ב): "במסמך מודפס או בהודעת דואר אלקטרוני").
+ * בלי מייל — ההצעה מודפסת בדלפק, ונרשמת גרסה מודפסת.
+ *
+ * הרכב לא עולה לליפט מכאן: הוא נכנס לתור של בדיקת הכניסה בעמדת האבחון.
+ */
+export async function receiveCar(formData: FormData) {
+  const staff = await requireManager()
   const bookingId = Number(formData.get("booking_id"))
-  const lift = Number(formData.get("lift")) || null
-  if (!bookingId) return
+  const priceId = Number(formData.get("price_list_id"))
+  const choice = String(formData.get("part_choice") || "original")
+  const odometer = Number(String(formData.get("odometer") || "").replace(/\D/g, "")) || null
+  const email = String(formData.get("email") || "").trim().toLowerCase() || null
+  const consent = formData.get("consent") === "on"
+  const explained = formData.get("explained") === "on"
+  if (!bookingId || !priceId) redirect(`/staff/arrive/${bookingId}?e=missing`)
+  // ס' 131: הסבר על ההבדל בין סוגי החלקים, לפני ההצעה. דניאל מאשר שהסביר.
+  if (!explained) redirect(`/staff/arrive/${bookingId}?e=explain`)
 
   const supabase = await createClient()
-  const { data: booking } = await supabase
-    .from("bookings")
-    .select("id, plate, customer_name, customer_phone, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
-    .eq("id", bookingId)
-    .maybeSingle()
-  if (!booking) return
+  const [{ data: booking }, { data: item }] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id, status, plate, customer_name, customer_phone, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
+      .eq("id", bookingId)
+      .maybeSingle(),
+    supabase.from("price_list").select("*").eq("id", priceId).maybeSingle(),
+  ])
+  if (!booking || !item) redirect(`/staff/arrive/${bookingId}?e=missing`)
+  if (booking.status === "arrived") redirect("/staff")
 
-  await supabase.from("job_cards").insert({
-    booking_id: booking.id,
-    plate: booking.plate,
-    vehicle_make: booking.vehicle_make,
-    vehicle_model: booking.vehicle_model,
-    vehicle_year: booking.vehicle_year,
-    engine_code: booking.engine_code,
-    fuel: booking.fuel,
-    customer_name: booking.customer_name,
-    customer_phone: booking.customer_phone,
-    whatsapp_consent: booking.whatsapp_consent ?? false,
-    lift,
-    status: "in_progress",
-    opened_by: staff.id,
+  const partChoice = choice === "aftermarket" && item.price_aftermarket !== null ? "aftermarket" : "original"
+
+  const { data: job, error } = await supabase
+    .from("job_cards")
+    .insert({
+      booking_id: booking.id,
+      plate: booking.plate,
+      vehicle_make: booking.vehicle_make,
+      vehicle_model: booking.vehicle_model,
+      vehicle_year: booking.vehicle_year,
+      engine_code: booking.engine_code,
+      fuel: booking.fuel,
+      customer_name: booking.customer_name,
+      customer_phone: booking.customer_phone,
+      customer_email: email,
+      odometer_km: odometer,
+      whatsapp_consent: consent || (booking.whatsapp_consent ?? false),
+      updates_consent_at: consent ? new Date().toISOString() : null,
+      lift: null,
+      status: "open",
+      opened_by: staff.id,
+    })
+    .select("id")
+    .single()
+  if (error || !job) redirect(`/staff/arrive/${bookingId}?e=failed`)
+
+  await supabase.from("quote_items").insert({
+    job_card_id: job.id,
+    price_list_id: item.id,
+    title: item.title,
+    labor_hours: item.labor_hours,
+    price_original: item.price_original,
+    price_aftermarket: item.price_aftermarket,
+    warranty_original: item.warranty_original,
+    warranty_aftermarket: item.warranty_aftermarket,
+    part_diff: item.part_diff,
+    single_reason: item.single_reason,
+    part_choice: partChoice,
+    created_by: staff.id,
   })
-
   await supabase.from("bookings").update({ status: "arrived" }).eq("id", booking.id)
+
+  const outcome = await issueQuote(job.id, "intake", email ? "email" : "print")
 
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
+  revalidatePath("/staff/lift")
+  redirect(outcome === "print" ? `/staff/job/${job.id}/quote?first=1` : `/staff/job/${job.id}?quote=${outcome}`)
+}
+
+/**
+ * מוציא גרסה של ההצעה: רושם אותה (שנה, ס' 132(ג)), ושולח במייל אם צריך.
+ * מחזיר מה קרה, כדי שהמסך יגיד לדניאל את האמת: נשלח, נכשל, או להדפיס.
+ */
+async function issueQuote(jobId: number, reason: "intake" | "update", channel: "email" | "print") {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("start_quote_version", { p_job_id: jobId, p_reason: reason, p_channel: channel })
+  if (error || !data) {
+    console.error("start_quote_version failed:", error?.code, error?.message)
+    return "failed" as const
+  }
+  if (channel === "print") return "print" as const
+
+  const v = data as { id: number; version: number; email: string | null; snapshot: QuoteSnapshot }
+  const sent = await sendEmail(v.email, quoteEmail(v.snapshot, v.version, reason))
+  await supabase.rpc("finish_quote_version", {
+    p_id: v.id,
+    p_status: sent.ok ? "sent" : "failed",
+    p_error: sent.ok ? null : `${sent.reason}${!sent.ok && sent.detail ? `: ${sent.detail}` : ""}`,
+  })
+  if (sent.ok) return "sent" as const
+  return sent.reason === "not_configured" ? ("noemail" as const) : ("failed" as const)
+}
+
+/** שולח שוב את ההצעה במייל (גרסה חדשה), או רושם גרסה מודפסת. */
+export async function reissueQuote(formData: FormData) {
+  await requireManager()
+  const jobId = Number(formData.get("job_id"))
+  const channel = formData.get("channel") === "print" ? "print" : "email"
+  if (!jobId) return
+  const outcome = await issueQuote(jobId, "update", channel)
+  revalidatePath(`/staff/job/${jobId}`)
+  redirect(channel === "print" ? `/staff/job/${jobId}/quote?print=1` : `/staff/job/${jobId}?quote=${outcome}`)
+}
+
+// ---------------------------------------------------------------- בדיקת הכניסה
+
+/** סימון פריט בבדיקת הכניסה: ירוק, צהוב או אדום. */
+export async function setInspectionItem(formData: FormData) {
+  const staff = await requireStaff()
+  const jobId = Number(formData.get("job_id"))
+  const key = String(formData.get("item") || "")
+  const light = String(formData.get("light") || "") as Light
+  if (!jobId || !INSPECTION_ITEMS.some((i) => i.key === key) || !["green", "yellow", "red"].includes(light)) return
+
+  const supabase = await createClient()
+  const { data: ins } = await supabase.from("inspections").select("items").eq("job_card_id", jobId).maybeSingle()
+  const items = { ...((ins?.items as InspectionState) ?? {}) }
+  items[key] = { ...(items[key] ?? {}), light }
+  await supabase.from("inspections").upsert({ job_card_id: jobId, items, inspector: staff.id })
+
+  revalidatePath(`/staff/inspect/${jobId}`)
+}
+
+/** סיום בדיקת הכניסה. רק כשכל הפריטים סומנו — אחרת זו לא בדיקה, זה ניחוש. */
+export async function completeInspection(formData: FormData) {
+  const staff = await requireStaff()
+  const jobId = Number(formData.get("job_id"))
+  if (!jobId) return
+
+  const supabase = await createClient()
+  const { data: ins } = await supabase.from("inspections").select("items").eq("job_card_id", jobId).maybeSingle()
+  const items = (ins?.items as InspectionState) ?? {}
+  // כל צהוב או אדום צריך תיעוד (צילום ודיבור): בלעדיו דניאל לא יודע מה להציע.
+  const undocumented = Object.values(items).some((s) => (s.light === "yellow" || s.light === "red") && !s.finding_id)
+  if (!progress(items).complete || undocumented) redirect(`/staff/inspect/${jobId}?e=incomplete`)
+
+  const now = new Date().toISOString()
+  await supabase.from("inspections").update({ completed_at: now }).eq("job_card_id", jobId)
+  await supabase.from("job_cards").update({ inspected_at: now, inspected_by: staff.id }).eq("id", jobId)
+
+  revalidatePath("/staff")
+  revalidatePath("/staff/floor")
+  revalidatePath("/staff/lift")
+  redirect("/staff/lift")
+}
+
+// ---------------------------------------------------------------- קריאות מהעמדה
+
+/** "דניאל, בוא לעמדה" או "סיימתי". לחיצה כפולה לא יוצרת קריאה שנייה (המסד). */
+export async function callManager(formData: FormData) {
+  const staff = await requireStaff()
+  const jobId = Number(formData.get("job_id"))
+  const kind = formData.get("kind") === "done" ? "done" : "help"
+  if (!jobId) return
+
+  const supabase = await createClient()
+  const { data: job } = await supabase.from("job_cards").select("lift").eq("id", jobId).maybeSingle()
+  await supabase.from("help_calls").insert({ job_card_id: jobId, lift: job?.lift ?? staff.lift, requested_by: staff.id, kind })
+
+  revalidatePath("/staff/lift")
+  revalidatePath("/staff")
+}
+
+/** דניאל הגיע, או טיפל ב"סיימתי". */
+export async function resolveCall(formData: FormData) {
+  const staff = await requireManager()
+  const id = Number(formData.get("call_id"))
+  if (!id) return
+  const supabase = await createClient()
+  await supabase.from("help_calls").update({ resolved_at: new Date().toISOString(), resolved_by: staff.id }).eq("id", id)
+  revalidatePath("/staff")
+  revalidatePath("/staff/lift")
+}
+
+/** ליקוי בטיחותי שהלקוח דחה: סימון שדווח לרשות הרישוי (תקנה 6). */
+export async function markSafetyReported(formData: FormData) {
+  const staff = await requireManager()
+  const id = Number(formData.get("finding_id"))
+  if (!id) return
+  const supabase = await createClient()
+  await supabase
+    .from("findings")
+    .update({ safety_reported_at: new Date().toISOString(), safety_reported_by: staff.id })
+    .eq("id", id)
+    .eq("status", "declined")
+  revalidatePath("/staff")
 }
 
 /** מעדכן מצב של כרטיס: בעבודה, ממתין לתשובה, מוכן, נמסר. */
@@ -127,34 +294,116 @@ export async function assignLift(formData: FormData) {
   if (!id || (lift !== null && ![1, 2, 3, 4].includes(lift))) return
 
   const supabase = await createClient()
-  await supabase.from("job_cards").update({ lift }).eq("id", id)
+  // בדיקת הכניסה קודם, תמיד (החלטה של רועי, 27.9). רכב שלא נבדק לא עולה לליפט.
+  if (lift !== null) {
+    const { data: job } = await supabase.from("job_cards").select("inspected_at, status").eq("id", id).maybeSingle()
+    if (!job?.inspected_at) return
+    await supabase
+      .from("job_cards")
+      .update({ lift, ...(job.status === "open" ? { status: "in_progress" } : {}) })
+      .eq("id", id)
+  } else {
+    await supabase.from("job_cards").update({ lift }).eq("id", id)
+  }
 
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
   revalidatePath("/staff/lift")
 }
 
-/** שולח ממצא ללקוח. המסד בודק שוב שהשולח הוא מנהל עבודה או בעלים. */
-export async function sendFinding(formData: FormData) {
+export type SendResult = { ok: true } | { ok: false; error: string }
+
+const LAW_ERRORS: Record<string, string> = {
+  "law-132a": "חסרים מחיר, שעות עבודה או אחריות. החוק דורש את שלושתם בהצעה.",
+  "law-131": "צריך להציע גם חלק חלופי ולהסביר את ההבדל, או לכתוב למה אין חלופה.",
+  "law-132b": "הלקוח לא אישר בקבלה עדכונים באמצעים אלקטרוניים. צריך להתקשר או להדפיס.",
+}
+
+const num = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").replace(/[^\d.]/g, "")
+  return s === "" ? null : Number(s)
+}
+const txt = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null
+
+/**
+ * שולח ממצא ללקוח: שומר את מה שדניאל מילא (מהמחירון), והמסד בודק שוב שהשולח
+ * מנהל עבודה או בעלים, ושההצעה שלמה לפי החוק. אחר כך התמונות של הממצא מועתקות
+ * לדף הלקוח, והקישור יוצא בוואטסאפ.
+ */
+export async function sendFinding(formData: FormData): Promise<SendResult> {
   await requireManager()
   const findingId = Number(formData.get("finding_id"))
-  const message = String(formData.get("message") || "").trim()
   const jobId = Number(formData.get("job_id"))
-  if (!findingId || !message) return
+  const message = String(formData.get("message") || "").trim()
+  if (!findingId || !message) return { ok: false, error: "חסרה ההודעה ללקוח." }
 
   const supabase = await createClient()
 
-  // הנוסח שאדם ראה ואישור הוא הנוסח שנשמר, ולכן מעדכנים גם את הטיוטה.
-  await supabase.from("findings").update({ customer_text: message }).eq("id", findingId)
-  const { error } = await supabase.rpc("send_finding", { p_finding_id: findingId, p_message: message, p_channel: "link" })
+  // הנוסח והמספרים שאדם ראה ואישר הם מה שנשמר.
+  const { error: saveError } = await supabase
+    .from("findings")
+    .update({
+      customer_text: message,
+      title: txt(formData.get("title")),
+      price_list_id: num(formData.get("price_list_id")),
+      price_original: num(formData.get("price_original")),
+      price_aftermarket: num(formData.get("price_aftermarket")),
+      labor_hours: num(formData.get("labor_hours")),
+      warranty_original: txt(formData.get("warranty_original")),
+      warranty_aftermarket: txt(formData.get("warranty_aftermarket")),
+      part_diff: txt(formData.get("part_diff")),
+      single_reason: txt(formData.get("single_reason")),
+      eta: txt(formData.get("eta")),
+      safety: formData.get("safety") === "on",
+    })
+    .eq("id", findingId)
+  if (saveError) return { ok: false, error: "לא הצלחנו לשמור. לנסות שוב." }
+
+  const { data: token, error } = await supabase.rpc("send_finding", { p_finding_id: findingId, p_message: message, p_channel: "link" })
+  if (error || !token) {
+    return { ok: false, error: LAW_ERRORS[error?.hint ?? ""] ?? "השליחה נכשלה. לנסות שוב." }
+  }
+
+  await sharePhotos(findingId, String(token))
 
   // הקישור יוצא ללקוח בוואטסאפ, ודניאל לא צריך להעתיק אותו. אם השליחה לא
   // עברה, הקישור עדיין תקף ומופיע בכרטיס, עם הסיבה וכפתור לשלוח שוב.
-  if (!error) await notifyQuote(supabase, findingId)
+  await notifyQuote(supabase, findingId)
 
   revalidatePath(`/staff/job/${jobId}`)
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
+  revalidatePath("/staff/lift")
+  return { ok: true }
+}
+
+/**
+ * התמונות של הממצא, לדף של הלקוח. הדלי של הכרטיסים פרטי והלקוח לא מחובר,
+ * ולכן מעתיקים לדלי ציבורי בנתיב של הטוקן (אקראי, כמו הקישור עצמו).
+ * כישלון כאן לא עוצר את השליחה: הלקוח יקבל את ההצעה גם בלי תמונה.
+ */
+async function sharePhotos(findingId: number, token: string) {
+  const supabase = await createClient()
+  const { data: photos } = await supabase
+    .from("media")
+    .select("storage_path, mime")
+    .eq("finding_id", findingId)
+    .eq("kind", "photo")
+    .order("created_at", { ascending: true })
+    .limit(6)
+
+  const paths: string[] = []
+  for (const [i, m] of (photos ?? []).entries()) {
+    const file = await supabase.storage.from("job-media").download(m.storage_path)
+    if (file.error || !file.data) continue
+    const ext = m.mime === "image/png" ? "png" : m.mime === "image/webp" ? "webp" : "jpg"
+    const path = `${token}/${i}.${ext}`
+    const up = await supabase.storage
+      .from("shared-quotes")
+      .upload(path, Buffer.from(await file.data.arrayBuffer()), { contentType: m.mime || "image/jpeg", upsert: false })
+    if (!up.error) paths.push(path)
+  }
+  if (paths.length) await supabase.rpc("set_approval_photos", { p_token: token, p_paths: paths })
 }
 
 /**
@@ -188,7 +437,13 @@ export async function takeCar(formData: FormData) {
   if (!id || !staff.lift) return
 
   const supabase = await createClient()
-  await supabase.from("job_cards").update({ lift: staff.lift }).eq("id", id).is("lift", null)
+  const { data: job } = await supabase.from("job_cards").select("inspected_at, status").eq("id", id).maybeSingle()
+  if (!job?.inspected_at) return
+  await supabase
+    .from("job_cards")
+    .update({ lift: staff.lift, ...(job.status === "open" ? { status: "in_progress" } : {}) })
+    .eq("id", id)
+    .is("lift", null)
 
   revalidatePath("/staff/lift")
   revalidatePath("/staff")
