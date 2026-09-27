@@ -93,7 +93,21 @@ const insert = await call(`/rest/v1/job_cards`, {
 })
 ok("ולא מצליח לפתוח כרטיס חדש", insert.status >= 400, `HTTP ${insert.status}`)
 
-// ---------- 5. דניאל לא נפגע מכל זה ----------
+// ---------- 5. אורח (בלי התחברות) לא מגיע לפונקציות של הצוות ----------
+// עד 27.9 הן היו פתוחות לאורח: ה-revoke מ-public לא מבטל את ההרשאה הישירה
+// ש-Supabase נותן ל-anon (ראו sql/012). הן החזיקו רק בזכות בדיקה פנימית.
+// כאן בודקים את השכבה החיצונית: ההרשאה עצמה, לא מה שהפונקציה עושה.
+for (const [fn, body] of [
+  ["lobby_view", {}],
+  ["send_finding", { p_finding_id: 0, p_message: "x", p_channel: "link" }],
+  ["set_my_lift", { p_lift: 1 }],
+]) {
+  const res = await call(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(body) })
+  const text = await res.text()
+  ok(`אורח לא מורשה להריץ את ${fn}`, res.status >= 400 && /permission denied/i.test(text), `HTTP ${res.status} ${text.slice(0, 120)}`)
+}
+
+// ---------- 6. דניאל לא נפגע מכל זה ----------
 const danielCards = await rows(daniel, `/rest/v1/job_cards?select=id,customer_name`)
 ok("מנהל העבודה ממשיך לראות את הכרטיסים במלואם", danielCards.length > 0 && "customer_name" in (danielCards[0] ?? {}))
 
