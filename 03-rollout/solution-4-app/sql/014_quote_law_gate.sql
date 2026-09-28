@@ -77,7 +77,8 @@ begin
         price_chosen = null,
         part_choice = null,
         photo_paths = '{}',
-        expires_at = now() + interval '7 days';
+        expires_at = now() + interval '7 days',
+        nudged_at = null;  -- 018: קישור חדש מקבל תזכורת משלו
 
   update public.findings
      set status = 'sent', sent_at = now(), sent_by = (select auth.uid())

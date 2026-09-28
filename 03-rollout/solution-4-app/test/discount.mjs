@@ -63,7 +63,17 @@ async function draft() {
   const [row] = await res.json()
   return row.id
 }
-const PRICES = { list_price_original: 780, list_price_aftermarket: 520, price_original: 780, price_aftermarket: 520 }
+// ממצא שלם לפי החוק (014): מחיר, שעות, אחריות לכל סוג, והסבר ההבדל.
+const PRICES = {
+  list_price_original: 780,
+  list_price_aftermarket: 520,
+  price_original: 780,
+  price_aftermarket: 520,
+  labor_hours: 1,
+  warranty_original: "12 חודשים",
+  warranty_aftermarket: "6 חודשים",
+  part_diff: "מקורי של יצרן הרכב, חלופי של יצרן מוכר",
+}
 
 try {
   const res = await call(`/rest/v1/job_cards`, {
