@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 
+import { partLabel } from "@/lib/staff/quote"
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { CaptureButton } from "@/components/staff/capture-button"
@@ -43,12 +44,16 @@ type Finding = {
   title: string | null
   summary: string | null
   status: string
+  price_aftermarket: number | null
   approvals: { part_choice: string | null } | { part_choice: string | null }[] | null
 }
 
-type Line = { job_card_id: number; title: string; part_choice: string }
+type Line = { job_card_id: number; title: string; part_choice: string; price_aftermarket: number | null }
 
-const partName = (c: string | null | undefined) => (c === "aftermarket" ? "חלק חלופי" : "חלק מקורי")
+const part = (c: string | null | undefined, aftermarket: number | null | undefined) => {
+  const label = partLabel(c, aftermarket)
+  return label ? ` · ${label}` : ""
+}
 const choiceOf = (f: Finding) => (Array.isArray(f.approvals) ? f.approvals[0] : f.approvals)?.part_choice
 const carName = (c: Card) =>
   ([c.vehicle_make, c.vehicle_model].filter(Boolean).join(" ") || "רכב") + (c.vehicle_year ? `, ${c.vehicle_year}` : "")
@@ -74,7 +79,7 @@ function DiagnoseFirst({ card, lines }: { card: Card; lines: Line[] }) {
         <h3>הלקוח אישר בקבלה</h3>
         <ul className="gate-ok">
           {lines.map((l, i) => (
-            <li key={i}>✓ {l.title} · {partName(l.part_choice)}</li>
+            <li key={i}>✓ {l.title}{part(l.part_choice, l.price_aftermarket)}</li>
           ))}
         </ul>
       </div>
@@ -115,10 +120,10 @@ function Car({
         ) : (
           <ul className="gate-ok">
             {lines.map((l, i) => (
-              <li key={`l${i}`}>✓ {l.title} · {partName(l.part_choice)} · אושר בקבלה</li>
+              <li key={`l${i}`}>✓ {l.title}{part(l.part_choice, l.price_aftermarket)} · אושר בקבלה</li>
             ))}
             {approved.map((f) => (
-              <li key={f.id}>✓ {f.title || f.summary} · {partName(choiceOf(f))} · הלקוח אישר</li>
+              <li key={f.id}>✓ {f.title || f.summary}{part(choiceOf(f), f.price_aftermarket)} · הלקוח אישר</li>
             ))}
           </ul>
         )}
@@ -201,10 +206,10 @@ export default async function LiftPage() {
   const ids = [...new Set([...mine, ...queue].map((c) => c.id))]
   const [{ data: lines }, { data: findings }, { data: calls }] = ids.length
     ? await Promise.all([
-        supabase.from("quote_items").select("job_card_id, title, part_choice").in("job_card_id", ids),
+        supabase.from("quote_items").select("job_card_id, title, part_choice, price_aftermarket").in("job_card_id", ids),
         supabase
           .from("findings")
-          .select("id, job_card_id, title, summary, status, approvals(part_choice)")
+          .select("id, job_card_id, title, summary, status, price_aftermarket, approvals(part_choice)")
           .in("job_card_id", ids)
           .neq("status", "cancelled"),
         supabase.from("help_calls").select("job_card_id, kind, created_at").in("job_card_id", ids).is("resolved_at", null),

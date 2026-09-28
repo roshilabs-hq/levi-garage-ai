@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 
+import { partLabel } from "@/lib/staff/quote"
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { fmtDate } from "@/lib/staff/format"
@@ -40,7 +41,7 @@ export default async function VehiclePage({ params }: { params: Promise<{ plate:
   // הממצאים עצמם, כדי לראות מה נאמר ולא רק כמה זה עלה
   const { data: findings } = await supabase
     .from("findings")
-    .select("id, summary, status, created_at, job_card_id, approvals(decision, price_chosen, part_choice)")
+    .select("id, summary, status, created_at, job_card_id, price_aftermarket, approvals(decision, price_chosen, part_choice)")
     .in("job_card_id", (visits ?? []).map((v) => v.job_card_id))
     .order("created_at", { ascending: false })
 
@@ -93,7 +94,7 @@ export default async function VehiclePage({ params }: { params: Promise<{ plate:
                           {a?.decision && (
                             <b className={a.decision === "approved" ? "ok" : "no"}>
                               {a.decision === "approved"
-                                ? `אושר · ${a.part_choice === "original" ? "מקורי" : "חלופי"} · ${shekel(Number(a.price_chosen))}`
+                                ? ["אושר", partLabel(a.part_choice, f.price_aftermarket), shekel(Number(a.price_chosen))].filter(Boolean).join(" · ")
                                 : "נדחה"}
                             </b>
                           )}

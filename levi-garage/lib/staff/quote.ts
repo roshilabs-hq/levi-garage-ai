@@ -60,7 +60,18 @@ export const money = (n: number | null | undefined) =>
 export const hours = (n: number | null | undefined) =>
   n === null || n === undefined ? "—" : `${Number(n).toLocaleString("he-IL")} שע׳`
 
-const partName = (c: "original" | "aftermarket" | null) => (c === "aftermarket" ? "חלק חלופי" : "חלק מקורי")
+/**
+ * סוג החלק — רק כשהייתה בחירה בין שניים. בעבודה בלבד (הכנה לטסט, אבחון, כיוון
+ * פרונט) אין חלק, ו"חלק מקורי" שם רק מבלבל את הלקוח (רועי, 28.9).
+ */
+export function partLabel(choice: string | null | undefined, aftermarket: number | null | undefined) {
+  if (aftermarket === null || aftermarket === undefined) return ""
+  return choice === "aftermarket" ? "חלק חלופי" : "חלק מקורי"
+}
+
+/** "חלק חלופי, 468 ש"ח", או רק "350 ש"ח" כשאין בחירה. */
+export const choiceAndPrice = (choice: string | null | undefined, aftermarket: number | null | undefined, price: number | null | undefined) =>
+  [partLabel(choice, aftermarket), money(price)].filter(Boolean).join(", ")
 
 /** מה שמשולם בפועל: שורות הקבלה + ממצאים שאושרו. ממצא שנדחה או ממתין לא נספר. */
 export function totals(s: QuoteSnapshot) {
@@ -103,7 +114,7 @@ function blockHtml(o: QuoteOption, status: string) {
 
 function findingStatus(f: QuoteFinding) {
   if (f.status === "approved")
-    return `אושר על ידך${f.decided_at ? ` ב-${stampFmt.format(new Date(f.decided_at))}` : ""}: ${partName(f.part_choice)}, ${money(f.price)}${Number(f.discount_pct) > 0 ? ` (כולל הנחה של ${Number(f.discount_pct)}%)` : ""}`
+    return `אושר על ידך${f.decided_at ? ` ב-${stampFmt.format(new Date(f.decided_at))}` : ""}: ${choiceAndPrice(f.part_choice, f.price_aftermarket, f.price)}${Number(f.discount_pct) > 0 ? ` (כולל הנחה של ${Number(f.discount_pct)}%)` : ""}`
   if (f.status === "declined") return `לא אושר על ידך${f.decided_at ? ` (${stampFmt.format(new Date(f.decided_at))})` : ""}. לא נבצע את העבודה הזו.`
   return "ממתין לתשובה שלך בקישור ששלחנו בוואטסאפ"
 }
@@ -130,7 +141,7 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" |
     </p>
     <div style="background:#fff;border-radius:12px;padding:6px 16px 12px">
       <div style="font-size:14px;margin-top:10px">רכב: <b>${esc(car || "—")}</b> · מספר רישוי <b dir="ltr">${esc(s.job.plate)}</b>${s.job.odometer_km ? ` · ${Number(s.job.odometer_km).toLocaleString("he-IL")} ק"מ בקבלה` : ""}</div>
-      ${s.lines.map((l) => blockHtml(l, `סוכם בקבלה: ${partName(l.part_choice)}, ${money(l.price)}`)).join("")}
+      ${s.lines.map((l) => blockHtml(l, `סוכם בקבלה: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`)).join("")}
       ${s.findings.map((f) => blockHtml(f, findingStatus(f))).join("")}
       <div style="font-size:16px;margin:14px 0 4px">סה"כ לתשלום לפי מה שסוכם ואושר: <b>${money(t.total)}</b> (כולל מע"מ)</div>
       ${t.pending ? `<div style="font-size:14px;color:#8a5a00">${t.pending === 1 ? "פריט אחד ממתין" : `${t.pending} פריטים ממתינים`} לתשובה שלך, ולא נכללים בסכום.</div>` : ""}
@@ -161,7 +172,7 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" |
     reason === "intake" ? "הצעת מחיר" : `הצעת מחיר מעודכנת, גרסה ${version}`,
     `רכב ${car} · ${s.job.plate}`,
     "",
-    ...s.lines.map((l) => line(l, `סוכם בקבלה: ${partName(l.part_choice)}, ${money(l.price)}`)),
+    ...s.lines.map((l) => line(l, `סוכם בקבלה: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`)),
     ...s.findings.map((f) => line(f, findingStatus(f))),
     "",
     `סה"כ לפי מה שסוכם ואושר: ${money(t.total)} כולל מע"מ`,

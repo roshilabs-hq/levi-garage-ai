@@ -76,7 +76,9 @@ export function ArriveForm({
           <p className="arrive-diff">
             {both ? <>להגיד ללקוח: {item.part_diff}</> : <>אין חלופה: {item.single_reason}</>}
           </p>
-          <p className="staff-meta">שעות עבודה צפויות: {Number(item.labor_hours).toLocaleString("he-IL")} · המחיר כולל חלקים, עבודה ומע"מ</p>
+          <p className="staff-meta">
+            שעות עבודה צפויות: {Number(item.labor_hours).toLocaleString("he-IL")} · {both ? "המחיר כולל חלקים, עבודה ומע\"מ" : "המחיר כולל מע\"מ"}
+          </p>
         </div>
       )}
 
@@ -93,7 +95,7 @@ export function ArriveForm({
 
       <label className="arrive-check">
         <input type="checkbox" name="explained" required />
-        <span>הסברתי ללקוח את ההבדל בין חלק מקורי לחלופי, את האחריות ואת שעות העבודה</span>
+        <span>{both ? "הסברתי ללקוח את ההבדל בין חלק מקורי לחלופי, את האחריות ואת שעות העבודה" : "הסברתי ללקוח את המחיר, את האחריות ואת שעות העבודה"}</span>
       </label>
 
       <label className="arrive-check">

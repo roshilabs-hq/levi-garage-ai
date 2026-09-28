@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 
+import { partLabel } from "@/lib/staff/quote"
 import { createClient } from "@/lib/supabase/server"
 import { ApproveForm } from "@/components/staff/approve-form"
 import { fmtStamp } from "@/lib/staff/format"
@@ -122,7 +123,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
               <>
                 <b>קיבלנו את האישור שלך.</b>
                 <p>
-                  {view.part_choice === "original" ? "חלק מקורי" : "חלק חלופי"}
+                  {partLabel(view.part_choice, view.price_aftermarket) || "אישרת את העבודה"}
                   {view.eta ? ` · הרכב יהיה מוכן ${view.eta}` : ""}
                 </p>
               </>

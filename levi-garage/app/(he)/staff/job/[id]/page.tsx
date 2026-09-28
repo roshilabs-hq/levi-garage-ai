@@ -10,7 +10,7 @@ import { DraftForm } from "@/components/staff/draft-form"
 import { AddPhoto } from "@/components/staff/add-photo"
 import type { PriceItem } from "@/components/staff/arrive-form"
 import { INSPECTION_ITEMS, type InspectionState } from "@/lib/staff/inspection"
-import { money } from "@/lib/staff/quote"
+import { choiceAndPrice, money } from "@/lib/staff/quote"
 import { RetryButton } from "@/components/staff/retry-button"
 import { fmtStamp } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
@@ -198,8 +198,9 @@ export default async function JobCardPage({
           <ul className="quote-lines">
             {(lines ?? []).map((l, i) => (
               <li key={i}>
-                <b>{l.title}</b> · {l.part_choice === "aftermarket" ? "חלק חלופי" : "חלק מקורי"} ·{" "}
-                {money(l.part_choice === "aftermarket" ? l.price_aftermarket : l.price_original)} · {Number(l.labor_hours)} שע׳
+                <b>{l.title}</b> ·{" "}
+                {choiceAndPrice(l.part_choice, l.price_aftermarket, l.part_choice === "aftermarket" ? l.price_aftermarket : l.price_original)} ·{" "}
+                {Number(l.labor_hours)} שע׳
               </li>
             ))}
           </ul>
@@ -312,7 +313,7 @@ export default async function JobCardPage({
                       {approval?.decision ? (
                         <p className={`job-decision ${approval.decision}`}>
                           {approval.decision === "approved"
-                            ? `הלקוח אישר ${approval.part_choice === "original" ? "חלק מקורי" : "חלק חלופי"}, ${Number(approval.price_chosen).toLocaleString("he-IL")} ש"ח`
+                            ? `הלקוח אישר: ${choiceAndPrice(approval.part_choice, f.price_aftermarket, approval.price_chosen)}`
                             : "הלקוח דחה את התיקון"}
                           {" · "}
                           {fmtStamp(approval.decided_at)}

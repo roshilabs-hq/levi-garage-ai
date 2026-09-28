@@ -7,6 +7,11 @@ const RESOURCE = "053cea08-09bc-40ec-8f7a-156f0677aff3"
 
 // המאגר הממשלתי איטי: תשובה ראשונה לוקחת 20 עד 30 שניות. התשובה נשמרת ליממה,
 // ולכן רק הבקשה הראשונה לכל מספר משלמת את ההמתנה.
+// משרד התחבורה כותב יצרן ומדינה יחד ("מיצובישי יפן"). לקוח אומר "מיצובישי".
+// אותו כלל כמו במסד (021), כדי שהאתר והכרטיס יגידו אותו דבר.
+const COUNTRY = /\s+(יפן|קוריאה|קוריאה הדרומית|צ'כיה|גרמניה|צרפת|ארה"ב|ארצות הברית|ספרד|איטליה|סין|טורקיה|בריטניה|אנגליה|הודו|תאילנד|רומניה|שבדיה|הונגריה|מקסיקו|סלובקיה|בלגיה|אוסטריה|פולין|פורטוגל|הולנד|קנדה|ברזיל|דרום אפריקה|מרוקו|אינדונזיה|טייוואן|מלזיה|סלובניה|סרביה|רוסיה|ארגנטינה|פינלנד)$/
+const cleanMake = (v: string | null | undefined) => (v ? v.replace(COUNTRY, "").trim() || null : null)
+
 export const maxDuration = 45
 
 export async function GET(req: Request) {
@@ -51,7 +56,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       found: true,
       plate,
-      make: record.tozeret_nm ?? null,
+      make: cleanMake(record.tozeret_nm),
       model: record.kinuy_mishari ?? null,
       year: record.shnat_yitzur ?? null,
       fuel: record.sug_delek_nm ?? null,

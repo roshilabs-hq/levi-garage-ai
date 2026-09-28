@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
-import { GARAGE, hours, money, totals, type QuoteOption, type QuoteSnapshot } from "@/lib/staff/quote"
+import { GARAGE, choiceAndPrice, hours, money, totals, type QuoteOption, type QuoteSnapshot } from "@/lib/staff/quote"
 import { reissueQuote } from "../../../actions"
 import { AutoPrint, PrintButton } from "@/components/staff/auto-print"
 
@@ -15,7 +15,6 @@ export const metadata: Metadata = { title: "הצעת מחיר | מוסך לוי 
 
 const TZ = "Asia/Jerusalem"
 const dateFmt = new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric", year: "numeric" })
-const partName = (c: string | null) => (c === "aftermarket" ? "חלק חלופי" : "חלק מקורי")
 
 function Option({ o, status }: { o: QuoteOption; status: string }) {
   const two = o.price_aftermarket !== null && o.price_aftermarket !== undefined
@@ -108,7 +107,7 @@ export default async function QuotePage({
       </p>
 
       {s.lines.map((l, i) => (
-        <Option key={`l${i}`} o={l} status={`סוכם בקבלה: ${partName(l.part_choice)}, ${money(l.price)}`} />
+        <Option key={`l${i}`} o={l} status={`סוכם בקבלה: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`} />
       ))}
       {s.findings.map((f) => (
         <Option
@@ -116,7 +115,7 @@ export default async function QuotePage({
           o={f}
           status={
             f.status === "approved"
-              ? `אושר: ${partName(f.part_choice)}, ${money(f.price)}`
+              ? `אושר: ${choiceAndPrice(f.part_choice, f.price_aftermarket, f.price)}`
               : f.status === "declined"
                 ? "לא אושר. לא נבצע."
                 : "ממתין לתשובת הלקוח"
