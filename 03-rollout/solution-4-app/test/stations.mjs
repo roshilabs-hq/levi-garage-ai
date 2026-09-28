@@ -148,6 +148,9 @@ try {
     ok("מנהל מבטל עמדה", revoke.ok, `status ${revoke.status}`)
     const dead = await (await rpc("station_info", { p_token: token })).json()
     ok("עמדה שבוטלה לא מחזירה כלום", dead === null)
+    // ביטול משאיר שורה (זה מה שקורה במוסך: רואים שהייתה עמדה). בבדיקה מוחקים.
+    const key = process.env.SUPABASE_SECRET_KEY
+    if (key) await fetch(`${url}/rest/v1/stations?id=eq.${stationId}`, { method: "DELETE", headers: { apikey: key, authorization: `Bearer ${key}` } })
   }
 }
 
