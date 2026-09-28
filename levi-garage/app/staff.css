@@ -1069,3 +1069,18 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .draft-discount { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; align-items: end; }
 .draft-discount label { display: grid; gap: 4px; font-size: 14.5px; font-weight: 600; }
 .draft-discount .staff-meta { grid-column: 1 / -1; }
+
+/* צימוד בקוד QR (022) */
+.pair-qr-card {
+  display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start;
+  margin-top: 16px; padding: 18px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow);
+}
+.pair-qr-img { background: #fff; padding: 10px; border-radius: 10px; line-height: 0; }
+.pair-qr-img svg { width: 100%; height: auto; display: block; }
+.pair-qr-text ol { margin: 10px 0 0; padding-inline-start: 20px; display: grid; gap: 4px; }
+.pair-qr-text .staff-meta { margin-top: 12px; }
+.pair-qr-link { margin-top: 10px; font-size: 14px; }
+.pair-qr-link code { display: block; margin-top: 6px; word-break: break-all; font-size: 12.5px; }
+.pair-examiner { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--sunk); font-size: 15px; line-height: 1.6; }
+@media (max-width: 560px) { .pair-qr-card { grid-template-columns: 1fr; } .pair-qr-img { max-width: 240px; } }
+.station-box > form { margin-top: 22px; }

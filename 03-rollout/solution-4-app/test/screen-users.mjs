@@ -48,6 +48,19 @@ const lobby = await signIn("screen1@test.com")
 const wall = await signIn("screen2@test.com")
 const daniel = await signIn("test1@test.com")
 
+// הבדיקה לא סומכת על נתוני הדגמה במסד: היא פותחת רכב משלה (כדניאל) ומוחקת אותו
+// בסוף. בלי זה, אחרי ניקוי נתוני ההדגמה שלוש בדיקות נכשלו כי לא היה מה לקרוא.
+const serviceKey = process.env.SUPABASE_SECRET_KEY
+if (!serviceKey) throw new Error("חסר SUPABASE_SECRET_KEY (levi-garage/.env.local)")
+const own = await call(`/rest/v1/job_cards`, {
+  token: daniel,
+  method: "POST",
+  headers: { prefer: "return=representation" },
+  body: JSON.stringify({ plate: "9990040", customer_name: "בדיקה אוטומטית", status: "in_progress" }),
+})
+const ownId = (await own.json())?.[0]?.id
+if (!ownId) throw new Error(`לא נפתח רכב לבדיקה: ${own.status}`)
+
 // ---------- 1. מסך חדר ההמתנה לא רואה שום טבלת עבודה ----------
 for (const table of ["job_cards", "bookings", "findings", "approvals", "media"]) {
   const got = await rows(lobby, `/rest/v1/${table}?select=*`)
@@ -115,4 +128,8 @@ const danielCards = await rows(daniel, `/rest/v1/job_cards?select=id,customer_na
 ok("מנהל העבודה ממשיך לראות את הכרטיסים במלואם", danielCards.length > 0 && "customer_name" in (danielCards[0] ?? {}))
 
 console.log(`\n${pass} passed, ${fail} failed`)
+await fetch(`${url}/rest/v1/job_cards?id=eq.${ownId}`, {
+  method: "DELETE",
+  headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` },
+})
 process.exit(fail ? 1 : 0)

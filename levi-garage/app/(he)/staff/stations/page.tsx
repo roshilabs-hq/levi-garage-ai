@@ -6,6 +6,7 @@ import { requireManager } from "@/lib/staff/session"
 import { STATION_COOKIE } from "@/lib/staff/station"
 import { fmtStamp } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
+import { PairQr } from "@/components/staff/pair-qr"
 import { pairStation, revokeStation, setStaffPin, unpairThisDevice } from "../../station/actions"
 
 export const metadata: Metadata = { title: "עמדות | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -42,10 +43,22 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
       {e && MSG[e] && <p className="staff-error" role="alert">{MSG[e]}</p>}
       {ok === "pin" && <p className="staff-note notice-sent" role="status">הקוד נקבע.</p>}
 
-      <section className="staff-section" aria-labelledby="pair-title">
-        <h2 id="pair-title">לצמד את המכשיר הזה לעמדה</h2>
+      <section className="staff-section" aria-labelledby="qr-title">
+        <h2 id="qr-title">לחבר טלפון או טאבלט לעמדה</h2>
         <p className="staff-meta">
-          עושים את זה פעם אחת, על המכשיר שעומד בעמדה. אחרי הצימוד המשתמש שלך מתנתק מהמכשיר, והוא נשאר עמדה: הקוד של המכונאים עובד רק ממכשיר
+          בוחרים ליפט, ומופיע קוד QR. סורקים אותו במכשיר שליד הליפט, והוא הופך לעמדה — בלי להתחבר עליו עם הסיסמה שלך.
+        </p>
+        <PairQr />
+        <p className="pair-examiner">
+          <b>לבוחנים:</b> אין כאן ארבעה ליפטים, אבל יש לכם טלפון. המחשב הוא דניאל, והטלפון הוא הליפט: בוחרים ליפט, סורקים, נוגעים בשם של
+          מכונאי ומקישים את הקוד ממסמך ההגשה. בלי טלפון — אותו קישור בחלון גלישה בסתר.
+        </p>
+      </section>
+
+      <section className="staff-section" aria-labelledby="pair-title">
+        <h2 id="pair-title">או: לצמד את המכשיר הזה</h2>
+        <p className="staff-meta">
+          כשאתה עומד עם המכשיר עצמו ליד הליפט. אחרי הצימוד המשתמש שלך מתנתק מהמכשיר, והוא נשאר עמדה: הקוד של המכונאים עובד רק ממכשיר
           מצומד.
         </p>
         <form action={pairStation} className="pair-form">
