@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { cookies } from "next/headers"
 
 import { createClient } from "@/lib/supabase/server"
@@ -51,7 +52,7 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
         <PairQr />
         <p className="pair-examiner">
           <b>לבוחנים:</b> אין כאן ארבעה ליפטים, אבל יש לכם טלפון. המחשב הוא דניאל, והטלפון הוא הליפט: בוחרים ליפט, סורקים, נוגעים בשם של
-          מכונאי ומקישים את הקוד ממסמך ההגשה. בלי טלפון — אותו קישור בחלון גלישה בסתר.
+          מכונאי ומקישים את הקוד ממסמך ההגשה. בלי טלפון — אותו קישור בחלון גלישה בסתר. לצילום של תקלה, יש <Link href="/staff/demo-photos">תמונות להדגמה</Link> לצלם מהמסך.
         </p>
       </section>
 

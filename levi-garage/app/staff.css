@@ -1084,3 +1084,12 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .pair-examiner { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--sunk); font-size: 15px; line-height: 1.6; }
 @media (max-width: 560px) { .pair-qr-card { grid-template-columns: 1fr; } .pair-qr-img { max-width: 240px; } }
 .station-box > form { margin-top: 22px; }
+
+/* תמונות להדגמה (29.9) */
+.demo-photos { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.demo-photos li { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.demo-photos img { width: 100%; height: auto; display: block; aspect-ratio: 4 / 3; object-fit: cover; }
+.demo-photos b { display: block; padding: 12px 14px 0; font-size: 17px; }
+.demo-photos p { padding: 6px 14px 14px; margin: 0; line-height: 1.6; }
+.demo-photos p span { color: var(--muted); font-weight: 600; }
+.demo-photos-note { margin-top: 18px; }
