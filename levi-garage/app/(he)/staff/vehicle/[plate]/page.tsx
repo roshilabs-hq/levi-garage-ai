@@ -30,9 +30,8 @@ export default async function VehiclePage({ params }: { params: Promise<{ plate:
   const digits = plate.replace(/\D/g, "")
   const supabase = await createClient()
 
-  const [{ data: visits }, { data: fleet }] = await Promise.all([
+  const [{ data: visits }] = await Promise.all([
     supabase.from("vehicle_history").select("*").eq("plate", digits).order("opened_at", { ascending: false }),
-    supabase.from("fleet_vehicles").select("nickname, fleets(name)").eq("plate", digits).maybeSingle(),
   ])
 
   const first = visits?.[0]
@@ -59,8 +58,6 @@ export default async function VehiclePage({ params }: { params: Promise<{ plate:
           </h1>
           <p>
             {(visits ?? []).length} ביקורים · סך אישורים {shekel(total)}
-            {fleet?.fleets ? ` · ${(fleet.fleets as unknown as { name: string }).name}` : ""}
-            {fleet?.nickname ? ` · ${fleet.nickname}` : ""}
           </p>
         </div>
       </header>

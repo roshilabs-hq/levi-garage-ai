@@ -34,11 +34,10 @@ export default async function DashboardPage() {
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [{ data: cards }, { data: approvals }, { data: findings }, { data: fleetTotals }, { data: moves }, { data: discounted }, { data: nudges }] = await Promise.all([
+  const [{ data: cards }, { data: approvals }, { data: findings }, { data: moves }, { data: discounted }, { data: nudges }] = await Promise.all([
     supabase.from("job_cards").select("id, status, opened_at, ready_at, delivered_at").gte("opened_at", since.toISOString()),
     supabase.from("approvals").select("id, sent_at, decided_at, decision, price_chosen").gte("sent_at", since.toISOString()),
     supabase.from("findings").select("id, status, sent_at").gte("created_at", since.toISOString()),
-    supabase.from("fleet_vehicles").select("plate, fleets(name)").eq("active", true),
     supabase.from("job_moves").select("job_card_id, place, status, moved_at").gte("moved_at", since.toISOString()).order("moved_at"),
     supabase
       .from("findings")
@@ -98,7 +97,6 @@ export default async function DashboardPage() {
   const inWriting = decided.length
 
   // 4. מה נצבר לציים החודש
-  const fleetPlates = new Set((fleetTotals ?? []).map((f) => f.plate))
   const monthApproved = decided
     .filter((a) => a.decision === "approved" && new Date(a.decided_at!) >= monthStart)
     .reduce((s, a) => s + Number(a.price_chosen || 0), 0)
@@ -166,7 +164,7 @@ export default async function DashboardPage() {
     {
       title: "חוב פתוח של הציים",
       target: "היעד: ירידה של 50%, וגבייה תוך 30 עד 40 יום",
-      why: `אנחנו יודעים מה אושר, לא מה חויב ומה שולם. החשבוניות יוצאות בתוכנה הישנה. מה שכן ידוע: ${shekel(monthApproved)} אושרו החודש, ו-${fleetPlates.size} רכבי צי רשומים אצלנו.`,
+      why: `אנחנו יודעים מה אושר, לא מה חויב ומה שולם. החשבוניות יוצאות בתוכנה הישנה. מה שכן ידוע: ${shekel(monthApproved)} אושרו החודש בקישורי אישור. פורטל לציים הוסר ב-29.9, ונשאר לשלב הבא.`,
     },
     {
       title: "המוסך עובד בלי אבי",

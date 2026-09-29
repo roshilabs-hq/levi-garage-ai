@@ -13,7 +13,7 @@ export function TopBar({
   current,
 }: {
   staff: StaffMember
-  current: "board" | "floor" | "wall" | "lift" | "fleets" | "dashboard" | "stations" | "other"
+  current: "board" | "floor" | "wall" | "lift" | "dashboard" | "stations" | "other"
 }) {
   const links: { href: string; label: string; key: string }[] = [
     { href: "/staff", label: "לוח היום", key: "board" },
@@ -22,7 +22,6 @@ export function TopBar({
     ...(staff.role === "mechanic" ? [{ href: "/staff/lift", label: "הליפט שלי", key: "lift" }] : []),
     ...(staff.role !== "mechanic"
       ? [
-          { href: "/staff/fleets", label: "ציים", key: "fleets" },
           { href: "/staff/dashboard", label: "מדדים", key: "dashboard" },
           { href: "/staff/stations", label: "עמדות", key: "stations" },
         ]
