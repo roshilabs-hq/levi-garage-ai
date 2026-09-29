@@ -1,7 +1,8 @@
 """בונה את service-agreement.pdf מתוך service-agreement.md.
 
 המקור היחיד הוא קובץ ה-markdown. הסקריפט ממיר אותו ל-HTML מעוצב (A4, מימין לשמאל,
-הגופנים והלוגו של האתר), ו-Chrome במצב headless מדפיס אותו ל-PDF.
+בנייר המכתבים של הספק, רושינוביץ: הסימן, הגופנים והצבעים מ-C:/projects/roshinovic/DESIGN.md),
+ו-Chrome במצב headless מדפיס אותו ל-PDF.
 
 הרצה, מתיקיית השורש של הריפו:
     python 04-empower/pdf/build_agreement.py
@@ -16,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "04-empower" / "service-agreement.md"
 HTML_OUT = ROOT / "04-empower" / "pdf" / "service-agreement.html"
 PDF_OUT = ROOT / "04-empower" / "service-agreement.pdf"
-LOGO = ROOT / "levi-garage" / "public" / "brand" / "logo-plate.png"
+# הסימן של רושינוביץ: ארבעה קווי ספירה, והחמישי אדום. זהה ל-roshinovic-mark.svg ולכותרת של roshinovic.co.il.
+MARK = '''<svg class="mark" viewBox="0 0 88 88" aria-hidden="true"><g stroke-linecap="round" fill="none"><g stroke="#2e2e33" stroke-width="9.5"><line x1="24" y1="25" x2="24" y2="63"/><line x1="38.5" y1="25" x2="38.5" y2="63"/><line x1="53" y1="25" x2="53" y2="63"/><line x1="67.5" y1="25" x2="67.5" y2="63"/></g><line x1="17" y1="67" x2="72" y2="21" stroke="#c2261a" stroke-width="9.5"/></g></svg>'''
 CHROME = [
     Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
     Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
@@ -131,29 +133,36 @@ CSS = """
   size: A4;
   margin: 20mm 17mm 20mm;
   @bottom-center { content: "עמוד " counter(page) " מתוך " counter(pages); font: 600 8.5pt Assistant, sans-serif; color: #8a8a86; }
-  @top-left { content: "הסכם הקמה, הטמעה ושירות · מוסך לוי ובניו"; font: 600 8pt Assistant, sans-serif; color: #8a8a86; }
+  @top-left { content: "רושינוביץ · הסכם הקמה, הטמעה ושירות עם מוסך לוי ובניו"; font: 600 8pt Assistant, sans-serif; color: #8a8a86; }
 }
 @page:first { @top-left { content: none; } }
-:root { --ink: #111214; --muted: #55565a; --line: #d8d8d4; --soft: #f5f5f2; --brand: #f2c230; --blue: #1f3f94; }
+/* הצבעים של רושינוביץ: טורקיז לדגש, ירוק כהה אחד, ואדום רק בסימן */
+:root { --ink: #171717; --muted: #4a4842; --faint: #6b675f; --line: #e2dccf; --soft: #f6f4ef;
+  --teal: #0e5c63; --wash: rgba(14,92,99,.09); --dark: #12211f; }
 * { box-sizing: border-box; }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { margin: 0; font-family: Assistant, sans-serif; font-size: 10.5pt; line-height: 1.6; color: var(--ink); }
 
-.cover { display: flex; align-items: center; justify-content: space-between; gap: 18px;
-  padding-bottom: 14px; border-bottom: 3px solid var(--ink); }
-.cover h1 { font-family: "Frank Ruhl Libre", serif; font-weight: 900; font-size: 25pt; line-height: 1.15; margin: 0; }
-.cover .sub { margin: 6px 0 0; color: var(--muted); font-size: 10.5pt; }
-.cover img { height: 56px; flex: none; }
+.letterhead { display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding-bottom: 12px; border-bottom: 1.5px solid var(--ink); }
+.logo { display: flex; align-items: center; gap: 10px; line-height: 1.05; }
+.logo .mark { width: 42px; height: 42px; flex: none; }
+.logo b { display: block; font-family: "Noto Serif Hebrew", serif; font-weight: 800; font-size: 20pt; }
+.logo span { display: block; font-size: 9.5pt; color: var(--faint); margin-top: 3px; }
+.contact { text-align: end; font-size: 9pt; color: var(--faint); line-height: 1.5; direction: ltr; }
+.title { margin: 22px 0 0; }
+.title h1 { font-family: "Noto Serif Hebrew", serif; font-weight: 800; font-size: 24pt; line-height: 1.15; margin: 0; }
+.title .sub { margin: 6px 0 0; color: var(--muted); font-size: 10.5pt; }
 
-.parties { margin: 16px 0 6px; padding: 12px 16px; background: var(--soft); border-inline-start: 5px solid var(--brand); border-radius: 4px; }
+.parties { margin: 16px 0 6px; padding: 12px 16px; background: var(--soft); border-inline-start: 4px solid var(--teal); border-radius: 4px; }
 .party { display: grid; grid-template-columns: 4.2em 1fr; gap: 10px; padding: 3px 0; }
 .party-k { font-weight: 800; }
 
 h2 { display: flex; align-items: center; gap: 10px; margin: 22px 0 8px; padding-bottom: 5px;
-  border-bottom: 1px solid var(--line); font-family: "Frank Ruhl Libre", serif; font-weight: 700; font-size: 14.5pt;
+  border-bottom: 1px solid var(--line); font-family: "Noto Serif Hebrew", serif; font-weight: 800; font-size: 14pt;
   break-after: avoid; }
 h2 .num { display: inline-grid; place-items: center; width: 1.7em; height: 1.7em; border-radius: 5px;
-  background: var(--brand); border: 1.5px solid var(--ink); font-family: Assistant, sans-serif; font-weight: 800; font-size: 10.5pt; }
+  background: var(--teal); color: #fff; font-family: Assistant, sans-serif; font-weight: 800; font-size: 10.5pt; }
 p { margin: 6px 0; }
 .clause { display: grid; grid-template-columns: 2.6em 1fr; gap: 6px; break-inside: avoid; }
 /* פסקה שמציגה טבלה לא נשארת לבד בתחתית העמוד */
@@ -162,20 +171,20 @@ p:has(+ table), p:has(+ ul) { break-after: avoid; }
 ul { margin: 4px 0 8px; padding-inline-start: 3.9em; }
 li { margin: 2px 0; }
 strong { font-weight: 800; }
-q.quote { quotes: none; font-family: "Frank Ruhl Libre", serif; font-weight: 500; }
+q.quote { quotes: none; font-family: "Noto Serif Hebrew", serif; font-weight: 700; color: var(--teal); }
 
 table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9.5pt; line-height: 1.45; }
 thead { display: table-header-group; }
 tr { break-inside: avoid; }
-th { background: var(--ink); color: #fff; font-weight: 700; text-align: start; padding: 6px 8px; }
+th { background: var(--dark); color: #fff; font-weight: 700; text-align: start; padding: 6px 8px; }
 td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 tbody tr:nth-child(even) td { background: var(--soft); }
-tr.total td { background: #fff5d1 !important; border-top: 2px solid var(--ink); }
+tr.total td { background: var(--wash) !important; border-top: 2px solid var(--teal); }
 
 .witness { margin-top: 26px; break-after: avoid; }
 .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 10px; break-inside: avoid; }
 .sig { border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 16px 26px; }
-.sig-who { font-family: "Frank Ruhl Libre", serif; font-weight: 700; font-size: 13pt; }
+.sig-who { font-family: "Noto Serif Hebrew", serif; font-weight: 800; font-size: 13pt; }
 .sig-name { color: var(--muted); margin-bottom: 10px; }
 .sig-line { margin-top: 38px; border-bottom: 1px solid var(--ink); position: relative; height: 1px; }
 .sig-line span { position: absolute; top: 4px; inset-inline-start: 0; font-size: 8.5pt; color: var(--muted); }
@@ -184,18 +193,18 @@ tr.total td { background: #fff5d1 !important; border-top: 2px solid var(--ink); 
 
 def main() -> None:
     title, body = convert(SRC.read_text(encoding="utf-8"))
-    logo = LOGO.resolve().as_uri()
     doc = f"""<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><title>{html.escape(title)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Frank+Ruhl+Libre:wght@500;700;900&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=Noto+Serif+Hebrew:wght@700;800&display=block">
 <style>{CSS}</style></head>
 <body>
-<header class="cover">
-  <div><h1>{html.escape(title)}</h1>
-  <p class="sub">ארבעה פתרונות ואתר, שעובדים יחד במוסך לוי ובניו</p></div>
-  <img src="{logo}" alt="מוסך לוי ובניו">
+<header class="letterhead">
+  <div class="logo">{MARK}<div><b>רושינוביץ</b><span>אוטומציה לעסקים</span></div></div>
+  <div class="contact">roshinovic.co.il<br>055-304-8489</div>
 </header>
+<div class="title"><h1>{html.escape(title)}</h1>
+  <p class="sub">ארבעה פתרונות ואתר, שעובדים יחד במוסך לוי ובניו</p></div>
 {body}
 </body></html>"""
     HTML_OUT.write_text(doc, encoding="utf-8")
