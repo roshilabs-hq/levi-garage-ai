@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { PlateLogo } from "@/components/brand/plate-logo"
 import { useEffect, useRef, useState } from "react"
 import { Menu, X } from "lucide-react"
 
@@ -80,8 +81,7 @@ export function SiteHeader({ t, overPhoto = true }: { t: Dict; overPhoto?: boole
       <header className="site-header" data-solid={solid || open ? "" : undefined}>
         <div className="wrap nav">
           <Link className="brand" href={home}>
-            <b>{t.lang === "he" ? "מוסך לוי ובניו" : t.lang === "ar" ? "كراج ليفي وأبناؤه" : "Гараж Леви и сыновья"}</b>
-            <small>{t.footer.tagline.split(".")[0]}</small>
+            <PlateLogo lang={t.lang} height={42} />
           </Link>
           <ul className="nav-links">
             {links.map((l) => (

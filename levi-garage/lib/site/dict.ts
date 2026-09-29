@@ -555,7 +555,7 @@ export const siteConfig = {
   // Cal.com: שדות הטופס ממולאים מה-URL. ערכי service הם התוויות בטופס (אומת בבדיקת ה-webhook).
   serviceValues: { periodic: "טיפול תקופתי", test: "הכנה וליווי לטסט" },
   // מספר בדוי, מסומן בפוטר ובהצהרה. לא לשים כאן מספר אמיתי של אדם.
-  phone: "04-0000000",
+  phone: "055-3048489",
   // מוצג רק אחרי שהניתוב בעוזר האישי יתוקן (ראו design/brief.md). ריק = הכפתור מפנה ל"תשאלו אותנו".
   whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "",
   wazeUrl: "https://waze.com/ul?q=%D7%90%D7%96%D7%95%D7%A8%20%D7%94%D7%AA%D7%A2%D7%A9%D7%99%D7%99%D7%94%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%91%D7%99%D7%90%D7%9C%D7%99%D7%A7&navigate=yes",

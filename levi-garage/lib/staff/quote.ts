@@ -45,10 +45,14 @@ export type QuoteSnapshot = {
 export const GARAGE = {
   name: "מוסך לוי ובניו",
   address: "אזור התעשייה, קריית ביאליק",
-  phone: "04-0000000",
+  phone: "055-3048489",
   manager: "דניאל לוי",
   managerTitle: "מנהל מקצועי",
 }
+// במייל אין גופנים ואין SVG (Gmail ו-Outlook חוסמים), ולכן הלוחית היא תמונה.
+// הכתובת קבועה: levi-garage.vercel.app ממשיכה לעבוד גם אחרי המעבר לדומיין.
+const LOGO_URL = "https://levi-garage.vercel.app/brand/logo-plate.png"
+
 
 const TZ = "Asia/Jerusalem"
 const dateFmt = new Intl.DateTimeFormat("he-IL", { timeZone: TZ, day: "numeric", month: "numeric", year: "numeric" })
@@ -129,7 +133,7 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" |
 
   const html = `<!doctype html><html lang="he" dir="rtl"><body style="margin:0;background:#f4f5f2">
   <div style="max-width:640px;margin:0 auto;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#1b2620;direction:rtl;text-align:right">
-    <div style="font-size:20px;font-weight:700">${GARAGE.name}</div>
+    <img src="${LOGO_URL}" alt="${GARAGE.name}" width="200" height="60" style="display:block;border:0;height:60px;width:200px;font-size:20px;font-weight:700">
     <div style="color:#4f5b54;font-size:13px">${GARAGE.address} · ${GARAGE.phone}</div>
     <h1 style="font-size:22px;margin:22px 0 4px">${reason === "intake" ? "הצעת מחיר" : `הצעת מחיר מעודכנת · גרסה ${version}`}</h1>
     <div style="color:#4f5b54;font-size:14px">מספר ${s.job.id}-${version} · ${dateFmt.format(new Date())}</div>

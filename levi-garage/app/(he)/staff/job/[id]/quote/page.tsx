@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
+import { PlateLogo } from "@/components/brand/plate-logo"
 import { requireStaff } from "@/lib/staff/session"
 import { GARAGE, choiceAndPrice, hours, money, totals, type QuoteOption, type QuoteSnapshot } from "@/lib/staff/quote"
 import { reissueQuote } from "../../../actions"
@@ -91,7 +92,7 @@ export default async function QuotePage({
 
       <header className="pq-head">
         <div>
-          <b className="pq-garage">{GARAGE.name}</b>
+          <PlateLogo className="pq-logo" height={46} mono />
           <span>{GARAGE.address} · {GARAGE.phone}</span>
         </div>
         <div>

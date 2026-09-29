@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 
 import { createClient } from "@/lib/supabase/server"
+import { PlateLogo } from "@/components/brand/plate-logo"
 import { requireScreen } from "@/lib/staff/session"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { ThemeToggle } from "@/components/site/theme-toggle"
@@ -39,7 +40,7 @@ export default async function LobbyPage() {
       <AutoRefresh seconds={30} />
 
       <header className="lobby-head">
-        <h1>מוסך לוי ובניו</h1>
+        <h1><PlateLogo className="lobby-logo" height={64} /></h1>
         <p>הרכבים שאצלנו עכשיו, לפי שלוש הספרות האחרונות של מספר הרישוי.</p>
       </header>
 

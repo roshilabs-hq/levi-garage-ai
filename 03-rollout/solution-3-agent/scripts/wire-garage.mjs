@@ -36,7 +36,7 @@ if (!["site", "bot"].includes(target)) {
 // בשום קובץ בריפו.
 const PUBLIC = {
   GARAGE_BOOKING_URL: "https://cal.com/levi-garage/drop-off",
-  GARAGE_PHONE: "04-0000000",
+  GARAGE_PHONE: "055-3048489",
 }
 
 const local = new Map()

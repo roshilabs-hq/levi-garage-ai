@@ -1093,3 +1093,8 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .demo-photos p { padding: 6px 14px 14px; margin: 0; line-height: 1.6; }
 .demo-photos p span { color: var(--muted); font-weight: 600; }
 .demo-photos-note { margin-top: 18px; }
+
+/* הלוגו: לוחית (29.9) */
+.approve-logo { margin: 0 auto 14px; }
+.lobby-logo { display: inline-block; }
+.pq-logo { margin-bottom: 6px; }

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import { partLabel } from "@/lib/staff/quote"
 import { createClient } from "@/lib/supabase/server"
+import { PlateLogo } from "@/components/brand/plate-logo"
 import { ApproveForm } from "@/components/staff/approve-form"
 import { fmtStamp } from "@/lib/staff/format"
 
@@ -56,7 +57,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
         <div className="approve-box">
           <h1>הקישור לא בתוקף</h1>
           <p>יכול להיות שהוא כבר שימש, או שעברו יותר משבוע. אפשר להתקשר אלינו ונסדר את זה.</p>
-          <a className="btn" href="tel:040000000">התקשרות למוסך</a>
+          <a className="btn" href="tel:0553048489">התקשרות למוסך</a>
         </div>
       </main>
     )
@@ -68,7 +69,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
   return (
     <main className="approve">
       <div className="approve-box">
-        <p className="approve-from">מוסך לוי ובניו</p>
+        <PlateLogo className="approve-logo" height={38} />
         <h1>
           {view.vehicle || "הרכב שלך"}
           {view.plate_last3 ? (
@@ -160,7 +161,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
         )}
 
         <p className="approve-small">
-          המחירים כוללים חלקים, עבודה ומע"מ. בלי האישור שלך לא נוגעים ברכב. אם משהו לא ברור, אנחנו כאן: 04-0000000.
+          המחירים כוללים חלקים, עבודה ומע"מ. בלי האישור שלך לא נוגעים ברכב. אם משהו לא ברור, אנחנו כאן: 055-3048489.
         </p>
       </div>
     </main>

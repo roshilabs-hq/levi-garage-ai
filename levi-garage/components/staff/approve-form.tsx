@@ -42,7 +42,7 @@ export function ApproveForm({
     const res = await decideApproval(token, decision, decision === "approved" ? choice : null)
     setBusy(false)
     if (!res.ok) {
-      setError("לא הצלחנו לשמור את התשובה. אפשר להתקשר אלינו: 04-0000000")
+      setError("לא הצלחנו לשמור את התשובה. אפשר להתקשר אלינו: 055-3048489")
       return
     }
     router.refresh()

@@ -36,7 +36,7 @@ export default async function FleetPage({ params }: { params: Promise<{ token: s
       <main className="approve">
         <div className="approve-box">
           <h1>הקישור לא בתוקף</h1>
-          <p>אפשר להתקשר אלינו ונשלח קישור חדש: 04-0000000.</p>
+          <p>אפשר להתקשר אלינו ונשלח קישור חדש: 055-3048489.</p>
         </div>
       </main>
     )
@@ -93,7 +93,7 @@ export default async function FleetPage({ params }: { params: Promise<{ token: s
 
       <p className="approve-small">
         הסכומים כאן הם מה שאישרתם, כולל מע"מ, ולא חשבונית. החשבונית החודשית נשלחת בנפרד.
-        שאלה על רכב מסוים? 04-0000000.
+        שאלה על רכב מסוים? 055-3048489.
       </p>
     </main>
   )
