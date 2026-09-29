@@ -25,7 +25,7 @@ export default async function DemoPhotosPage() {
 
   return (
     <main className="staff-wrap wide">
-      <TopBar staff={staff} current="stations" />
+      <TopBar staff={staff} current="other" />
 
       <header className="staff-top">
         <div>

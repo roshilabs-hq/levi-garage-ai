@@ -121,6 +121,11 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
   const reminderTag = (id: number) =>
     reminderOf.get(id) === "sent" ? " · ✓ נשלחה תזכורת" : reminderOf.get(id) === "skipped" ? " · בלי תזכורת (לא כתב לנו)" : ""
   const canRemind = staff.role === "owner" || staff.role === "manager"
+  // התזכורת יוצאת לבד בערב. כפתור "לשלוח עכשיו" מוצג רק כשיש למי לשלוח;
+  // אחרת דניאל לוחץ ומקבל "אין מה לשלוח", וזה נראה כמו תקלה.
+  const dayAfter = new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
+  const tomorrowBooked = (later ?? []).filter((b) => new Date(b.drop_off_at) < dayAfter)
+  const remindLeft = tomorrowBooked.filter((b) => !["sent", "skipped"].includes(reminderOf.get(b.id) ?? "")).length
   // הלקוח ענה, והרכב עדיין בחניה: מחזירים לתור (דניאל, לא המכונאי).
   const backToQueue = all.filter(approvedWaitingForUs)
   const HOUR = 60 * 60 * 1000
@@ -439,10 +444,16 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
         <section className="board-group" aria-labelledby="g-later">
           <h2 id="g-later">תורים בימים הקרובים</h2>
           <p className="board-why">לקוח שהגיע לפני המועד שלו: אותו כפתור, והכרטיס נפתח עם כל הפרטים מהתור.</p>
-          {canRemind && (
+          {canRemind && tomorrowBooked.length > 0 && (
             <form action={sendRemindersNow} className="board-remind">
               <p className="board-why">תזכורת בוואטסאפ יוצאת לבד כל ערב, לכל מי שיש לו תור מחר.</p>
-              <button className="btn quiet" type="submit">לשלוח עכשיו את התזכורות למחר</button>
+              {remindLeft > 0 ? (
+                <button className="btn quiet" type="submit">
+                  לשלוח עכשיו את התזכורות למחר ({remindLeft})
+                </button>
+              ) : (
+                !runNote && <p className="staff-note">✓ התזכורות למחר כבר יצאו, לכל {tomorrowBooked.length === 1 ? "התור" : `${tomorrowBooked.length} התורים`}.</p>
+              )}
             </form>
           )}
           {runNote && <p className="staff-note" role="status">{runNote}</p>}
