@@ -54,6 +54,11 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
           <b>לבוחנים:</b> אין כאן ארבעה ליפטים, אבל יש לכם טלפון. המחשב הוא דניאל, והטלפון הוא הליפט: בוחרים ליפט, סורקים, נוגעים בשם של
           מכונאי ומקישים את הקוד ממסמך ההגשה. בלי טלפון — אותו קישור בחלון גלישה בסתר. לצילום של תקלה, יש <Link href="/staff/demo-photos">תמונות להדגמה</Link> לצלם מהמסך.
         </p>
+        <p className="staff-meta">
+          <b>כרטיס עמדה</b> לתלות ליד כל ליפט, בעמוד אחד:{" "}
+          <Link href="/staff/station-card?lang=he">עברית</Link> · <Link href="/staff/station-card?lang=ar">العربية</Link> ·{" "}
+          <Link href="/staff/station-card?lang=ru">Русский</Link>
+        </p>
       </section>
 
       <section className="staff-section" aria-labelledby="pair-title">

@@ -1098,3 +1098,35 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .approve-logo { margin: 0 auto 14px; }
 .lobby-logo { display: inline-block; }
 .pq-logo { margin-bottom: 6px; }
+
+/* כרטיס עמדה להדפסה (29.9) */
+.scard-wrap { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
+.scard-nav { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 18px; }
+.scard-nav a[aria-current="page"] { font-weight: 800; }
+.scard { background: #fff; color: #111214; border: 2px solid #111214; border-radius: 16px; padding: 28px 30px; }
+.scard header { display: flex; gap: 18px; align-items: center; padding-bottom: 14px; border-bottom: 2px solid #111214; }
+.scard h1 { font-size: 30px; margin: 0; }
+.scard header p { margin: 4px 0 0; font-size: 15px; color: #333; }
+.scard ol { margin: 18px 0 0; padding-inline-start: 26px; display: grid; gap: 12px; font-size: 18px; line-height: 1.45; }
+.scard-btn { display: inline-block; padding: 1px 10px; border: 2px solid #111214; border-radius: 999px; font-size: 16px; white-space: nowrap; }
+.scard-rule { margin-top: 20px; padding: 12px 14px; border-radius: 10px; background: #f2c230; font-weight: 800; font-size: 18px; }
+.scard-help { margin-top: 10px; font-size: 16px; }
+@media print {
+  @page { size: A4; margin: 12mm; }
+  .scard-wrap { max-width: none; padding: 0; }
+  .scard { border-width: 2px; padding: 22px 24px; }
+  /* ליד הליפט קוראים ממטר: הגופן גדל עד שהכרטיס ממלא את ה-A4.
+     נמדד ברוחב 704px: רוסית (הארוכה) 988px, ערבית 937px, עברית 873px, מתוך 1033px. */
+  .scard h1 { font-size: 32px; }
+  .scard header p { font-size: 16px; }
+  .scard ol { font-size: 20px; gap: 12px; }
+  .scard-btn { font-size: 17px; }
+  .scard-rule { background: none; border: 2px solid #111214; font-size: 20px; }
+  .scard-help { font-size: 17px; }
+  .scard:not([lang="ru"]) h1 { font-size: 38px; }
+  .scard:not([lang="ru"]) header p { font-size: 18px; }
+  .scard:not([lang="ru"]) ol { font-size: 24px; gap: 18px; }
+  .scard:not([lang="ru"]) .scard-btn { font-size: 21px; }
+  .scard:not([lang="ru"]) .scard-rule { font-size: 24px; }
+  .scard:not([lang="ru"]) .scard-help { font-size: 20px; }
+}
