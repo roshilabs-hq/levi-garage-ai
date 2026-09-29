@@ -37,7 +37,7 @@ export default async function LobbyPage() {
 
   return (
     <main className="lobby">
-      <AutoRefresh seconds={30} />
+      <AutoRefresh seconds={60} live />
 
       <header className="lobby-head">
         <h1><PlateLogo className="lobby-logo" height={64} /></h1>

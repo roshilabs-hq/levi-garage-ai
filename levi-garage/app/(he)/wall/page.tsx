@@ -123,7 +123,7 @@ export default async function WallPage() {
 
   return (
     <main className="wall">
-      <AutoRefresh seconds={45} />
+      <AutoRefresh seconds={60} live />
 
       <Rotator labels={STAGES.map((s) => `${stageLabel[s]} ${counts[s]}`)} seconds={10}>
         <section aria-label={stageLabel.booked}>

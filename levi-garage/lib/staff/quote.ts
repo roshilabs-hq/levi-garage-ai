@@ -112,7 +112,7 @@ function blockHtml(o: QuoteOption, status: string) {
     </table>
     <div style="font-size:14px;margin-top:8px">שעות עבודה צפויות: <b>${hours(o.labor_hours)}</b></div>
     ${o.part_diff ? `<div style="font-size:14px;margin-top:6px;color:#4f5b54">ההבדל בין סוגי החלקים: ${esc(o.part_diff)}</div>` : ""}
-    ${o.single_reason ? `<div style="font-size:14px;margin-top:6px;color:#4f5b54">למה אין חלופה: ${esc(o.single_reason)}</div>` : ""}
+    ${o.single_reason ? `<div style="font-size:14px;margin-top:6px;color:#4f5b54">${esc(o.single_reason)}</div>` : ""}
   </div>`
 }
 
@@ -166,7 +166,7 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" |
         : `  מחיר ${money(o.price_original)} (אחריות: ${o.warranty_original})`,
       `  שעות עבודה צפויות: ${hours(o.labor_hours)}`,
       o.part_diff ? `  ההבדל: ${o.part_diff}` : "",
-      o.single_reason ? `  למה אין חלופה: ${o.single_reason}` : "",
+      o.single_reason ? `  ${o.single_reason}` : "",
     ]
       .filter(Boolean)
       .join("\n")

@@ -48,7 +48,7 @@ function Option({ o, status }: { o: QuoteOption; status: string }) {
       </table>
       <p>שעות עבודה צפויות: {hours(o.labor_hours)}</p>
       {o.part_diff && <p>ההבדל בין סוגי החלקים: {o.part_diff}</p>}
-      {o.single_reason && <p>למה אין חלופה: {o.single_reason}</p>}
+      {o.single_reason && <p>{o.single_reason}</p>}
     </section>
   )
 }

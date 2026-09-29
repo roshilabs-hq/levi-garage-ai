@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { elapsed, fmtStamp, fmtTime } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
+import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { Since } from "@/components/staff/since"
 import { markSafetyReported, requeueCar, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
 import { approvedWaitingForUs } from "@/lib/staff/queue"
@@ -140,6 +141,7 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
   return (
     <main className="staff-wrap">
       <TopBar staff={staff} current="board" />
+      <AutoRefresh seconds={30} live />
 
       <header className="board-head">
         <h1>לוח היום</h1>

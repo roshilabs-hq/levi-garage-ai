@@ -114,7 +114,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
         </dl>
 
         {view.part_diff && <p className="approve-diff">מה ההבדל בין מקורי לחלופי: {view.part_diff}</p>}
-        {view.single_reason && <p className="approve-diff">למה יש רק אפשרות אחת: {view.single_reason}</p>}
+        {view.single_reason && <p className="approve-diff">{view.single_reason}</p>}
 
         {view.expired && !decided && <p className="approve-note">הקישור פג. אפשר להתקשר אלינו ונסדר את זה בטלפון.</p>}
 

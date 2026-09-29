@@ -74,7 +74,7 @@ export function ArriveForm({
             </p>
           )}
           <p className="arrive-diff">
-            {both ? <>להגיד ללקוח: {item.part_diff}</> : <>אין חלופה: {item.single_reason}</>}
+            {both ? <>להגיד ללקוח: {item.part_diff}</> : <>להגיד ללקוח: {item.single_reason}</>}
           </p>
           <p className="staff-meta">
             שעות עבודה צפויות: {Number(item.labor_hours).toLocaleString("he-IL")} · {both ? "המחיר כולל חלקים, עבודה ומע\"מ" : "המחיר כולל מע\"מ"}

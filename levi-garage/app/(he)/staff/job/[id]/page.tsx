@@ -14,6 +14,7 @@ import { choiceAndPrice, money } from "@/lib/staff/quote"
 import { RetryButton } from "@/components/staff/retry-button"
 import { fmtStamp } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
+import { AutoRefresh } from "@/components/staff/auto-refresh"
 
 export const metadata: Metadata = { title: "כרטיס עבודה | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -137,6 +138,7 @@ export default async function JobCardPage({
   return (
     <main className="staff-wrap">
       <TopBar staff={staff} current="other" />
+      <AutoRefresh seconds={30} live />
 
       <header className="staff-top">
         <div>

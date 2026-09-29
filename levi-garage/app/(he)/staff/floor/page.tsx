@@ -139,7 +139,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
   return (
     <main className="staff-wrap wide">
       <TopBar staff={staff} current="floor" />
-      <AutoRefresh seconds={60} />
+      <AutoRefresh seconds={60} live />
 
       <header className="board-head">
         <h1>מפת המוסך</h1>

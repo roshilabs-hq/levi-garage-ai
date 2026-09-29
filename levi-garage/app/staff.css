@@ -863,6 +863,8 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .light-btn.yellow.on { background: var(--amber); border-color: var(--amber); color: var(--amber-ink); }
 .light-btn.red.on { background: #b3261e; border-color: #b3261e; color: #fff; }
 .inspect-done { margin-top: 10px; color: var(--muted); font-size: 15px; }
+.inspect-done p { margin: 0; }
+.inspect-done .add-photo { margin-top: 8px; }
 .inspect-finish { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
 .inspect-finish .btn { min-height: 60px; }
 
@@ -1129,4 +1131,18 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
   .scard:not([lang="ru"]) .scard-btn { font-size: 21px; }
   .scard:not([lang="ru"]) .scard-rule { font-size: 24px; }
   .scard:not([lang="ru"]) .scard-help { font-size: 20px; }
+}
+
+/* ── לחיצה שנקלטה (PendingSubmit): הכפתור מסומן מיד, ולא לחיץ שוב עד שהמסך משתנה ── */
+button[data-pending],
+.btn[data-pending] { opacity: .65; cursor: progress; pointer-events: none; }
+button[data-pending]::after,
+.btn[data-pending]::after {
+  content: ""; display: inline-block; width: .85em; height: .85em; margin-inline-start: .5em;
+  border: 2px solid currentColor; border-inline-end-color: transparent; border-radius: 50%;
+  vertical-align: -.1em; animation: pending-spin .7s linear infinite;
+}
+@keyframes pending-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  button[data-pending]::after, .btn[data-pending]::after { animation: none; border-inline-end-color: currentColor; }
 }

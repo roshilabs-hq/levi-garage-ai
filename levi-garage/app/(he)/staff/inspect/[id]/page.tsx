@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { INSPECTION_ITEMS, progress, type InspectionState } from "@/lib/staff/inspection"
 import { TopBar } from "@/components/staff/top-bar"
+import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { CaptureButton } from "@/components/staff/capture-button"
+import { AddPhoto } from "@/components/staff/add-photo"
 import { StationIdle } from "@/components/staff/station-idle"
 import { completeInspection, setInspectionItem } from "../../actions"
 
@@ -39,12 +41,12 @@ export default async function InspectPage({
   const [{ data: job }, { data: ins }, { data: findings }] = await Promise.all([
     supabase.from("job_cards").select("id, plate, vehicle_make, vehicle_model, vehicle_year, inspected_at").eq("id", jobId).maybeSingle(),
     supabase.from("inspections").select("items, completed_at").eq("job_card_id", jobId).maybeSingle(),
-    supabase.from("findings").select("id, title").eq("job_card_id", jobId).eq("source", "intake"),
+    supabase.from("findings").select("id, title, status, media(kind)").eq("job_card_id", jobId).eq("source", "intake"),
   ])
   if (!job) notFound()
 
   const items = (ins?.items as InspectionState) ?? {}
-  const titles = new Map((findings ?? []).map((f) => [f.id, f.title]))
+  const byId = new Map((findings ?? []).map((f) => [f.id, f]))
   const p = progress(items)
   const undocumented = INSPECTION_ITEMS.filter((i) => {
     const s = items[i.key]
@@ -55,6 +57,7 @@ export default async function InspectPage({
     <main className="staff-wrap inspect-page">
       {staff.role === "mechanic" && <StationIdle />}
       <TopBar staff={staff} current="lift" />
+      <AutoRefresh seconds={30} live />
 
       <header className="staff-top">
         <div>
@@ -108,7 +111,16 @@ export default async function InspectPage({
 
               {(light === "yellow" || light === "red") &&
                 (fid ? (
-                  <p className="inspect-done">נרשם: {titles.get(fid) ?? "ממצא"}. דניאל קיבל.</p>
+                  <div className="inspect-done">
+                    <p>נרשם: {byId.get(fid)?.title ?? "ממצא"}. דניאל קיבל.</p>
+                    {/* עוד תמונה לאותו פריט, כל עוד דניאל לא שלח ללקוח */}
+                    {byId.get(fid)?.status === "draft" && (
+                      <AddPhoto
+                        findingId={fid}
+                        missing={!(byId.get(fid)?.media ?? []).some((m) => m.kind === "photo")}
+                      />
+                    )}
+                  </div>
                 ) : (
                   <CaptureButton
                     jobId={job.id}

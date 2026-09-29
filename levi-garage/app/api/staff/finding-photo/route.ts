@@ -12,7 +12,9 @@ const ALLOWED_PHOTO = ["image/jpeg", "image/png", "image/webp"]
 
 export async function POST(req: Request) {
   const staff = await getStaff()
-  if (!staff || staff.role === "display" || staff.role === "mechanic") {
+  // גם המכונאי: באבחון הוא צילם ודיבר, ואחר כך רוצה להוסיף עוד תמונה לאותו פריט
+  // (רועי, 29.9). רק לממצא שעוד לא נשלח (למטה), כמו אצל דניאל.
+  if (!staff || staff.role === "display") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
