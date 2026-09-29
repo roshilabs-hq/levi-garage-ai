@@ -1146,3 +1146,11 @@ button[data-pending]::after,
 @media (prefers-reduced-motion: reduce) {
   button[data-pending]::after, .btn[data-pending]::after { animation: none; border-inline-end-color: currentColor; }
 }
+
+/* ── "הגעתי" על מסך העמדה (026) ── */
+.answer-call { margin-top: 8px; }
+.answer-call summary { cursor: pointer; color: var(--muted); font-size: 15px; padding: 6px 0; }
+.answer-call-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+.answer-who { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.answer-pin { width: 9ch; font-size: 22px; letter-spacing: .15em; text-align: center; padding: 8px 10px; }
+.answer-call-form .staff-error, .answer-call-form .staff-note { width: 100%; margin: 0; }

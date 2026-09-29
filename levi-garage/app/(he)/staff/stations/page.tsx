@@ -110,14 +110,15 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
       </section>
 
       <section className="staff-section" aria-labelledby="pin-title">
-        <h2 id="pin-title">קודים של המכונאים</h2>
-        <p className="staff-meta">6 ספרות. אחרי 5 טעויות הקוד ננעל ל-15 דקות, וקביעה מחדש משחררת אותו.</p>
+        <h2 id="pin-title">קודים של הצוות</h2>
+        <p className="staff-meta">6 ספרות. אחרי 5 טעויות הקוד ננעל ל-15 דקות, וקביעה מחדש משחררת אותו. למכונאים: כניסה בעמדה. לדניאל ולאבי: "הגעתי" על מסך העמדה, כשמכונאי קרא להם.</p>
         <ul className="board-rows">
-          {((team ?? []) as { id: string; full_name: string; has_pin: boolean; locked_until: string | null }[]).map((m) => (
+          {((team ?? []) as { id: string; full_name: string; role: string; has_pin: boolean; locked_until: string | null }[]).map((m) => (
             <li key={m.id}>
               <div>
                 <b>{m.full_name}</b>
                 <span className="staff-meta">
+                  {m.role === "manager" ? "מנהל עבודה · " : m.role === "owner" ? "בעלים · " : ""}
                   {m.locked_until ? `נעול עד ${fmtStamp(m.locked_until)}` : m.has_pin ? "יש קוד" : "אין קוד עדיין"}
                 </span>
               </div>

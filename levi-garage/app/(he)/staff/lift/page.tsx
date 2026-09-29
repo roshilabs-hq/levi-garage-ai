@@ -12,6 +12,7 @@ import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { elapsed } from "@/lib/staff/format"
 import { ACTIVE, queueOf } from "@/lib/staff/queue"
 import { StationIdle } from "@/components/staff/station-idle"
+import { AnswerCall } from "@/components/staff/answer-call"
 
 export const metadata: Metadata = { title: "הליפט שלי | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -96,12 +97,14 @@ function Car({
   findings,
   calls,
   pick,
+  answerers,
 }: {
   card: Card
   lines: Line[]
   findings: Finding[]
-  calls: { kind: string; created_at: string }[]
+  calls: { id: number; kind: string; created_at: string }[]
   pick: PickItem[]
+  answerers: { id: string; full_name: string }[]
 }) {
   const approved = findings.filter((f) => f.status === "approved")
   const waiting = findings.filter((f) => f.status === "sent")
@@ -162,6 +165,7 @@ function Car({
             {helpCall ? `דניאל בדרך · קראת לפני ${elapsed(helpCall.created_at)}` : "דניאל, בוא לעמדה"}
           </button>
         </form>
+        {helpCall && <AnswerCall callId={helpCall.id} answerers={answerers} />}
         <form action={callManager}>
           <input type="hidden" name="job_id" value={card.id} />
           <input type="hidden" name="kind" value="done" />
@@ -198,6 +202,8 @@ export default async function LiftPage() {
       .order("opened_at", { ascending: true }),
     supabase.from("price_list").select("id, title, price_original, fixed_price").eq("active", true).order("sort"),
   ])
+  // מי יכול לאשר "הגעתי" על המסך הזה (026): רק שמות של מי שיש לו קוד.
+  const { data: answerers } = await supabase.rpc("call_answerers")
 
   const all = (cards ?? []) as Card[]
   const mine = atDiag ? [] : all.filter((c) => c.lift === staff.lift)
@@ -213,7 +219,7 @@ export default async function LiftPage() {
           .select("id, job_card_id, title, summary, status, price_aftermarket, approvals(part_choice)")
           .in("job_card_id", ids)
           .neq("status", "cancelled"),
-        supabase.from("help_calls").select("job_card_id, kind, created_at").in("job_card_id", ids).is("resolved_at", null),
+        supabase.from("help_calls").select("id, job_card_id, kind, created_at").in("job_card_id", ids).is("resolved_at", null),
       ])
     : [{ data: [] }, { data: [] }, { data: [] }]
 
@@ -243,7 +249,7 @@ export default async function LiftPage() {
         <ul className="lift-list">
           {mine.map((c) =>
             c.inspected_at ? (
-              <Car key={c.id} card={c} lines={linesOf(c.id)} findings={findingsOf(c.id)} calls={callsOf(c.id)} pick={pick} />
+              <Car key={c.id} card={c} lines={linesOf(c.id)} findings={findingsOf(c.id)} calls={callsOf(c.id)} pick={pick} answerers={(answerers ?? []) as { id: string; full_name: string }[]} />
             ) : (
               <DiagnoseFirst key={c.id} card={c} lines={linesOf(c.id)} />
             ),

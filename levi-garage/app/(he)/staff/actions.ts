@@ -237,6 +237,34 @@ export async function resolveCall(formData: FormData) {
   revalidatePath("/staff/lift")
 }
 
+export type AnswerResult = { error?: string; ok?: string } | null
+
+/**
+ * "הגעתי" על מסך העמדה (026): דניאל, ליד הליפט, מקיש את הקוד שלו על המכשיר של
+ * המכונאי. המכונאי לא יכול לסגור את הקריאה בעצמו, כי בלי הקוד המסד מסרב.
+ */
+export async function answerCall(_prev: AnswerResult, formData: FormData): Promise<AnswerResult> {
+  await requireStaff()
+  const callId = Number(formData.get("call_id"))
+  const staffId = String(formData.get("staff_id") || "")
+  const pin = String(formData.get("pin") || "").replace(/\D/g, "")
+  if (!callId || !staffId) return { error: "צריך לבחור מי הגיע." }
+  if (pin.length !== 6) return { error: "הקוד הוא 6 ספרות." }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("answer_call_with_pin", { p_call_id: callId, p_staff_id: staffId, p_pin: pin })
+  const r = data as { ok: boolean; reason?: string; left?: number; name?: string } | null
+  if (error || !r) return { error: "לא נשמר. לנסות שוב." }
+  if (!r.ok) {
+    if (r.reason === "locked") return { error: "הקוד ננעל ל-15 דקות, אחרי 5 טעויות. בלוח היום עדיין אפשר ללחוץ \"הגעתי\"." }
+    if (r.reason === "pin") return { error: `קוד שגוי. נשארו ${r.left ?? 0} ניסיונות.` }
+    return { error: "אין לו קוד. קובעים קוד במסך העמדות." }
+  }
+  revalidatePath("/staff/lift")
+  revalidatePath("/staff")
+  return { ok: `${r.name ?? "דניאל"} כאן.` }
+}
+
 /** ליקוי בטיחותי שהלקוח דחה: סימון שדווח לרשות הרישוי (תקנה 6). */
 export async function markSafetyReported(formData: FormData) {
   const staff = await requireManager()
