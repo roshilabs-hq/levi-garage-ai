@@ -30,3 +30,6 @@ gcp-sa*.json
 # מחקרים מקומיים (deep-research)
 research_notes/
 reports/
+
+# שלב ביניים בבניית ה-PDF של ההסכם (נתיבים מקומיים)
+04-empower/pdf/*.html
