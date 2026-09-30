@@ -105,6 +105,14 @@ export function notifyQuote(supabase: SupabaseClient, findingId: number) {
   return notify(supabase, "quote", "claim_quote_notice", { p_finding_id: findingId })
 }
 
+/**
+ * 027: דניאל שולח כמה ממצאים יחד, והלקוח מקבל הודעה אחת עם קישור אחד לכולם.
+ * הבוט מקבל טוקן, כמו קודם, ובונה ממנו את הקישור. הוא לא צריך לדעת שבקישור יש כמה ממצאים.
+ */
+export function notifyRequest(supabase: SupabaseClient, requestId: number) {
+  return notify(supabase, "quote", "claim_request_notice", { p_request_id: requestId })
+}
+
 /** מה הצוות רואה בכרטיס. */
 export function noticeLabel(
   n: { status: string; reason: string | null } | null | undefined,

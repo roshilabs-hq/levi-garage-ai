@@ -13,6 +13,7 @@ import { elapsed } from "@/lib/staff/format"
 import { ACTIVE, queueOf } from "@/lib/staff/queue"
 import { StationIdle } from "@/components/staff/station-idle"
 import { AnswerCall } from "@/components/staff/answer-call"
+import { GemLink } from "@/components/staff/gem-link"
 
 export const metadata: Metadata = { title: "הליפט שלי | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -112,10 +113,26 @@ function Car({
   const drafts = findings.filter((f) => f.status === "draft")
   const helpCall = calls.find((c) => c.kind === "help")
   const doneCall = calls.find((c) => c.kind === "done")
+  const holding = waiting.length + drafts.length
+  const allowed = lines.length + approved.length
+  const names = (list: Finding[]) => list.map((f) => f.title || f.summary || "ממצא").join(", ")
+
+  // מה עושים עכשיו, במשפט אחד (רועי, 30.9: "מה עושים שם? כאן הלכתי לאיבוד").
+  const now = doneCall
+    ? "סיימת. דניאל יודע, והוא ימסור את הרכב."
+    : allowed === 0
+      ? "אין עדיין עבודה מאושרת. אם אין מה לעשות ברכב: להוריד לחניה."
+      : holding > 0
+        ? "לעבוד על מה שמסומן ✓. כשמסיימים, להוריד לחניה: יש ממצאים שמחכים ללקוח."
+        : "לעבוד על מה שמסומן ✓. כשמסיימים: \"סיימתי את העבודה\"."
 
   return (
     <li className="lift-car">
       <Head card={card} />
+
+      <p className="lift-now">
+        <b>עכשיו:</b> {now}
+      </p>
 
       <div className="gate">
         <h3>מה מותר לבצע</h3>
@@ -132,18 +149,14 @@ function Car({
           </ul>
         )}
         {waiting.length > 0 && (
-          <ul className="gate-wait">
-            {waiting.map((f) => (
-              <li key={f.id}>⏳ {f.title || f.summary}: מחכה לאישור הלקוח. לא לגעת עד שמאשר.</li>
-            ))}
-          </ul>
+          <p className="gate-wait">
+            ⏳ <b>מחכה ללקוח</b> ({waiting.length}): {names(waiting)}. לא לגעת עד שמאשר.
+          </p>
         )}
         {drafts.length > 0 && (
-          <ul className="gate-wait">
-            {drafts.map((f) => (
-              <li key={f.id}>📝 {f.title || f.summary}: אצל דניאל, עוד לא נשלח ללקוח.</li>
-            ))}
-          </ul>
+          <p className="gate-wait">
+            📝 <b>אצל דניאל</b> ({drafts.length}): {names(drafts)}. הוא שולח ללקוח הודעה אחת. לא לגעת.
+          </p>
         )}
         {declined.length > 0 && (
           <ul className="gate-no">
@@ -169,10 +182,13 @@ function Car({
         <form action={callManager}>
           <input type="hidden" name="job_id" value={card.id} />
           <input type="hidden" name="kind" value="done" />
-          <button className="btn quiet big" type="submit" disabled={Boolean(doneCall) || waiting.length > 0 || drafts.length > 0}>
+          <button className="btn quiet big" type="submit" disabled={Boolean(doneCall) || holding > 0}>
             {doneCall ? "דניאל יודע שסיימת" : "סיימתי את העבודה"}
           </button>
         </form>
+        {holding > 0 && !doneCall && (
+          <p className="staff-meta">"סיימתי" נפתח כשאין ממצאים שמחכים. עד אז: להוריד לחניה, והליפט עובר לבא בתור.</p>
+        )}
       </div>
 
       {/* הליפט לא מחכה לתשובה של לקוח. דניאל יחזיר את הרכב לתור כשיאשר. */}
@@ -184,6 +200,7 @@ function Car({
         <button className="btn quiet" type="submit">להוריד מהליפט לחניה</button>
       </form>
 
+      <GemLink compact />
       <Link className="lift-link" href={`/staff/job/${card.id}`}>הכרטיס המלא</Link>
     </li>
   )

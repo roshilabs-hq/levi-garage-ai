@@ -1,11 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 
 import { receiveCar } from "@/app/(he)/staff/actions"
 
 // קבלת רכב בדלפק. מה שהחוק דורש לפני הצעת מחיר (ס' 131–132) מופיע כאן מול
-// דניאל, כדי שיגיד אותו ללקוח בקול: שני סוגי חלקים, ההבדל, האחריות והשעות.
+// דניאל, כדי שיגיד אותו ללקוח בקול: סוגי חלקים, ההבדל, האחריות והשעות.
+//
+// 30.9: כמה עבודות בקבלה אחת ("הכנה לטסט וגם טיפול"), והצעה אחת שמאשרים בדלפק.
+// ועותק מודפס ללקוח שעומד מול הדלפק, גם כשההצעה יוצאת במייל.
 
 export type PriceItem = {
   id: number
@@ -20,6 +23,8 @@ export type PriceItem = {
   part_diff: string | null
   single_reason: string | null
 }
+
+type Line = { id: number; choice: "original" | "aftermarket" }
 
 const money = (n: number | null) => (n === null ? "—" : `${Number(n).toLocaleString("he-IL")} ש"ח`)
 
@@ -36,50 +41,90 @@ export function ArriveForm({
   email: string | null
   consent: boolean
 }) {
-  const [id, setId] = useState(() => items.find((i) => i.code === defaultCode)?.id ?? items[0]?.id)
-  const item = useMemo(() => items.find((i) => i.id === id), [items, id])
-  const [choice, setChoice] = useState<"original" | "aftermarket">("original")
+  const first = items.find((i) => i.code === defaultCode)?.id ?? items[0]?.id
+  const [lines, setLines] = useState<Line[]>(() => (first ? [{ id: first, choice: "original" }] : []))
   const [busy, setBusy] = useState(false)
-  const both = item?.price_aftermarket !== null && item?.price_aftermarket !== undefined
+  const byId = (id: number) => items.find((i) => i.id === id)
+
+  const picked = lines.map((l) => ({ ...l, item: byId(l.id)! })).filter((l) => l.item)
+  const anyTwo = picked.some((l) => l.item.price_aftermarket !== null)
+  const total = picked.reduce(
+    (sum, l) => sum + Number(l.choice === "aftermarket" && l.item.price_aftermarket !== null ? l.item.price_aftermarket : l.item.price_original),
+    0,
+  )
+  const hoursTotal = picked.reduce((sum, l) => sum + Number(l.item.labor_hours), 0)
+
+  const setLine = (i: number, patch: Partial<Line>) => setLines((prev) => prev.map((l, k) => (k === i ? { ...l, ...patch } : l)))
+  const unused = items.filter((it) => !lines.some((l) => l.id === it.id))
 
   return (
     <form action={receiveCar} className="arrive-form" onSubmit={() => setBusy(true)}>
       <input type="hidden" name="booking_id" value={bookingId} />
+      {picked.map((l) => (
+        <input key={l.id} type="hidden" name="line" value={`${l.id}:${l.choice}`} />
+      ))}
 
-      <label htmlFor="price_list_id">מה עושים ברכב</label>
-      <select id="price_list_id" name="price_list_id" value={id} onChange={(e) => { setId(Number(e.target.value)); setChoice("original") }}>
-        {items.map((i) => (
-          <option key={i.id} value={i.id}>{i.title}</option>
-        ))}
-      </select>
+      <p className="arrive-label">מה עושים ברכב</p>
+      <ol className="arrive-lines">
+        {picked.map((l, i) => {
+          const it = l.item
+          const both = it.price_aftermarket !== null
+          return (
+            <li key={`${l.id}-${i}`} className="arrive-line">
+              <div className="arrive-line-head">
+                <select
+                  aria-label={`עבודה ${i + 1}`}
+                  value={l.id}
+                  onChange={(e) => setLine(i, { id: Number(e.target.value), choice: "original" })}
+                >
+                  {items
+                    .filter((x) => x.id === l.id || !lines.some((y) => y.id === x.id))
+                    .map((x) => (
+                      <option key={x.id} value={x.id}>{x.title}</option>
+                    ))}
+                </select>
+                {lines.length > 1 && (
+                  <button type="button" className="link-btn" onClick={() => setLines((prev) => prev.filter((_, k) => k !== i))}>
+                    להסיר
+                  </button>
+                )}
+              </div>
+              <div className="arrive-offer">
+                {both ? (
+                  <fieldset>
+                    <legend>איזה חלק הלקוח בוחר</legend>
+                    {(["original", "aftermarket"] as const).map((k) => (
+                      <label key={k} className={l.choice === k ? "picked" : ""}>
+                        <input type="radio" name={`part-${i}`} checked={l.choice === k} onChange={() => setLine(i, { choice: k })} />
+                        <span>{k === "original" ? "חלק מקורי" : "חלק חלופי"}</span>
+                        <b className="num">{money(k === "original" ? it.price_original : it.price_aftermarket)}</b>
+                        <small>אחריות: {k === "original" ? it.warranty_original : it.warranty_aftermarket}</small>
+                      </label>
+                    ))}
+                  </fieldset>
+                ) : (
+                  <p className="arrive-single">
+                    <b className="num">{money(it.price_original)}</b> · אחריות: {it.warranty_original}
+                  </p>
+                )}
+                <p className="arrive-diff">להגיד ללקוח: {both ? it.part_diff : it.single_reason}</p>
+                <p className="staff-meta">שעות עבודה צפויות: {Number(it.labor_hours).toLocaleString("he-IL")}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
 
-      {item && (
-        <div className="arrive-offer">
-          {both ? (
-            <fieldset>
-              <legend>איזה חלק הלקוח בוחר</legend>
-              {(["original", "aftermarket"] as const).map((k) => (
-                <label key={k} className={choice === k ? "picked" : ""}>
-                  <input type="radio" name="part_choice" value={k} checked={choice === k} onChange={() => setChoice(k)} />
-                  <span>{k === "original" ? "חלק מקורי" : "חלק חלופי"}</span>
-                  <b className="num">{money(k === "original" ? item.price_original : item.price_aftermarket)}</b>
-                  <small>אחריות: {k === "original" ? item.warranty_original : item.warranty_aftermarket}</small>
-                </label>
-              ))}
-            </fieldset>
-          ) : (
-            <p className="arrive-single">
-              <b className="num">{money(item.price_original)}</b> · אחריות: {item.warranty_original}
-              <input type="hidden" name="part_choice" value="original" />
-            </p>
-          )}
-          <p className="arrive-diff">
-            {both ? <>להגיד ללקוח: {item.part_diff}</> : <>להגיד ללקוח: {item.single_reason}</>}
-          </p>
-          <p className="staff-meta">
-            שעות עבודה צפויות: {Number(item.labor_hours).toLocaleString("he-IL")} · {both ? "המחיר כולל חלקים, עבודה ומע\"מ" : "המחיר כולל מע\"מ"}
-          </p>
-        </div>
+      {unused.length > 0 && (
+        <button type="button" className="btn quiet arrive-add" onClick={() => setLines((prev) => [...prev, { id: unused[0].id, choice: "original" }])}>
+          + עוד עבודה
+        </button>
+      )}
+
+      {picked.length > 1 && (
+        <p className="arrive-total">
+          סה"כ בהצעה: <b className="num">{money(total)}</b> · {hoursTotal.toLocaleString("he-IL")} שעות עבודה · כולל מע"מ
+        </p>
       )}
 
       <label htmlFor="odometer">קילומטראז' בקבלה</label>
@@ -89,27 +134,33 @@ export function ArriveForm({
       <input id="email" name="email" type="email" dir="ltr" defaultValue={email ?? ""} placeholder="לקוח בלי מייל? משאירים ריק, וההצעה מודפסת" />
 
       <label className="arrive-check">
+        <input type="checkbox" name="print_copy" />
+        <span>להדפיס גם עותק ללקוח שעומד מול הדלפק</span>
+      </label>
+
+      <label className="arrive-check">
         <input type="checkbox" name="consent" defaultChecked={consent} />
         <span>הלקוח מסכים לקבל עדכונים להצעה בוואטסאפ ובמייל (אם יימצא משהו נוסף ברכב)</span>
       </label>
 
       <label className="arrive-check">
         <input type="checkbox" name="explained" required />
-        <span>{both ? "הסברתי ללקוח את ההבדל בין חלק מקורי לחלופי, את האחריות ואת שעות העבודה" : "הסברתי ללקוח את המחיר, את האחריות ואת שעות העבודה"}</span>
+        <span>{anyTwo ? "הסברתי ללקוח את ההבדל בין חלק מקורי לחלופי, את האחריות ואת שעות העבודה" : "הסברתי ללקוח את המחיר, את האחריות ואת שעות העבודה"}</span>
       </label>
 
       <label className="arrive-check">
         <input type="checkbox" name="approved" required />
         <span>
-          <b>הלקוח אישר את ההצעה לטיפול הזה, כולל האבחון.</b> כל דבר נוסף שיימצא ברכב יישלח אליו לאישור בנפרד.
+          <b>הלקוח אישר את ההצעה{picked.length > 1 ? ", על כל העבודות שבה," : ""} כולל האבחון.</b> כל דבר נוסף שיימצא ברכב יישלח אליו לאישור בנפרד.
         </span>
       </label>
 
-      <button className="btn" type="submit" disabled={busy || !item}>
+      <button className="btn" type="submit" disabled={busy || picked.length === 0}>
         {busy ? "פותחים כרטיס..." : "קבלת רכב ושליחת הצעת מחיר"}
       </button>
       <p className="staff-meta">
-        בלי אישור הלקוח לא מבצעים שום עבודה שלא בהצעה. הרכב עובר לחניה ומחכה לליפט פנוי, והאבחון נעשה על הליפט.
+        אחרי הלחיצה הרכב נכנס לתור לליפט, והאבחון נעשה על הליפט. מותר לבצע רק את מה שבהצעה הזו. כל דבר נוסף שיימצא
+        נשלח ללקוח, ולא נוגעים בו עד שהוא מאשר. לקוח שלא אישר את ההצעה: לא מקבלים את הרכב.
       </p>
     </form>
   )

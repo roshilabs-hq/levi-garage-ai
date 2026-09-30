@@ -46,8 +46,9 @@ const schema = {
     urgency: { type: "STRING", enum: ["red", "yellow"] },
     safety: { type: "BOOLEAN" },
     red_list: { type: "BOOLEAN" },
+    matches_item: { type: "BOOLEAN" },
   },
-  required: ["transcript", "title", "summary", "customer_text", "urgency", "safety", "red_list"],
+  required: ["transcript", "title", "summary", "customer_text", "urgency", "safety", "red_list", "matches_item"],
 }
 
 export type VoiceReport = {
@@ -58,6 +59,8 @@ export type VoiceReport = {
   urgency: "red" | "yellow"
   safety: boolean
   red_list: boolean
+  /** ההקלטה על הפריט שבאבחון? false = המכונאי דיבר על משהו אחר, ודניאל מקבל אזהרה */
+  matches_item?: boolean
   model: string
 }
 
@@ -82,8 +85,11 @@ export async function reportFromVoice(
     ctx.engine ? `engine code ${ctx.engine}` : "",
     "Use this car, even if the mechanic names a different one or names none.",
     ctx.item
-      ? `This is from the intake inspection. Item: "${ctx.item.label}". The inspector marked it ${ctx.item.light === "red" ? "RED (must fix)" : "YELLOW (needs attention soon)"}. Use that urgency unless he clearly says otherwise.${ctx.item.safety ? " This item is a safety item." : ""}`
-      : "",
+      ? `This is from the intake inspection. Item: "${ctx.item.label}". The inspector marked it ${ctx.item.light === "red" ? "RED (must fix)" : "YELLOW (needs attention soon)"}. Use that urgency unless he clearly says otherwise.${ctx.item.safety ? " This item is a safety item." : ""} ` +
+        `matches_item: false if what he says (or the photo) is clearly about a different part of the car than "${ctx.item.label}" (for example wipers under tires). ` +
+        `In that case still write what he actually said, and start summary with: "⚠ לא תואם לפריט: ההקלטה על <what he talked about>, והפריט הוא ${ctx.item.label}." ` +
+        `Decide safety from what he said, not from the item. Otherwise matches_item: true.`
+      : "matches_item: true.",
     audio ? "" : "There is no voice note, only a photo. Describe only what is clearly visible, and say in summary that nothing was said.",
   ]
     .filter(Boolean)
@@ -108,7 +114,8 @@ export async function reportFromVoice(
   return {
     ...out,
     urgency: ctx.item?.light === "red" ? "red" : out.urgency === "red" ? "red" : "yellow",
-    safety: Boolean(out.safety || ctx.item?.safety),
+    // פריט בטיחות מכריע רק כשההקלטה באמת עליו (30.9: מגבים שהוקלטו תחת "צמיגים" סומנו "בטיחות").
+    safety: Boolean(out.safety || (ctx.item?.safety && out.matches_item !== false)),
     model: MODEL,
   }
 }

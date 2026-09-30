@@ -131,7 +131,24 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
   const busyBays = new Set(all.filter((c) => c.lift !== null).map((c) => c.lift as number))
   const free = LIFTS.filter((n) => !busyBays.has(n))
   const carAt = (n: number) => all.find((c) => c.lift === n)
-  const mechanicAt = (n: number) => (crew ?? []).find((s) => s.lift === n)?.full_name
+  // מי עובד על הליפט: מי שמשך אליו את הרכב (job_moves), לא מי שהליפט "שלו" בהגדרה.
+  // רועי, 30.9: על ליפט 1 היה כתוב "מוטי", ומי שעבד עליו היה אלכס.
+  const liftCars = all.filter((c) => c.lift !== null).map((c) => c.id)
+  const { data: moves } = liftCars.length
+    ? await supabase
+        .from("job_moves")
+        .select("job_card_id, moved_by, moved_at")
+        .in("job_card_id", liftCars)
+        .eq("place", "lift")
+        .order("moved_at", { ascending: false })
+    : { data: [] as { job_card_id: number; moved_by: string | null; moved_at: string }[] }
+  const pulledBy = new Map<number, string | null>()
+  for (const m of moves ?? []) if (!pulledBy.has(m.job_card_id)) pulledBy.set(m.job_card_id, m.moved_by)
+  const mechanicAt = (n: number) => {
+    const car = carAt(n)
+    const by = car ? pulledBy.get(car.id) : null
+    return (crew ?? []).find((s) => s.id === by)?.full_name ?? (crew ?? []).find((s) => s.lift === n)?.full_name
+  }
 
   const working = onLift.length + noLift.length + outside.length + backToQueue.length
   const waiting = waitingQuote.length + waitingCustomer.length
@@ -159,7 +176,10 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
         ))}
       </nav>
 
-      {/* פס התאים. הוא היחיד שיודע להראות גם תא ריק, וזה מה שמניע את כל השרשרת. */}
+      {/* פס התאים. הוא היחיד שיודע להראות גם תא ריק, וזה מה שמניע את כל השרשרת.
+          כותרת ורווח משלו: בלי זה, רכב בעמודה "בטיפול" נראה כאילו הוא על הליפט שמעליו (30.9). */}
+      <section className="floor-lifts" aria-labelledby="lifts-title">
+      <h2 id="lifts-title" className="floor-sub">הליפטים עכשיו</h2>
       <ul className="strip" aria-label="הליפטים">
         {LIFTS.map((n) => {
           const car = carAt(n)
@@ -182,6 +202,9 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
         })}
       </ul>
 
+      </section>
+
+      <h2 className="floor-sub">איפה כל רכב</h2>
       <div className={only ? "chain solo" : "chain"}>
         {/* ---------- 1. מוזמנים להיום ---------- */}
         {show("booked") && (
@@ -255,15 +278,18 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                       className={minutesSince(c.lift_since ?? c.status_since) > TOO_LONG.lift ? "hot" : ""}
                     />
                   </p>
-                  <div className="chain-do">
-                    <form action={setJobStatus}>
-                      <input type="hidden" name="job_id" value={c.id} />
-                      <input type="hidden" name="status" value="ready" />
-                      <button className="btn quiet" type="submit">
-                        סיום טיפול
-                      </button>
-                    </form>
-                  </div>
+                  {/* רק אחרי אבחון (30.9: הכפתור הופיע על רכב שעוד לא אובחן). */}
+                  {c.inspected_at && (
+                    <div className="chain-do">
+                      <form action={setJobStatus}>
+                        <input type="hidden" name="job_id" value={c.id} />
+                        <input type="hidden" name="status" value="ready" />
+                        <button className="btn quiet" type="submit">
+                          סיום טיפול
+                        </button>
+                      </form>
+                    </div>
+                  )}
                   <Link className="chain-link" href={`/staff/job/${c.id}`}>
                     הכרטיס
                   </Link>

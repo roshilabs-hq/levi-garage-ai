@@ -123,10 +123,10 @@ export async function POST(req: Request) {
     })
 
     if (item) {
-      // הפריט בבדיקת הכניסה זוכר איזה ממצא נפתח ממנו.
-      const { data: ins } = await supabase.from("inspections").select("items").eq("job_card_id", job.id).maybeSingle()
-      const items = { ...((ins?.items as Record<string, unknown>) ?? {}), [item.key]: { light, finding_id } }
-      await supabase.from("inspections").upsert({ job_card_id: job.id, items, inspector: staff.id })
+      // הפריט בבדיקת הכניסה זוכר איזה ממצא נפתח ממנו. בפקודה אחת (027): ההקלטה לוקחת
+      // 20–30 שניות, ובינתיים המכונאי לוחץ על פריטים אחרים. קריאה ושמירה של כל הרשימה
+      // כאן דרסה אותם, או שהם דרסו אותה (נוזלים, 30.9).
+      await supabase.rpc("set_inspection_item", { p_job_id: job.id, p_key: item.key, p_light: light, p_finding_id: finding_id })
     }
 
     return NextResponse.json({ ok: true, finding_id, title: report.title, red_list: report.red_list, urgency: report.urgency })

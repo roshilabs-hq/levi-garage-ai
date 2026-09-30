@@ -73,8 +73,8 @@ function TrafficLight() {
         <i className="lamp ok" />
       </span>
       <ul className="traffic-legend">
-        <li><b>חריגה</b> פי 2 מהזמן ({hours(TOO_LONG.lift * 2)} שע׳ על ליפט, {hours(TOO_LONG.customer * 2)} שע׳ אצל הלקוח)</li>
-        <li><b>עבר את הזמן</b> ({hours(TOO_LONG.lift)} שע׳ על ליפט, {hours(TOO_LONG.customer)} שע׳ אצל הלקוח)</li>
+        <li><b>חריגה</b> פי 2 מהזמן ({TOO_LONG.noLift * 2} דק׳ בתור לליפט, {hours(TOO_LONG.lift * 2)} שע׳ על ליפט, {hours(TOO_LONG.customer * 2)} שע׳ אצל הלקוח)</li>
+        <li><b>עבר את הזמן</b> ({TOO_LONG.noLift} דק׳ בתור לליפט, {hours(TOO_LONG.lift)} שע׳ על ליפט, {hours(TOO_LONG.customer)} שע׳ אצל הלקוח)</li>
         <li><b>בזמן</b></li>
       </ul>
     </div>

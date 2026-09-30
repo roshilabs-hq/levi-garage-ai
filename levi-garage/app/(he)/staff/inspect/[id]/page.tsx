@@ -9,6 +9,7 @@ import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { CaptureButton } from "@/components/staff/capture-button"
 import { AddPhoto } from "@/components/staff/add-photo"
+import { GemLink } from "@/components/staff/gem-link"
 import { StationIdle } from "@/components/staff/station-idle"
 import { completeInspection, setInspectionItem } from "../../actions"
 
@@ -71,6 +72,8 @@ export default async function InspectPage({
           </p>
         </div>
       </header>
+
+      <GemLink />
 
       {job.inspected_at && <p className="staff-note">האבחון הסתיים. אפשר לעבוד לפי מה שאושר.</p>}
       {e === "incomplete" && (
@@ -138,7 +141,7 @@ export default async function InspectPage({
       <form action={completeInspection} className="inspect-finish">
         <input type="hidden" name="job_id" value={job.id} />
         <button className="btn" type="submit" disabled={!p.complete || undocumented.length > 0 || Boolean(job.inspected_at)}>
-          סיום אבחון, מתחילים לעבוד
+          סיום אבחון · לעבודה שאושרה
         </button>
         {!p.complete && <span className="staff-meta">עוד {p.total - p.done} פריטים.</span>}
         {p.complete && undocumented.length > 0 && (

@@ -5,11 +5,10 @@ import { useActionState } from "react"
 import { addFromPriceList, type PickResult } from "@/app/(he)/staff/actions"
 
 // ממצא מהמחירון, מהעמדה (רועי, 28.9). הדוגמה שלו: הכנה לטסט, ונמצא פנס שרוף.
-// לא צריך צילום ולא הקלטה: נוגעים בכפתור, והלקוח מקבל קישור עם המחיר מהמחירון.
+// לא צריך צילום ולא הקלטה: נוגעים בכפתור, והממצא נכנס לדניאל כבר עם המחיר מהמחירון.
 //
-// הכפתורים הגדולים הם העבודות במחיר קבוע (אותו מחיר לכל רכב) ועד 500 ש"ח —
-// אלה יוצאות ללקוח מיד. כל השאר ברשימה, ועוברות לדניאל: חלק שמחירו תלוי בדגם
-// הוא בדיוק המקום שבו צריך בן אדם שבודק מול הספק.
+// מ-30.9 שום דבר לא יוצא ללקוח מהעמדה (רועי: "ממש לא. הודעה אחת מרוכזת, על ידי
+// דניאל"). הכפתורים הגדולים הם העבודות הנפוצות במחיר קבוע; כל השאר ברשימה.
 
 export type PickItem = { id: number; title: string; price_original: number; fixed_price: boolean }
 
@@ -23,7 +22,7 @@ export function PricePick({ jobId, items }: { jobId: number; items: PickItem[] }
   return (
     <details className="pick">
       <summary>נמצא משהו מהמחירון</summary>
-      <p className="staff-meta">בלי צילום ובלי מחיר: נוגעים, והלקוח מקבל קישור לאישור.</p>
+      <p className="staff-meta">בלי צילום ובלי מחיר: נוגעים, וזה עובר לדניאל עם המחיר מהמחירון. הוא שולח ללקוח הודעה אחת עם כל מה שנמצא.</p>
 
       <div className="pick-quick">
         {quick.map((i) => (
@@ -41,7 +40,7 @@ export function PricePick({ jobId, items }: { jobId: number; items: PickItem[] }
       <form action={action} className="pick-more">
         <input type="hidden" name="job_id" value={jobId} />
         <select name="price_list_id" defaultValue="" required aria-label="עבודה אחרת מהמחירון">
-          <option value="" disabled>עבודה אחרת (עוברת לדניאל)</option>
+          <option value="" disabled>עבודה אחרת מהמחירון</option>
           {rest.map((i) => (
             <option key={i.id} value={i.id}>{i.title}</option>
           ))}
@@ -52,7 +51,7 @@ export function PricePick({ jobId, items }: { jobId: number; items: PickItem[] }
       {pending && <p className="staff-meta" role="status">רושמים...</p>}
       {!pending && result && (
         <p className={`pick-msg ${result.ok ? (result.sent ? "sent" : "draft") : "error"}`} role="status">
-          {!result.ok ? result.error : result.sent ? "נשלח ללקוח. הוא יאשר בקישור, ותראו את זה כאן." : result.why ?? "עבר לדניאל."}
+          {!result.ok ? result.error : result.why ?? "עבר לדניאל."}
         </p>
       )}
     </details>

@@ -52,6 +52,8 @@ export const GARAGE = {
 // במייל אין גופנים ואין SVG (Gmail ו-Outlook חוסמים), ולכן הלוחית היא תמונה.
 // הכתובת קבועה: levi-garage.vercel.app ממשיכה לעבוד גם אחרי המעבר לדומיין.
 const LOGO_URL = "https://levi-garage.vercel.app/brand/logo-plate.png"
+/** הכתובת שהלקוח רואה בקישורים: הדומיין של המוסך. */
+export const SITE_URL = "https://levi-garage.co.il"
 
 
 const TZ = "Asia/Jerusalem"
@@ -88,28 +90,32 @@ export function totals(s: QuoteSnapshot) {
 const esc = (v: unknown) =>
   String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!)
 
-function optionRowsHtml(o: QuoteOption) {
-  const rows: string[] = []
-  if (o.price_aftermarket !== null && o.price_aftermarket !== undefined) {
-    rows.push(
-      `<tr><td>חלק מקורי</td><td>${money(o.price_original)}</td><td>${esc(o.warranty_original)}</td></tr>`,
-      `<tr><td>חלק חלופי</td><td>${money(o.price_aftermarket)}</td><td>${esc(o.warranty_aftermarket)}</td></tr>`,
-    )
-  } else {
-    rows.push(`<tr><td>מחיר</td><td>${money(o.price_original)}</td><td>${esc(o.warranty_original)}</td></tr>`)
+/**
+ * המחיר והאחריות. שני סוגי חלקים: טבלה, והסוג שהלקוח בחר מודגש.
+ * מחיר אחד (עבודה בלבד, טיפול): שורה אחת, בלי עמודת "סוג" (רועי, 30.9: "סוג: מחיר" לא אומר כלום).
+ */
+function priceHtml(o: QuoteOption, chosen: "original" | "aftermarket" | null) {
+  if (o.price_aftermarket === null || o.price_aftermarket === undefined) {
+    return `<div style="font-size:14px;margin-top:10px">מחיר כולל מע"מ: <b>${money(o.price_original)}</b> · אחריות: ${esc(o.warranty_original)}</div>`
   }
-  return rows.join("")
+  const row = (key: "original" | "aftermarket", label: string, price: number | null, warranty: string | null) => {
+    const on = chosen === key
+    return `<tr${on ? ' style="font-weight:700;background:#fff7d6"' : ""}><td>${label}${on ? " ✓" : ""}</td><td>${money(price)}</td><td>${esc(warranty)}</td></tr>`
+  }
+  return `
+    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px" cellpadding="6">
+      <tr style="background:#f1f3f0"><th align="right">חלק</th><th align="right">מחיר כולל מע"מ</th><th align="right">אחריות</th></tr>
+      ${row("original", "מקורי", o.price_original, o.warranty_original)}
+      ${row("aftermarket", "חלופי", o.price_aftermarket, o.warranty_aftermarket)}
+    </table>`
 }
 
-function blockHtml(o: QuoteOption, status: string) {
+function blockHtml(o: QuoteOption, status: string, chosen: "original" | "aftermarket" | null = null) {
   return `
   <div style="border:1px solid #d9ddd8;border-radius:10px;padding:14px 16px;margin:12px 0">
     <div style="font-weight:700;font-size:16px">${esc(o.title)}</div>
     <div style="color:#4f5b54;font-size:14px;margin-top:4px">${status}</div>
-    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px" cellpadding="6">
-      <tr style="background:#f1f3f0"><th align="right">סוג</th><th align="right">מחיר כולל מע"מ</th><th align="right">אחריות</th></tr>
-      ${optionRowsHtml(o)}
-    </table>
+    ${priceHtml(o, chosen)}
     <div style="font-size:14px;margin-top:8px">שעות עבודה צפויות: <b>${hours(o.labor_hours)}</b></div>
     ${o.part_diff ? `<div style="font-size:14px;margin-top:6px;color:#4f5b54">ההבדל בין סוגי החלקים: ${esc(o.part_diff)}</div>` : ""}
     ${o.single_reason ? `<div style="font-size:14px;margin-top:6px;color:#4f5b54">${esc(o.single_reason)}</div>` : ""}
@@ -120,10 +126,12 @@ function findingStatus(f: QuoteFinding) {
   if (f.status === "approved")
     return `אושר על ידך${f.decided_at ? ` ב-${stampFmt.format(new Date(f.decided_at))}` : ""}: ${choiceAndPrice(f.part_choice, f.price_aftermarket, f.price)}${Number(f.discount_pct) > 0 ? ` (כולל הנחה של ${Number(f.discount_pct)}%)` : ""}`
   if (f.status === "declined") return `לא אושר על ידך${f.decided_at ? ` (${stampFmt.format(new Date(f.decided_at))})` : ""}. לא נבצע את העבודה הזו.`
-  return "ממתין לתשובה שלך בקישור ששלחנו בוואטסאפ"
+  return "ממתין לתשובה שלך בקישור ששלחנו"
 }
 
-export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" | "update") {
+export type QuoteReason = "intake" | "update" | "resend"
+
+export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReason) {
   const t = totals(s)
   const car = [s.job.vehicle, s.job.year].filter(Boolean).join(" ")
   const subject =
@@ -141,12 +149,14 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" |
       שלום${s.job.customer ? ` ${esc(s.job.customer.split(" ")[0])}` : ""},<br>
       ${reason === "intake"
         ? "זו הצעת המחיר לעבודה שסיכמנו בקבלת הרכב. בלי אישור שלך לא נבצע שום עבודה אחרת."
-        : "עדכנו את הצעת המחיר לפי התשובה שלך בקישור. זו הגרסה המלאה והעדכנית."}
+        : reason === "update"
+          ? "עדכנו את הצעת המחיר לפי התשובה שלך בקישור. זו הגרסה המלאה והעדכנית."
+          : "זו הצעת המחיר העדכנית לרכב שלך, לפי מה שסוכם ואושר עד עכשיו."}
     </p>
     <div style="background:#fff;border-radius:12px;padding:6px 16px 12px">
       <div style="font-size:14px;margin-top:10px">רכב: <b>${esc(car || "—")}</b> · מספר רישוי <b dir="ltr">${esc(s.job.plate)}</b>${s.job.odometer_km ? ` · ${Number(s.job.odometer_km).toLocaleString("he-IL")} ק"מ בקבלה` : ""}</div>
-      ${s.lines.map((l) => blockHtml(l, `סוכם בקבלה: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`)).join("")}
-      ${s.findings.map((f) => blockHtml(f, findingStatus(f))).join("")}
+      ${s.lines.map((l) => blockHtml(l, `סוכם בקבלה: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`, l.part_choice)).join("")}
+      ${s.findings.map((f) => blockHtml(f, findingStatus(f), f.status === "approved" ? f.part_choice : null)).join("")}
       <div style="font-size:16px;margin:14px 0 4px">סה"כ לתשלום לפי מה שסוכם ואושר: <b>${money(t.total)}</b> (כולל מע"מ)</div>
       ${t.pending ? `<div style="font-size:14px;color:#8a5a00">${t.pending === 1 ? "פריט אחד ממתין" : `${t.pending} פריטים ממתינים`} לתשובה שלך, ולא נכללים בסכום.</div>` : ""}
     </div>
@@ -184,5 +194,49 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: "intake" |
     "אתר הדגמה לפרויקט גמר. העסק, האנשים והמחירים בדויים.",
   ].join("\n")
 
+  return { subject, html, text }
+}
+
+/**
+ * כשדניאל שולח ממצאים לאישור (027): לצד הוואטסאפ, מייל עם אותו קישור.
+ * בלי מחירים מפורטים במייל: הם, התמונות והבחירה בדף האישור, כדי שיהיה מקום אחד לאשר בו.
+ */
+export function requestEmail(input: {
+  customer: string | null
+  plate: string
+  vehicle: string | null
+  token: string
+  items: { title: string; safety: boolean; from: number | null }[]
+}) {
+  const link = `${SITE_URL}/approve/${input.token}`
+  const n = input.items.length
+  const subject = `${n === 1 ? "מצאנו משהו ברכב" : `מצאנו ${n} דברים ברכב`} ${input.plate}: מחכה לאישור שלך | ${GARAGE.name}`
+  const rows = input.items
+    .map(
+      (i) =>
+        `<li style="margin:6px 0">${esc(i.title)}${i.safety ? ' <b style="color:#b3261e">· בטיחות</b>' : ""}${i.from !== null ? ` · החל מ-${money(i.from)}` : ""}</li>`,
+    )
+    .join("")
+  const html = `<!doctype html><html lang="he" dir="rtl"><body style="margin:0;background:#f4f5f2">
+  <div style="max-width:640px;margin:0 auto;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#1b2620;direction:rtl;text-align:right">
+    <img src="${LOGO_URL}" alt="${GARAGE.name}" width="200" height="60" style="display:block;border:0;height:60px;width:200px;font-size:20px;font-weight:700">
+    <div style="color:#4f5b54;font-size:13px">${GARAGE.address} · ${GARAGE.phone}</div>
+    <h1 style="font-size:22px;margin:22px 0 8px">${n === 1 ? "מצאנו משהו ברכב שלך" : `מצאנו ${n} דברים ברכב שלך`}</h1>
+    <p style="font-size:15px;margin:0 0 12px">שלום${input.customer ? ` ${esc(input.customer.split(" ")[0])}` : ""},<br>
+      במהלך העבודה על ${esc(input.vehicle || "הרכב")} (<span dir="ltr">${esc(input.plate)}</span>) מצאנו:</p>
+    <ul style="font-size:15px;padding-inline-start:20px;margin:0 0 16px">${rows}</ul>
+    <p style="font-size:15px;margin:0 0 18px">בקישור יש תמונות, הסבר, מחיר ואחריות לכל אחד, ואפשר לאשר או לדחות כל דבר בנפרד. <b>בלי האישור שלך לא נוגעים בזה.</b></p>
+    <a href="${link}" style="display:inline-block;background:#f2c230;color:#1b2620;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:999px">לצפייה ולאישור</a>
+    <p style="font-size:13px;color:#4f5b54;margin-top:18px">אותו קישור נשלח גם בוואטסאפ. הוא בתוקף שבוע. שאלות: ${GARAGE.phone}.<br>${GARAGE.manager}, ${GARAGE.managerTitle}.</p>
+    <p style="font-size:12px;color:#8a938d">אתר הדגמה לפרויקט גמר. העסק, האנשים והמחירים בדויים.</p>
+  </div></body></html>`
+  const text = [
+    `${GARAGE.name} · ${GARAGE.phone}`,
+    `במהלך העבודה על הרכב ${input.plate} מצאנו:`,
+    ...input.items.map((i) => `• ${i.title}${i.safety ? " (בטיחות)" : ""}${i.from !== null ? ` · החל מ-${money(i.from)}` : ""}`),
+    "",
+    `לצפייה ולאישור: ${link}`,
+    "בלי האישור שלך לא נוגעים בזה.",
+  ].join("\n")
   return { subject, html, text }
 }

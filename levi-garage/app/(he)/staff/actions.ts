@@ -5,9 +5,9 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff, requireStaff, requireManager, screenPath } from "@/lib/staff/session"
-import { notifyQuote, notifyReady, sendDueReminders } from "@/lib/staff/notify"
+import { notifyReady, notifyRequest, sendDueReminders } from "@/lib/staff/notify"
 import { INSPECTION_ITEMS, progress, type InspectionState, type Light } from "@/lib/staff/inspection"
-import { quoteEmail, type QuoteSnapshot } from "@/lib/staff/quote"
+import { quoteEmail, requestEmail, type QuoteReason, type QuoteSnapshot } from "@/lib/staff/quote"
 import { sendEmail } from "@/lib/staff/email"
 import { ACTIVE } from "@/lib/staff/queue"
 
@@ -55,32 +55,35 @@ export async function signOut() {
 export async function receiveCar(formData: FormData) {
   const staff = await requireManager()
   const bookingId = Number(formData.get("booking_id"))
-  const priceId = Number(formData.get("price_list_id"))
-  const choice = String(formData.get("part_choice") || "original")
+  // כמה עבודות בקבלה אחת (רועי, 30.9: "הכנה לטסט וגם טיפול"). כל שורה: "מזהה:סוג-חלק".
+  const lines = formData
+    .getAll("line")
+    .map((v) => String(v).split(":"))
+    .map(([id, c]) => ({ id: Number(id), choice: c === "aftermarket" ? ("aftermarket" as const) : ("original" as const) }))
+    .filter((l, i, all) => l.id > 0 && all.findIndex((x) => x.id === l.id) === i)
+  const printCopy = formData.get("print_copy") === "on"
   const odometer = Number(String(formData.get("odometer") || "").replace(/\D/g, "")) || null
   const email = String(formData.get("email") || "").trim().toLowerCase() || null
   const consent = formData.get("consent") === "on"
   const explained = formData.get("explained") === "on"
   const approved = formData.get("approved") === "on"
-  if (!bookingId || !priceId) redirect(`/staff/arrive/${bookingId}?e=missing`)
+  if (!bookingId || lines.length === 0) redirect(`/staff/arrive/${bookingId}?e=missing`)
   // ס' 131: הסבר על ההבדל בין סוגי החלקים, לפני ההצעה. דניאל מאשר שהסביר.
   if (!explained) redirect(`/staff/arrive/${bookingId}?e=explain`)
   // תקנה 8: לא מתחילים עבודה שהלקוח לא אישר. גם האבחון הוא עבודה.
   if (!approved) redirect(`/staff/arrive/${bookingId}?e=approve`)
 
   const supabase = await createClient()
-  const [{ data: booking }, { data: item }] = await Promise.all([
+  const [{ data: booking }, { data: picked }] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, status, plate, customer_name, customer_phone, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
       .eq("id", bookingId)
       .maybeSingle(),
-    supabase.from("price_list").select("*").eq("id", priceId).maybeSingle(),
+    supabase.from("price_list").select("*").in("id", lines.map((l) => l.id)),
   ])
-  if (!booking || !item) redirect(`/staff/arrive/${bookingId}?e=missing`)
+  if (!booking || !picked || picked.length !== lines.length) redirect(`/staff/arrive/${bookingId}?e=missing`)
   if (booking.status === "arrived") redirect("/staff")
-
-  const partChoice = choice === "aftermarket" && item.price_aftermarket !== null ? "aftermarket" : "original"
 
   const { data: job, error } = await supabase
     .from("job_cards")
@@ -108,20 +111,25 @@ export async function receiveCar(formData: FormData) {
     .single()
   if (error || !job) redirect(`/staff/arrive/${bookingId}?e=failed`)
 
-  await supabase.from("quote_items").insert({
-    job_card_id: job.id,
-    price_list_id: item.id,
-    title: item.title,
-    labor_hours: item.labor_hours,
-    price_original: item.price_original,
-    price_aftermarket: item.price_aftermarket,
-    warranty_original: item.warranty_original,
-    warranty_aftermarket: item.warranty_aftermarket,
-    part_diff: item.part_diff,
-    single_reason: item.single_reason,
-    part_choice: partChoice,
-    created_by: staff.id,
-  })
+  await supabase.from("quote_items").insert(
+    lines.map((l) => {
+      const item = picked.find((i) => i.id === l.id)!
+      return {
+        job_card_id: job.id,
+        price_list_id: item.id,
+        title: item.title,
+        labor_hours: item.labor_hours,
+        price_original: item.price_original,
+        price_aftermarket: item.price_aftermarket,
+        warranty_original: item.warranty_original,
+        warranty_aftermarket: item.warranty_aftermarket,
+        part_diff: item.part_diff,
+        single_reason: item.single_reason,
+        part_choice: l.choice === "aftermarket" && item.price_aftermarket !== null ? "aftermarket" : "original",
+        created_by: staff.id,
+      }
+    }),
+  )
   await supabase.from("bookings").update({ status: "arrived" }).eq("id", booking.id)
 
   const outcome = await issueQuote(job.id, "intake", email ? "email" : "print")
@@ -129,16 +137,24 @@ export async function receiveCar(formData: FormData) {
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
   revalidatePath("/staff/lift")
-  redirect(outcome === "print" ? `/staff/job/${job.id}/quote?first=1` : `/staff/job/${job.id}?quote=${outcome}`)
+  // בלי מייל, או כשהלקוח רוצה גם דף ביד: דף ההדפסה, ומשם חזרה ללוח.
+  if (outcome === "print" || printCopy) redirect(`/staff/job/${job.id}/quote?print=1&then=board`)
+  // דניאל בדלפק ממשיך ללקוח הבא (רועי, 30.9), ולא נשאר בכרטיס.
+  redirect(`/staff?received=${encodeURIComponent(booking.plate)}&quote=${outcome}`)
 }
 
 /**
  * מוציא גרסה של ההצעה: רושם אותה (שנה, ס' 132(ג)), ושולח במייל אם צריך.
  * מחזיר מה קרה, כדי שהמסך יגיד לדניאל את האמת: נשלח, נכשל, או להדפיס.
  */
-async function issueQuote(jobId: number, reason: "intake" | "update", channel: "email" | "print") {
+async function issueQuote(jobId: number, reason: QuoteReason, channel: "email" | "print") {
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc("start_quote_version", { p_job_id: jobId, p_reason: reason, p_channel: channel })
+  // במסד "resend" הוא עדכון; ההבדל רק בנוסח המייל.
+  const { data, error } = await supabase.rpc("start_quote_version", {
+    p_job_id: jobId,
+    p_reason: reason === "intake" ? "intake" : "update",
+    p_channel: channel,
+  })
   if (error || !data) {
     console.error("start_quote_version failed:", error?.code, error?.message)
     return "failed" as const
@@ -162,7 +178,7 @@ export async function reissueQuote(formData: FormData) {
   const jobId = Number(formData.get("job_id"))
   const channel = formData.get("channel") === "print" ? "print" : "email"
   if (!jobId) return
-  const outcome = await issueQuote(jobId, "update", channel)
+  const outcome = await issueQuote(jobId, "resend", channel)
   revalidatePath(`/staff/job/${jobId}`)
   redirect(channel === "print" ? `/staff/job/${jobId}/quote?print=1` : `/staff/job/${jobId}?quote=${outcome}`)
 }
@@ -177,13 +193,13 @@ export async function setInspectionItem(formData: FormData) {
   const light = String(formData.get("light") || "") as Light
   if (!jobId || !INSPECTION_ITEMS.some((i) => i.key === key) || !["green", "yellow", "red"].includes(light)) return
 
+  // פקודה אחת במסד (027). קודם: קריאה של כל הרשימה ושמירה שלה, וכך לחיצה על פריט
+  // אחד דרסה הקלטה של פריט אחר שעוד עובדה (נוזלים, 30.9). ירוק מבטל את הטיוטה של הפריט.
   const supabase = await createClient()
-  const { data: ins } = await supabase.from("inspections").select("items").eq("job_card_id", jobId).maybeSingle()
-  const items = { ...((ins?.items as InspectionState) ?? {}) }
-  items[key] = { ...(items[key] ?? {}), light }
-  await supabase.from("inspections").upsert({ job_card_id: jobId, items, inspector: staff.id })
+  await supabase.rpc("set_inspection_item", { p_job_id: jobId, p_key: key, p_light: light })
 
   revalidatePath(`/staff/inspect/${jobId}`)
+  revalidatePath(`/staff/job/${jobId}`)
 }
 
 /** סיום האבחון. רק כשכל הפריטים סומנו — אחרת זה לא אבחון, זה ניחוש. */
@@ -358,6 +374,9 @@ const LAW_ERRORS: Record<string, string> = {
   "discount-owner": "מעל 10% רק אבי. לבקש ממנו, או להוריד ל-10%.",
   "discount-role": "הנחה נותנים רק מנהל העבודה או הבעלים.",
   "discount-sent": "ההצעה כבר נשלחה ללקוח. אי אפשר לשנות לה את המחיר.",
+  message: "חסר נוסח ללקוח: מה נמצא, במילים שלו.",
+  stale: "אחד הממצאים כבר נשלח או בוטל. לרענן ולנסות שוב.",
+  empty: "צריך לסמן לפחות ממצא אחד.",
 }
 
 const num = (v: FormDataEntryValue | null) => {
@@ -367,29 +386,25 @@ const num = (v: FormDataEntryValue | null) => {
 const txt = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null
 
 /**
- * שולח ממצא ללקוח: שומר את מה שדניאל מילא (מהמחירון), והמסד בודק שוב שהשולח
- * מנהל עבודה או בעלים, ושההצעה שלמה לפי החוק. אחר כך התמונות של הממצא מועתקות
- * לדף הלקוח, והקישור יוצא בוואטסאפ.
+ * שמירה של טיוטה אחת (027), בלי לשלוח. דניאל מתמחר כל ממצא, וכשכולם מוכנים
+ * הוא שולח את כולם יחד (sendQuoteRequest). המחירים כאן הם מחירי המחירון,
+ * וההנחה מחושבת מהם במסד (020); לכן שמירה חוזרת לא מורידה הנחה פעמיים.
  */
-export async function sendFinding(formData: FormData): Promise<SendResult> {
+export async function saveFinding(formData: FormData): Promise<SendResult> {
   await requireManager()
   const findingId = Number(formData.get("finding_id"))
   const jobId = Number(formData.get("job_id"))
-  const message = String(formData.get("message") || "").trim()
-  if (!findingId || !message) return { ok: false, error: "חסרה ההודעה ללקוח." }
+  if (!findingId) return { ok: false, error: "חסר ממצא." }
 
   const supabase = await createClient()
-
-  // הנוסח והמספרים שאדם ראה ואישר הם מה שנשמר.
-  const { error: saveError } = await supabase
+  const { error } = await supabase
     .from("findings")
     .update({
-      customer_text: message,
+      customer_text: txt(formData.get("message")),
       title: txt(formData.get("title")),
       price_list_id: num(formData.get("price_list_id")),
       price_original: num(formData.get("price_original")),
       price_aftermarket: num(formData.get("price_aftermarket")),
-      // מחיר המחירון והאחוז. המחיר הסופי מחושב מהם במסד (020), ולא כאן.
       list_price_original: num(formData.get("price_original")),
       list_price_aftermarket: num(formData.get("price_aftermarket")),
       discount_pct: num(formData.get("discount_pct")) ?? 0,
@@ -403,24 +418,98 @@ export async function sendFinding(formData: FormData): Promise<SendResult> {
       safety: formData.get("safety") === "on",
     })
     .eq("id", findingId)
-  if (saveError) return { ok: false, error: LAW_ERRORS[saveError.hint ?? ""] ?? "לא הצלחנו לשמור. לנסות שוב." }
+    .eq("status", "draft")
+  if (error) return { ok: false, error: LAW_ERRORS[error.hint ?? ""] ?? "לא נשמר. לנסות שוב." }
 
-  const { data: token, error } = await supabase.rpc("send_finding", { p_finding_id: findingId, p_message: message, p_channel: "link" })
+  revalidatePath(`/staff/job/${jobId}`)
+  return { ok: true }
+}
+
+export type RequestState = { ok: true; count: number } | { ok: false; error: string } | null
+
+/**
+ * ההודעה האחת ללקוח (רועי, 30.9: "לא שולחים הודעה 5 פעמים. הכל מרוכז, על ידי דניאל").
+ * כל הממצאים שדניאל סימן יוצאים כבקשה אחת: קישור אחד, הודעת וואטסאפ אחת, ומייל אחד.
+ * המסד בודק כל ממצא לפי החוק; אם אחד חסר, לא יוצא כלום, וההודעה אומרת איזה.
+ */
+export async function sendQuoteRequest(_prev: RequestState, formData: FormData): Promise<RequestState> {
+  await requireManager()
+  const jobId = Number(formData.get("job_id"))
+  const ids = [...new Set(formData.getAll("finding_id").map(Number).filter((n) => n > 0))]
+  if (!jobId || ids.length === 0) return { ok: false, error: LAW_ERRORS.empty }
+
+  const supabase = await createClient()
+  const { data: token, error } = await supabase.rpc("send_quote_request", { p_job_id: jobId, p_finding_ids: ids })
   if (error || !token) {
-    return { ok: false, error: LAW_ERRORS[error?.hint ?? ""] ?? "השליחה נכשלה. לנסות שוב." }
+    const which = Number(error?.details)
+    const { data: f } = which ? await supabase.from("findings").select("title").eq("id", which).maybeSingle() : { data: null }
+    const why = LAW_ERRORS[error?.hint ?? ""] ?? "השליחה נכשלה. לנסות שוב."
+    return { ok: false, error: f?.title ? `${f.title}: ${why}` : why }
   }
 
-  await sharePhotos(findingId, String(token))
+  const { data: req } = await supabase.from("quote_requests").select("id").eq("token", String(token)).single()
+  if (req) {
+    const { data: rows } = await supabase.from("approvals").select("finding_id, token").eq("request_id", req.id)
+    for (const a of rows ?? []) await sharePhotos(a.finding_id, a.token)
+    await notifyRequest(supabase, req.id)
+  }
 
-  // הקישור יוצא ללקוח בוואטסאפ, ודניאל לא צריך להעתיק אותו. אם השליחה לא
-  // עברה, הקישור עדיין תקף ומופיע בכרטיס, עם הסיבה וכפתור לשלוח שוב.
-  await notifyQuote(supabase, findingId)
+  // לצד הוואטסאפ, מייל עם אותו קישור. לקוח שלא כתב לנו בוואטסאפ עדיין מקבל.
+  const [{ data: job }, { data: fs }] = await Promise.all([
+    supabase.from("job_cards").select("customer_email, customer_name, plate, vehicle_make, vehicle_model").eq("id", jobId).single(),
+    supabase.from("findings").select("title, safety, price_original, price_aftermarket").in("id", ids),
+  ])
+  if (job?.customer_email) {
+    try {
+      await sendEmail(
+        job.customer_email,
+        requestEmail({
+          customer: job.customer_name,
+          plate: job.plate,
+          vehicle: [job.vehicle_make, job.vehicle_model].filter(Boolean).join(" ") || null,
+          token: String(token),
+          items: (fs ?? []).map((f) => ({
+            title: f.title ?? "ממצא",
+            safety: Boolean(f.safety),
+            from:
+              f.price_aftermarket !== null
+                ? Math.min(Number(f.price_original), Number(f.price_aftermarket))
+                : f.price_original === null
+                  ? null
+                  : Number(f.price_original),
+          })),
+        }),
+      )
+    } catch (e) {
+      console.error("request email failed:", (e as Error).message)
+    }
+  }
 
   revalidatePath(`/staff/job/${jobId}`)
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
   revalidatePath("/staff/lift")
-  return { ok: true }
+  return { ok: true, count: ids.length }
+}
+
+/** ממצא שלא שולחים ללקוח: טעות, כפילות, או משהו שדניאל החליט לא להציע. */
+export async function dismissFinding(formData: FormData) {
+  await requireManager()
+  const findingId = Number(formData.get("finding_id"))
+  const jobId = Number(formData.get("job_id"))
+  if (!findingId) return
+  const supabase = await createClient()
+  await supabase.from("findings").update({ status: "cancelled" }).eq("id", findingId).eq("status", "draft")
+  // אם לא נשאר מה לשלוח ואין מה לחכות לו, הרכב חוזר לעבודה.
+  const { count } = await supabase
+    .from("findings")
+    .select("id", { count: "exact", head: true })
+    .eq("job_card_id", jobId)
+    .in("status", ["draft", "sent"])
+  if (!count) await supabase.from("job_cards").update({ status: "in_progress" }).eq("id", jobId).eq("status", "waiting_quote")
+  revalidatePath(`/staff/job/${jobId}`)
+  revalidatePath("/staff")
+  revalidatePath("/staff/lift")
 }
 
 /**
@@ -463,15 +552,15 @@ export async function sendRemindersNow() {
   redirect(`/staff?reminders=${run.sent}.${run.skipped}.${run.failed}.${run.due}`)
 }
 
-/** שולח שוב את הקישור לאישור, כשהשליחה בוואטסאפ נכשלה. */
-export async function resendQuoteNotice(formData: FormData) {
+/** שולח שוב את הקישור לאישור, כשהשליחה בוואטסאפ נכשלה (לבקשה כולה). */
+export async function resendRequestNotice(formData: FormData) {
   await requireManager()
-  const findingId = Number(formData.get("finding_id"))
+  const requestId = Number(formData.get("request_id"))
   const jobId = Number(formData.get("job_id"))
-  if (!findingId) return
+  if (!requestId) return
 
   const supabase = await createClient()
-  await notifyQuote(supabase, findingId)
+  await notifyRequest(supabase, requestId)
 
   revalidatePath(`/staff/job/${jobId}`)
 }
@@ -593,15 +682,13 @@ export async function sendOutside(formData: FormData) {
 export type PickResult = { ok: true; sent: boolean; why?: string } | { ok: false; error: string } | null
 
 const PICK_WHY: Record<string, string> = {
-  price_by_model: "המחיר תלוי בדגם, ולכן זה עבר לדניאל לתמחור.",
-  over_500: "מעל 500 ש\"ח, ולכן דניאל שולח.",
-  no_consent: "הלקוח לא הסכים בקבלה לעדכונים בוואטסאפ. דניאל יתקשר.",
+  daniel: "נרשם, עם המחיר מהמחירון. דניאל שולח ללקוח הודעה אחת עם כל מה שנמצא.",
   exists: "זה כבר נרשם ברכב הזה.",
 }
 
 /**
- * ממצא מהמחירון, מהעמדה. במחיר קבוע ועד 500 ש"ח ההצעה יוצאת ללקוח מיד — שלמה
- * לפי החוק, כי כל השדות באים מהמחירון. אחרת נפתחת טיוטה אצל דניאל.
+ * ממצא מהמחירון, מהעמדה. נכנס לדניאל כבר מתומחר (כל השדות מהמחירון), והוא
+ * שולח ללקוח הודעה אחת עם כל הממצאים (רועי, 30.9: "המכונאי לא שולח וואטסאפ ללקוח").
  * המכונאי לא מקליד מחיר, בשום מסלול.
  */
 export async function addFromPriceList(_prev: PickResult, formData: FormData): Promise<PickResult> {
@@ -615,7 +702,6 @@ export async function addFromPriceList(_prev: PickResult, formData: FormData): P
   const { data, error } = await supabase.rpc("add_price_list_finding", { p_job_id: jobId, p_price_list_id: itemId })
   if (error || !data) return { ok: false, error: "לא נרשם. לנסות שוב, או לקרוא לדניאל." }
   const r = data as { finding_id: number; sent: boolean; why?: string }
-  if (r.sent) await notifyQuote(supabase, r.finding_id)
 
   revalidateFloor(jobId)
   return { ok: true, sent: r.sent, why: r.why ? PICK_WHY[r.why] : undefined }

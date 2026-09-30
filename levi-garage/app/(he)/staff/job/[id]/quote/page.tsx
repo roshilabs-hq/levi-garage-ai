@@ -58,11 +58,11 @@ export default async function QuotePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ print?: string; first?: string }>
+  searchParams: Promise<{ print?: string; first?: string; then?: string }>
 }) {
   const staff = await requireStaff()
   const { id } = await params
-  const { print, first } = await searchParams
+  const { print, first, then } = await searchParams
   const jobId = Number(id)
   if (!Number.isFinite(jobId)) notFound()
 
@@ -78,7 +78,12 @@ export default async function QuotePage({
     <main className="print-quote">
       <AutoPrint when={print === "1" || first === "1"} />
       <div className="pq-tools no-print">
-        <Link className="staff-back" href={`/staff/job/${jobId}`}>חזרה לכרטיס</Link>
+        {/* מהקבלה: אחרי ההדפסה דניאל חוזר ללוח, ללקוח הבא (30.9). */}
+        {then === "board" ? (
+          <Link className="btn" href={`/staff?received=${encodeURIComponent(s.job.plate)}&quote=print`}>סיימתי להדפיס · חזרה ללוח</Link>
+        ) : (
+          <Link className="staff-back" href={`/staff/job/${jobId}`}>חזרה לכרטיס</Link>
+        )}
         {first === "1" && <p className="staff-note">ללקוח אין מייל, ולכן ההצעה הראשונה מודפסת. לתת לו אותה ביד.</p>}
         {canIssue && (
           <form action={reissueQuote}>

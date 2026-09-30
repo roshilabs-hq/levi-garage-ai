@@ -1,23 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
-import { sendFinding } from "@/app/(he)/staff/actions"
+import { saveFinding } from "@/app/(he)/staff/actions"
 import type { PriceItem } from "@/components/staff/arrive-form"
 
-// מסך התמחור של דניאל. זה הרגע היחיד שבו אדם עומד בין המודל לבין הלקוח.
+// ממצא אחד במסך התמחור של דניאל (027). זה הרגע היחיד שבו אדם עומד בין המודל לבין הלקוח.
 //
-// מ-27.9 המכונאי לא אומר מחיר. דניאל בוחר עבודה מהמחירון, ומה שהחוק דורש
-// בהצעה (ס' 131–132: שני סוגי חלקים והבדל, שעות עבודה, אחריות) מתמלא לבד.
-// אפשר לתקן כל שדה. המסד מסרב לשלוח הצעה חסרה, וההודעה כאן אומרת למה.
+// דניאל בוחר עבודה מהמחירון, וכל מה שהחוק דורש בהצעה (ס' 131–132: סוגי חלקים והבדל,
+// שעות, אחריות) מתמלא ונשמר מיד. השורה מציגה סיכום; השדות עצמם נפתחים רק כשצריך
+// לתקן משהו (רועי, 30.9: "יש שם בלאגן"). השליחה עצמה היא אחת, לכל הממצאים, למטה.
 
-type Draft = {
+export type Draft = {
   id: number
   title: string | null
   customer_text: string | null
   price_list_id: number | null
   price_original: number | null
   price_aftermarket: number | null
+  list_price_original: number | null
+  list_price_aftermarket: number | null
+  discount_pct: number | null
+  discount_reason: string | null
   labor_hours: number | null
   warranty_original: string | null
   warranty_aftermarket: string | null
@@ -27,7 +31,40 @@ type Draft = {
   safety: boolean
 }
 
+type Fields = {
+  price_list_id: string
+  title: string
+  price_original: string
+  price_aftermarket: string
+  labor_hours: string
+  warranty_original: string
+  warranty_aftermarket: string
+  part_diff: string
+  single_reason: string
+  eta: string
+  message: string
+  safety: boolean
+  discount_pct: string
+  discount_reason: string
+}
+
 const str = (v: number | string | null | undefined) => (v === null || v === undefined ? "" : String(v))
+const money = (v: string) => (v.trim() === "" ? "" : `${Number(v).toLocaleString("he-IL")} ש"ח`)
+
+/** מה עוד חסר כדי שמותר לשלוח (אותם כללים כמו במסד). ריק = מוכן. */
+export function missingOf(f: Fields): string[] {
+  const out: string[] = []
+  if (f.price_original.trim() === "") out.push("מחיר")
+  if (f.labor_hours.trim() === "") out.push("שעות עבודה")
+  if (f.warranty_original.trim() === "") out.push("אחריות")
+  if (f.price_aftermarket.trim() !== "") {
+    if (f.warranty_aftermarket.trim() === "") out.push("אחריות לחלופי")
+    if (f.part_diff.trim() === "") out.push("ההבדל בין הסוגים")
+  } else if (f.single_reason.trim() === "") out.push("למה אין חלופה")
+  if (f.message.trim() === "") out.push("נוסח ללקוח")
+  if (Number(f.discount_pct) > 0 && f.discount_reason.trim() === "") out.push("סיבה להנחה")
+  return out
+}
 
 export function DraftForm({
   jobId,
@@ -35,6 +72,7 @@ export function DraftForm({
   items,
   suggest,
   maxDiscount = 10,
+  onState,
 }: {
   jobId: number
   draft: Draft
@@ -42,15 +80,20 @@ export function DraftForm({
   suggest?: string | null
   /** דניאל עד 10%, אבי עד 30% (רועי, 28.9). המסד אוכף שוב. */
   maxDiscount?: number
+  /** מדווח למעלה: מוכן לשליחה? יש שינויים שלא נשמרו? */
+  onState?: (s: { ready: boolean; dirty: boolean }) => void
 }) {
   const initial = draft.price_list_id ?? items.find((i) => i.code === suggest)?.id ?? null
-  const [f, setF] = useState(() => {
+  const [f, setF] = useState<Fields>(() => {
     const it = items.find((i) => i.id === initial)
+    // מחירי המחירון, לא אחרי ההנחה: ההנחה מחושבת מהם במסד בכל שמירה.
+    const po = draft.list_price_original ?? draft.price_original
+    const pa = draft.list_price_original !== null ? draft.list_price_aftermarket : draft.price_aftermarket
     return {
       price_list_id: str(initial),
       title: draft.title ?? it?.title ?? "",
-      price_original: str(draft.price_original ?? it?.price_original),
-      price_aftermarket: str(draft.price_aftermarket ?? it?.price_aftermarket),
+      price_original: str(po ?? it?.price_original),
+      price_aftermarket: str(po !== null ? pa : it?.price_aftermarket),
       labor_hours: str(draft.labor_hours ?? it?.labor_hours),
       warranty_original: draft.warranty_original ?? it?.warranty_original ?? "",
       warranty_aftermarket: draft.warranty_aftermarket ?? it?.warranty_aftermarket ?? "",
@@ -59,22 +102,52 @@ export function DraftForm({
       eta: draft.eta ?? "",
       message: draft.customer_text ?? "",
       safety: draft.safety,
-      discount_pct: "0",
-      discount_reason: "",
+      discount_pct: str(draft.discount_pct ?? 0),
+      discount_reason: draft.discount_reason ?? "",
     }
   })
-  const [sending, setSending] = useState(false)
+  // המצב האחרון שנשמר במסד. "יש שינויים" = מה שעל המסך שונה ממנו.
+  const [saved, setSaved] = useState<string>(() => (draft.price_original !== null ? JSON.stringify(f) : ""))
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+  const [open, setOpen] = useState(false)
+  const autoSaved = useRef(false)
+
+  const dirty = JSON.stringify(f) !== saved
+  const missing = missingOf(f)
+  const ready = missing.length === 0 && !dirty
+
+  useEffect(() => {
+    onState?.({ ready, dirty })
+  }, [ready, dirty, onState])
+
+  const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF((prev) => ({ ...prev, [k]: e.target.value }))
+
+  async function save(next: Fields = f) {
+    setBusy(true)
+    setError("")
+    const fd = new FormData()
+    fd.set("finding_id", String(draft.id))
+    fd.set("job_id", String(jobId))
+    for (const [k, v] of Object.entries(next)) {
+      if (k === "safety") {
+        if (v) fd.set("safety", "on")
+      } else fd.set(k, String(v))
+    }
+    const res = await saveFinding(fd)
+    setBusy(false)
+    if (!res.ok) return setError(res.error)
+    setSaved(JSON.stringify(next))
+  }
 
   function pick(id: string) {
     const it = items.find((i) => String(i.id) === id)
     if (!it) return setF((prev) => ({ ...prev, price_list_id: "" }))
-    setF((prev) => ({
-      ...prev,
+    const next: Fields = {
+      ...f,
       price_list_id: id,
-      title: it.title,
+      title: f.title.trim() ? f.title : it.title,
       price_original: str(it.price_original),
       price_aftermarket: str(it.price_aftermarket),
       labor_hours: str(it.labor_hours),
@@ -82,123 +155,128 @@ export function DraftForm({
       warranty_aftermarket: it.warranty_aftermarket ?? "",
       part_diff: it.part_diff ?? "",
       single_reason: it.single_reason ?? "",
-    }))
+    }
+    setF(next)
+    // בחירה מהמחירון נשמרת מיד: זה כל מה שרוב הממצאים צריכים.
+    void save(next)
   }
+
+  // טיוטה שהגיעה עם הצעה מהמחירון (לפי פריט האבחון) ועוד לא נשמרה: נשמרת לבד פעם אחת.
+  useEffect(() => {
+    if (autoSaved.current || draft.price_original !== null || !initial) return
+    autoSaved.current = true
+    void save()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const two = f.price_aftermarket.trim() !== ""
   const pct = Number(f.discount_pct) || 0
-  const after = (v: string) => (v.trim() === "" ? null : Math.round((Number(v) * (100 - pct)) / 100))
+  const after = (v: string) => (v.trim() === "" ? "" : money(String(Math.round((Number(v) * (100 - pct)) / 100))))
   const steps = [0, 5, 10, 15, 20, 25, 30].filter((n) => n <= maxDiscount)
 
   return (
-    <form
-      className="job-draft"
-      action={async (formData) => {
-        setSending(true)
-        setError("")
-        const res = await sendFinding(formData)
-        setSending(false)
-        if (!res.ok) setError(res.error)
-      }}
-    >
-      <input type="hidden" name="finding_id" value={draft.id} />
-      <input type="hidden" name="job_id" value={jobId} />
-
-      <label htmlFor={`pl-${draft.id}`}>עבודה מהמחירון</label>
-      <select id={`pl-${draft.id}`} name="price_list_id" value={f.price_list_id} onChange={(e) => pick(e.target.value)}>
-        <option value="">— לבחור —</option>
-        {items.map((i) => (
-          <option key={i.id} value={i.id}>{i.title}</option>
-        ))}
-      </select>
-
-      <div className="draft-grid">
-        <label>
-          <span>כותרת ללקוח</span>
-          <input name="title" value={f.title} onChange={set("title")} />
-        </label>
-        <label>
-          <span>שעות עבודה</span>
-          <input name="labor_hours" value={f.labor_hours} onChange={set("labor_hours")} inputMode="decimal" dir="ltr" />
-        </label>
-        <label>
-          <span>{two ? "חלק מקורי, כולל מע\"מ" : "מחיר, כולל מע\"מ"}</span>
-          <input name="price_original" value={f.price_original} onChange={set("price_original")} inputMode="decimal" dir="ltr" />
-        </label>
-        <label>
-          <span>אחריות{two ? " (מקורי)" : ""}</span>
-          <input name="warranty_original" value={f.warranty_original} onChange={set("warranty_original")} />
-        </label>
-        <label>
-          <span>חלק חלופי, כולל מע"מ</span>
-          <input name="price_aftermarket" value={f.price_aftermarket} onChange={set("price_aftermarket")} inputMode="decimal" dir="ltr" placeholder="ריק = אין חלופה" />
-        </label>
-        <label>
-          <span>אחריות (חלופי)</span>
-          <input name="warranty_aftermarket" value={f.warranty_aftermarket} onChange={set("warranty_aftermarket")} disabled={!two} />
-        </label>
+    <div className="draft">
+      <div className="draft-row">
+        <select
+          aria-label="עבודה מהמחירון"
+          value={f.price_list_id}
+          onChange={(e) => pick(e.target.value)}
+          disabled={busy}
+        >
+          <option value="">— עבודה מהמחירון —</option>
+          {items.map((i) => (
+            <option key={i.id} value={i.id}>{i.title}</option>
+          ))}
+        </select>
+        <span className={`draft-sum ${missing.length ? "missing" : ""}`}>
+          {f.price_original.trim() === ""
+            ? "עוד לא תומחר"
+            : two
+              ? `מקורי ${after(f.price_original)} · חלופי ${after(f.price_aftermarket)} · ${f.labor_hours} שע׳`
+              : `${after(f.price_original)} · ${f.labor_hours} שע׳ · אחריות ${f.warranty_original || "?"}`}
+          {pct > 0 ? ` · הנחה ${pct}%` : ""}
+        </span>
       </div>
 
-      {two ? (
-        <label>
-          <span>ההבדל בין הסוגים, במילים של הלקוח (חובה לפי ס' 131)</span>
-          <textarea name="part_diff" rows={2} value={f.part_diff} onChange={set("part_diff")} />
-        </label>
-      ) : (
-        <label>
-          <span>למה אין חלופה (חובה לפי ס' 131)</span>
-          <textarea name="single_reason" rows={2} value={f.single_reason} onChange={set("single_reason")} />
-        </label>
-      )}
+      <label className="draft-msg">
+        <span>מה נמצא, במילים ללקוח</span>
+        <textarea rows={3} value={f.message} onChange={set("message")} />
+      </label>
 
-      <div className="draft-grid">
-        <label>
-          <span>מתי יהיה מוכן אם מאשרים</span>
-          <input name="eta" value={f.eta} onChange={set("eta")} placeholder="למשל היום ב-15:00" />
-        </label>
-        <label className="draft-check">
-          <input type="checkbox" name="safety" checked={f.safety} onChange={(e) => setF((p) => ({ ...p, safety: e.target.checked }))} />
-          <span>ליקוי בטיחותי (אם הלקוח ידחה — לדווח)</span>
-        </label>
-      </div>
-
-      <div className="draft-discount">
-        <label>
-          <span>הנחה</span>
-          <select name="discount_pct" value={f.discount_pct} onChange={set("discount_pct")}>
-            {steps.map((n) => (
-              <option key={n} value={n}>{n === 0 ? "בלי הנחה" : `${n}%`}</option>
-            ))}
-          </select>
-        </label>
-        {pct > 0 && (
+      <details className="draft-more" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+        <summary>פרטים: כותרת, מחירים, אחריות, הנחה</summary>
+        <div className="draft-grid">
           <label>
-            <span>למה (נרשם)</span>
-            <input name="discount_reason" value={f.discount_reason} onChange={set("discount_reason")} required placeholder="למשל: עיכוב שלנו, לקוח ותיק" />
+            <span>כותרת ללקוח</span>
+            <input value={f.title} onChange={set("title")} />
           </label>
+          <label>
+            <span>שעות עבודה</span>
+            <input value={f.labor_hours} onChange={set("labor_hours")} inputMode="decimal" dir="ltr" />
+          </label>
+          <label>
+            <span>{two ? "חלק מקורי, כולל מע\"מ" : "מחיר, כולל מע\"מ"}</span>
+            <input value={f.price_original} onChange={set("price_original")} inputMode="decimal" dir="ltr" />
+          </label>
+          <label>
+            <span>אחריות{two ? " (מקורי)" : ""}</span>
+            <input value={f.warranty_original} onChange={set("warranty_original")} />
+          </label>
+          <label>
+            <span>חלק חלופי, כולל מע"מ</span>
+            <input value={f.price_aftermarket} onChange={set("price_aftermarket")} inputMode="decimal" dir="ltr" placeholder="ריק = אין חלופה" />
+          </label>
+          <label>
+            <span>אחריות (חלופי)</span>
+            <input value={f.warranty_aftermarket} onChange={set("warranty_aftermarket")} disabled={!two} />
+          </label>
+        </div>
+        <label>
+          <span>{two ? "ההבדל בין הסוגים, במילים של הלקוח (חובה לפי ס' 131)" : "הסבר ללקוח כשיש מחיר אחד (חובה לפי ס' 131)"}</span>
+          <textarea rows={2} value={two ? f.part_diff : f.single_reason} onChange={set(two ? "part_diff" : "single_reason")} />
+        </label>
+        <div className="draft-grid">
+          <label>
+            <span>מתי יהיה מוכן אם מאשרים</span>
+            <input value={f.eta} onChange={set("eta")} placeholder="למשל היום ב-15:00" />
+          </label>
+          <label className="draft-check">
+            <input type="checkbox" checked={f.safety} onChange={(e) => setF((p) => ({ ...p, safety: e.target.checked }))} />
+            <span>ליקוי בטיחותי (אם הלקוח ידחה, לדווח)</span>
+          </label>
+          <label>
+            <span>הנחה</span>
+            <select value={f.discount_pct} onChange={set("discount_pct")}>
+              {steps.map((n) => (
+                <option key={n} value={n}>{n === 0 ? "בלי הנחה" : `${n}%`}</option>
+              ))}
+            </select>
+          </label>
+          {pct > 0 && (
+            <label>
+              <span>למה ההנחה (נרשם)</span>
+              <input value={f.discount_reason} onChange={set("discount_reason")} placeholder="למשל: עיכוב שלנו, לקוח ותיק" />
+            </label>
+          )}
+        </div>
+        {maxDiscount <= 10 && <p className="staff-meta">הנחה מעל 10%: רק אבי.</p>}
+      </details>
+
+      <div className="draft-foot">
+        {dirty && (
+          <button className="btn" type="button" onClick={() => save()} disabled={busy}>
+            {busy ? "שומרים..." : "לשמור"}
+          </button>
         )}
-        {pct > 0 && (
-          <p className="staff-meta">
-            הלקוח יראה: {after(f.price_original)?.toLocaleString("he-IL")} ש&quot;ח
-            {two ? ` (חלופי ${after(f.price_aftermarket)?.toLocaleString("he-IL")} ש"ח)` : ""}, במקום מחיר המחירון.
-            {maxDiscount <= 10 ? " מעל 10% — רק אבי." : ""}
-          </p>
-        )}
+        <span className={`staff-meta ${missing.length ? "draft-missing" : ""}`} role="status">
+          {busy ? "שומרים..." : missing.length ? `חסר: ${missing.join(", ")}` : dirty ? "יש שינויים שלא נשמרו" : "✓ מוכן לשליחה"}
+        </span>
       </div>
-
-      <label htmlFor={`draft-${draft.id}`}>מה נמצא, במילים ללקוח</label>
-      <textarea id={`draft-${draft.id}`} name="message" rows={4} value={f.message} onChange={set("message")} required />
-      <p className="job-check">הנוסח נכתב מההקלטה של המכונאי. המחירים מהמחירון, לא מההקלטה. אפשר לתקן הכול.</p>
-
       {error && (
         <p className="staff-error" role="alert">
           {error}
         </p>
       )}
-
-      <button className="btn" type="submit" disabled={sending || !f.message.trim()}>
-        {sending ? "שולחים..." : "שליחה ללקוח בוואטסאפ"}
-      </button>
-    </form>
+    </div>
   )
 }

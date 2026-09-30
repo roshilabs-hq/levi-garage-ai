@@ -3,12 +3,13 @@ import Link from "next/link"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
-import { elapsed, fmtStamp, fmtTime } from "@/lib/staff/format"
+import { elapsed, fmtStamp, fmtTime, minutesSince } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { Since } from "@/components/staff/since"
 import { markSafetyReported, requeueCar, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
 import { approvedWaitingForUs } from "@/lib/staff/queue"
+import { clockOf, heat } from "@/lib/staff/stages"
 
 export const metadata: Metadata = { title: "לוח היום | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -41,10 +42,21 @@ function reminderRunNote(raw: string | undefined) {
   return `תזכורות למחר: ${parts.join(" · ")}.`
 }
 
-export default async function StaffBoard({ searchParams }: { searchParams: Promise<{ reminders?: string }> }) {
+const QUOTE_OUTCOME: Record<string, string> = {
+  sent: "הצעת המחיר נשלחה ללקוח במייל",
+  noemail: "המייל עוד לא מחובר: להדפיס את ההצעה",
+  failed: "המייל עם ההצעה לא יצא: לשלוח שוב מהכרטיס, או להדפיס",
+  print: "ההצעה הודפסה",
+}
+
+export default async function StaffBoard({
+  searchParams,
+}: {
+  searchParams: Promise<{ reminders?: string; received?: string; quote?: string }>
+}) {
   const staff = await requireStaff()
   const supabase = await createClient()
-  const { reminders } = await searchParams
+  const { reminders, received, quote } = await searchParams
   const runNote = reminderRunNote(reminders)
 
   const today = new Date()
@@ -130,13 +142,49 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
   // הלקוח ענה, והרכב עדיין בחניה: מחזירים לתור (דניאל, לא המכונאי).
   const backToQueue = all.filter(approvedWaitingForUs)
   const HOUR = 60 * 60 * 1000
-  const toCall = (pending ?? [])
-    .map((f) => ({ f, a: one(f.approvals), job: one(f.job_cards) }))
-    .filter((x) => x.a && x.job && Date.now() - new Date(x.a.sent_at).getTime() > HOUR)
-    .sort((x, y) => x.a!.sent_at.localeCompare(y.a!.sent_at))
-  const queue = [...(drafts ?? [])].sort(
-    (a, b) => Number(b.urgency === "red") - Number(a.urgency === "red") || a.created_at.localeCompare(b.created_at),
+  // לפי רכב, לא לפי ממצא (027): לקוח אחד, שיחה אחת, גם אם יש שלושה ממצאים.
+  type CallJob = { id: number; plate: string; customer_name: string | null; customer_phone: string | null }
+  const callRows = new Map<number, { job: CallJob; titles: string[]; sent_at: string; nudged: boolean }>()
+  for (const f of pending ?? []) {
+    const a = one(f.approvals)
+    const job = one(f.job_cards)
+    if (!a || !job || Date.now() - new Date(a.sent_at).getTime() <= HOUR) continue
+    const row = callRows.get(job.id) ?? { job, titles: [] as string[], sent_at: a.sent_at, nudged: false }
+    row.titles.push(f.title || f.summary || "ממצא")
+    if (a.sent_at < row.sent_at) row.sent_at = a.sent_at
+    row.nudged = row.nudged || Boolean(a.nudged_at)
+    callRows.set(job.id, row)
+  }
+  const toCall = [...callRows.values()].sort((x, y) => x.sent_at.localeCompare(y.sent_at))
+
+  // ממצאים שמחכים לדניאל, מקובצים לפי רכב: שורה אחת, ושליחה אחת ללקוח מהכרטיס.
+  type QueueJob = { id: number; plate: string; vehicle_make: string | null; vehicle_model: string | null; lift: number | null }
+  type QueueRow = { job: QueueJob; items: NonNullable<typeof drafts> }
+  const queueRows = new Map<number, QueueRow>()
+  for (const f of drafts ?? []) {
+    const job = one(f.job_cards)
+    if (!job) continue
+    const row: QueueRow = queueRows.get(job.id) ?? { job, items: [] }
+    row.items.push(f)
+    queueRows.set(job.id, row)
+  }
+  const queue = [...queueRows.values()].sort(
+    (a, b) =>
+      Number(b.items.some((f) => f.urgency === "red")) - Number(a.items.some((f) => f.urgency === "red")) ||
+      a.items[0].created_at.localeCompare(b.items[0].created_at),
   )
+
+  // חריגות (רועי, 30.9: רכב חיכה 7 שעות לליפט, ובלוח לא הופיע כלום). אותם ספים כמו
+  // בצבעים של מסך הסדנה. רכב שמחכה ללקוח כבר מופיע ב"להתקשר", ומחכה לדניאל ב"ממצאים".
+  const overdue = all
+    .filter((c) => c.status !== "waiting_approval" && c.status !== "waiting_quote" && !c.parked_at)
+    .map((c) => {
+      const clock = clockOf(c)
+      const minutes = minutesSince(clock.iso)
+      return { c, clock, minutes, level: heat(minutes, clock.limit) }
+    })
+    .filter((x) => x.level !== "ok")
+    .sort((a, b) => b.minutes / b.clock.limit - a.minutes / a.clock.limit)
 
   return (
     <main className="staff-wrap">
@@ -149,6 +197,44 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
           כל רכב שנמצא אצלנו עכשיו, ומה הצעד הבא בכל אחד. איפה כל אחד עומד פיזית, ב<Link href="/staff/floor">מפת המוסך</Link>.
         </p>
       </header>
+
+      {received && (
+        <p className={`staff-note ${quote === "failed" ? "notice-failed" : "notice-sent"}`} role="status">
+          ✓ <span className="num" dir="ltr">{received}</span> התקבל ונכנס לתור לליפט.
+          {quote && QUOTE_OUTCOME[quote] ? ` ${QUOTE_OUTCOME[quote]}.` : ""}
+        </p>
+      )}
+
+      {overdue.length > 0 && (
+        <section className="board-group hot late" aria-labelledby="g-late">
+          <h2 id="g-late">חריגות</h2>
+          <p className="board-why">רכבים שעברו את הזמן שלהם בשלב הנוכחי. כתום: עבר את הזמן. אדום: פי שניים.</p>
+          <ul className="board-rows">
+            {overdue.map(({ c, clock, level }) => (
+              <li key={c.id} className={`late-${level}`}>
+                <Plate value={c.plate} />
+                <div>
+                  <b>
+                    <span className={`light-dot ${level === "late" ? "red" : "yellow"}`} aria-hidden />
+                    {clock.label} כבר <Since iso={clock.iso} initial={elapsed(clock.iso)} />
+                  </b>
+                  <span className="staff-meta">
+                    {carName(c)} ·{" "}
+                    {c.status === "ready"
+                      ? "מוכן ולא נאסף: להתקשר ללקוח"
+                      : c.lift
+                        ? `ליפט ${c.lift}: לבדוק עם המכונאי מה מעכב`
+                        : "בתור לליפט: לבדוק מי יתפנה, או להעלות לליפט פנוי"}
+                  </span>
+                </div>
+                <Link className="btn quiet" href={c.lift || c.status === "ready" ? `/staff/job/${c.id}` : "/staff/floor"}>
+                  {c.lift || c.status === "ready" ? "הכרטיס" : "למפה"}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {(calls ?? []).length > 0 && (
         <section className="board-group hot calls" aria-labelledby="g-calls">
@@ -217,21 +303,21 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
           <h2 id="g-call">שעה בלי תשובה: להתקשר</h2>
           <p className="board-why">הלקוח קיבל קישור, ואחרי חצי שעה גם תזכורת. שיחה של דקה עכשיו חוסכת שעה של רכב שמחכה.</p>
           <ul className="board-rows">
-            {toCall.map(({ f, a, job }) => (
-              <li key={f.id}>
-                <Plate value={job!.plate} />
+            {toCall.map(({ job, titles, sent_at, nudged }) => (
+              <li key={job.id}>
+                <Plate value={job.plate} />
                 <div>
-                  <b>{f.title || f.summary || "ממצא"}</b>
+                  <b>{titles.length === 1 ? titles[0] : `${titles.length} ממצאים: ${titles.join(", ")}`}</b>
                   <span className="staff-meta">
-                    {job!.customer_name || "ללא שם"} · נשלח לפני <Since iso={a!.sent_at} initial={elapsed(a!.sent_at)} />
-                    {a!.nudged_at ? " · קיבל תזכורת" : ""}
+                    {job.customer_name || "ללא שם"} · נשלח לפני <Since iso={sent_at} initial={elapsed(sent_at)} />
+                    {nudged ? " · קיבל תזכורת" : ""}
                   </span>
                 </div>
                 <div className="board-actions">
-                  {job!.customer_phone && (
-                    <a className="btn" href={`tel:${job!.customer_phone}`} dir="ltr">{job!.customer_phone}</a>
+                  {job.customer_phone && (
+                    <a className="btn" href={`tel:${job.customer_phone}`} dir="ltr">{job.customer_phone}</a>
                   )}
-                  <Link className="btn quiet" href={`/staff/job/${job!.id}#f-${f.id}`}>הכרטיס</Link>
+                  <Link className="btn quiet" href={`/staff/job/${job.id}`}>הכרטיס</Link>
                 </div>
               </li>
             ))}
@@ -242,29 +328,30 @@ export default async function StaffBoard({ searchParams }: { searchParams: Promi
       {queue.length > 0 && (
         <section className="board-group hot" aria-labelledby="g-queue">
           <h2 id="g-queue">ממצאים שמחכים לך</h2>
-          <p className="board-why">בוחרים עבודה מהמחירון, והמחיר, השעות והאחריות מתמלאים. אדום קודם.</p>
+          <p className="board-why">שורה לכל רכב. בכרטיס: עבודה מהמחירון לכל ממצא, ושליחה אחת ללקוח. אדום קודם.</p>
           <ul className="board-rows">
-            {queue.map((f) => {
-              const job = one(f.job_cards)!
+            {queue.map(({ job, items }) => {
+              const red = items.some((f) => f.urgency === "red")
+              const noPhoto = items.some((f) => (f.urgency === "red" || f.safety) && !(f.media ?? []).some((m) => m.kind === "photo"))
+              const first = items[0]
               return (
-                <li key={f.id} className={`urgency-${f.urgency ?? "yellow"}`}>
+                <li key={job.id} className={`urgency-${red ? "red" : "yellow"}`}>
                   <Plate value={job.plate} />
                   <div>
                     <b>
-                      <span className={`light-dot ${f.urgency === "red" ? "red" : "yellow"}`} aria-hidden />
-                      {f.title || f.summary || "ממצא"}
-                      {f.safety ? " · בטיחות" : ""}
-                      {f.red_list ? " · רשימה אדומה" : ""}
-                      {(f.urgency === "red" || f.safety) && !(f.media ?? []).some((m) => m.kind === "photo") && (
-                        <span className="missing-photo">חסרה תמונה</span>
-                      )}
+                      <span className={`light-dot ${red ? "red" : "yellow"}`} aria-hidden />
+                      {items.length === 1 ? first.title || first.summary || "ממצא" : `${items.length} ממצאים`}
+                      {items.some((f) => f.safety) ? " · בטיחות" : ""}
+                      {items.some((f) => f.red_list) ? " · רשימה אדומה" : ""}
+                      {noPhoto && <span className="missing-photo">חסרה תמונה</span>}
                     </b>
                     <span className="staff-meta">
-                      {carName(job)} · {f.source === "intake" ? "אבחון" : f.source === "pricelist" ? "מהמחירון" : job.lift ? `ליפט ${job.lift}` : "בלי ליפט"} · מחכה{" "}
-                      <Since iso={f.created_at} initial={elapsed(f.created_at)} />
+                      {carName(job)}
+                      {items.length > 1 ? ` · ${items.map((f) => f.title || "ממצא").join(", ")}` : ""} · מחכה{" "}
+                      <Since iso={first.created_at} initial={elapsed(first.created_at)} />
                     </span>
                   </div>
-                  <Link className="btn" href={`/staff/job/${job.id}#f-${f.id}`}>לתמחר ולשלוח</Link>
+                  <Link className="btn" href={`/staff/job/${job.id}#send-title`}>לתמחר ולשלוח</Link>
                 </li>
               )
             })}

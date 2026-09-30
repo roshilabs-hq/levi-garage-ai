@@ -4,6 +4,8 @@ import { partLabel } from "@/lib/staff/quote"
 import { createClient } from "@/lib/supabase/server"
 import { PlateLogo } from "@/components/brand/plate-logo"
 import { ApproveForm } from "@/components/staff/approve-form"
+import { RequestForm, type RequestItem } from "@/components/staff/request-form"
+import { choiceAndPrice } from "@/lib/staff/quote"
 import { fmtStamp } from "@/lib/staff/format"
 
 export const metadata: Metadata = {
@@ -45,9 +47,99 @@ type View = {
 const photoUrl = (path: string) =>
   `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/shared-quotes/${path.split("/").map(encodeURIComponent).join("/")}`
 
+type RequestRow = Omit<RequestItem, "photos"> & {
+  photo_paths: string[] | null
+  decision: string | null
+  decided_at: string | null
+  part_choice: string | null
+  price_chosen: number | null
+  expired: boolean
+  plate_last3: string | null
+  vehicle: string | null
+}
+
+/**
+ * 027: קישור אחד, כמה ממצאים. הלקוח רואה את כולם בדף אחד, ועונה על כולם בשליחה אחת
+ * (רועי, 30.9: "לא שולחים הודעה 5 פעמים"). אחרי התשובה הדף הופך לאישור בכתב.
+ */
+function RequestPage({ token, rows }: { token: string; rows: RequestRow[] }) {
+  const first = rows[0]
+  const open = rows.filter((r) => !r.decision)
+  const decided = open.length === 0
+  return (
+    <main className="approve">
+      <div className="approve-box">
+        <PlateLogo className="approve-logo" height={38} />
+        <h1>
+          {first.vehicle || "הרכב שלך"}
+          {first.plate_last3 ? (
+            <>
+              {" "}
+              <span className="approve-plate num" dir="ltr">···{first.plate_last3}</span>
+            </>
+          ) : null}
+        </h1>
+
+        {decided ? (
+          <div className="approve-done approved">
+            <b>קיבלנו את התשובה שלך.</b>
+            <ul className="req-summary">
+              {rows.map((r) => (
+                <li key={r.finding_id}>
+                  {r.title}:{" "}
+                  {r.decision === "approved" ? `✓ ${choiceAndPrice(r.part_choice, r.price_aftermarket, r.price_chosen)}` : "✗ לא לתקן"}
+                </li>
+              ))}
+            </ul>
+            <p className="approve-stamp">
+              נרשם אצלנו בכתב, {fmtStamp(rows.find((r) => r.decided_at)?.decided_at ?? null)}. אם השארת לנו מייל, הצעת המחיר המעודכנת נשלחת אליך לשם.
+            </p>
+          </div>
+        ) : first.expired ? (
+          <p className="approve-note">הקישור פג. אפשר להתקשר אלינו ונסדר את זה בטלפון.</p>
+        ) : (
+          <>
+            <p className="approve-message">
+              {rows.length === 1 ? "במהלך העבודה על הרכב מצאנו משהו שדורש את האישור שלך." : `במהלך העבודה על הרכב מצאנו ${rows.length} דברים. לכל אחד אפשר לאשר או לא, בנפרד.`}
+            </p>
+            <RequestForm
+              token={token}
+              items={open.map((r) => ({
+                finding_id: r.finding_id,
+                title: r.title,
+                message_text: r.message_text,
+                price_original: r.price_original,
+                price_aftermarket: r.price_aftermarket,
+                warranty_original: r.warranty_original,
+                warranty_aftermarket: r.warranty_aftermarket,
+                labor_hours: r.labor_hours,
+                part_diff: r.part_diff,
+                single_reason: r.single_reason,
+                safety: r.safety,
+                eta: r.eta,
+                photos: (r.photo_paths ?? []).map(photoUrl),
+                discount_pct: r.discount_pct,
+                list_price_original: r.list_price_original,
+                list_price_aftermarket: r.list_price_aftermarket,
+              }))}
+            />
+          </>
+        )}
+
+        <p className="approve-small">
+          המחירים כוללים חלקים, עבודה ומע"מ. בלי האישור שלך לא נוגעים ברכב. אם משהו לא ברור, אנחנו כאן: 055-3048489.
+        </p>
+      </div>
+    </main>
+  )
+}
+
 export default async function ApprovePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const supabase = await createClient()
+
+  const { data: req } = await supabase.rpc("request_view", { p_token: token })
+  if (Array.isArray(req) && req.length > 0) return <RequestPage token={token} rows={req as RequestRow[]} />
   const { data } = await supabase.rpc("approval_view", { p_token: token })
   const view = (Array.isArray(data) ? data[0] : null) as View | null
 
