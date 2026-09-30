@@ -1236,3 +1236,5 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .arrive-line-head select { flex: 1 1 auto; }
 .arrive-add { justify-self: start; }
 .arrive-total { font-size: 16px; }
+.draft-msg textarea, .draft-more textarea, .draft-more input { font-family: inherit; font-size: 15px; }
+.approve-choice label b { white-space: nowrap; }

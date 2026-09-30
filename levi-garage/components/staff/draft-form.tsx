@@ -107,7 +107,9 @@ export function DraftForm({
     }
   })
   // המצב האחרון שנשמר במסד. "יש שינויים" = מה שעל המסך שונה ממנו.
-  const [saved, setSaved] = useState<string>(() => (draft.price_original !== null ? JSON.stringify(f) : ""))
+  // מה שעל המסך בטעינה הוא מה שבמסד. טיוטה שקיבלה הצעה מהמחירון (לפי פריט האבחון)
+  // נשמרת לבד פעם אחת, למטה.
+  const [saved, setSaved] = useState<string>(() => JSON.stringify(f))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [open, setOpen] = useState(false)

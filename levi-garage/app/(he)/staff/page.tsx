@@ -407,28 +407,8 @@ export default async function StaffBoard({
         </span>
       </div>
 
-      {toSend.length > 0 && (
-        <section className="board-group hot" aria-labelledby="g-tosend">
-          <h2 id="g-tosend">מחכים שנשלח ללקוח</h2>
-          <p className="board-why">המכונאי סיים. עד שלא נשלח מחיר, הרכב תקוע והליפט תפוס בגללנו.</p>
-          <ul className="board-rows">
-            {toSend.map((c) => (
-              <li key={c.id}>
-                <Plate value={c.plate} />
-                <div>
-                  <b>{carName(c)}</b>
-                  <span className="staff-meta">
-                    {c.customer_name || "ללא שם"}
-                    {c.lift ? ` · ליפט ${c.lift}` : ""} · מחכה{" "}
-                    <Since iso={c.status_since} initial={elapsed(c.status_since)} />
-                  </span>
-                </div>
-                <Link className="btn" href={`/staff/job/${c.id}`}>שלח ללקוח</Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* "מחכים שנשלח ללקוח" ירד ב-30.9: אותם רכבים בדיוק מופיעים למעלה, ב"ממצאים שמחכים לך",
+          שורה לכל רכב. שתי קבוצות לאותו דבר היו חלק מה"בלאגן". */}
 
       {waiting.length > 0 && (
         <section className="board-group hot" aria-labelledby="g-waiting">
