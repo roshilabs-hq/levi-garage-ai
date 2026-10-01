@@ -41,3 +41,6 @@ next-env.d.ts
 
 context-practice-files/
 .vercel
+
+# סרטוני /brag: מקומיים, לא לריפו
+brag-output*/
