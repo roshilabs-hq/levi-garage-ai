@@ -140,6 +140,10 @@ for (const car of FLOOR) {
     lift: car.lift,
     status: car.status,
     opened_at: ago(car.openedAgo),
+    // 036: בלי אישור הלקוח על הצעת הקבלה, המסד לא נותן לרכב לעלות לליפט.
+    // ברכבי ההדגמה הלקוח כבר אישר בקישור, כשהרכב התקבל.
+    work_approved_at: ago(car.openedAgo),
+    work_approved_via: "link",
     ready_at: car.status === "ready" ? ago(car.statusAgo) : null,
     notes: "הדגמה · מפת המוסך",
   }

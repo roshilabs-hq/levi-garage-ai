@@ -292,6 +292,8 @@ export default async function JobCardPage({
                   (f): BuilderDraft => ({
                     id: f.id,
                     title: f.title,
+                    // בלי זה ממצא שנשמר כ"2 × מגבים" נפתח עם כמות 1, ושמירה חוזרת מחקה את ה"2 ×" (2.10)
+                    quantity: f.quantity,
                     customer_text: f.customer_text,
                     price_list_id: f.price_list_id,
                     price_original: f.price_original,
