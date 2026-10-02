@@ -1,0 +1,12 @@
+{
+  "name": "levi-garage-guide-capture",
+  "private": true,
+  "type": "module",
+  "description": "צילומי המסך של המדריכים, אוטומטית (04-empower/guides/img)",
+  "scripts": {
+    "capture": "node --env-file=../../levi-garage/.env.local --env-file=../../levi-garage/.env.staff.local capture.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

@@ -33,3 +33,6 @@ reports/
 
 # שלב ביניים בבניית ה-PDF של ההסכם (נתיבים מקומיים)
 04-empower/pdf/*.html
+
+# כלי הצילום של המדריכים
+04-empower/capture/node_modules/
