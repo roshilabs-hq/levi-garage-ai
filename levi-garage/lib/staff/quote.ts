@@ -131,8 +131,15 @@ function findingStatus(f: QuoteFinding) {
 
 export type QuoteReason = "intake" | "update" | "resend"
 
-export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReason) {
+/**
+ * approveToken (036): בקבלה, כשההצעה יוצאת ללקוח לאישור בקישור. אז שורות הקבלה
+ * "ממתינות לאישור שלך" ולא "סוכם", ובמייל כפתור לאישור.
+ */
+export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReason, approveToken?: string | null) {
   const t = totals(s)
+  const approveLink = approveToken ? `${SITE_URL}/approve/${approveToken}` : null
+  const lineStatus = (l: QuoteOption) =>
+    `${approveLink ? "לאישור שלך" : "סוכם בקבלה"}: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`
   const car = [s.job.vehicle, s.job.year].filter(Boolean).join(" ")
   const subject =
     reason === "intake"
@@ -148,18 +155,22 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReaso
     <p style="font-size:15px;margin:16px 0">
       שלום${s.job.customer ? ` ${esc(s.job.customer.split(" ")[0])}` : ""},<br>
       ${reason === "intake"
-        ? "זו הצעת המחיר לעבודה שסיכמנו בקבלת הרכב. בלי אישור שלך לא נבצע שום עבודה אחרת."
+        ? approveLink
+          ? "זו הצעת המחיר לעבודה שדיברנו עליה בקבלת הרכב. <b>נתחיל לעבוד על הרכב רק אחרי שתאשר אותה</b>, בכפתור שבסוף המייל או בקישור שקיבלת בוואטסאפ."
+          : "זו הצעת המחיר לעבודה שסיכמנו בקבלת הרכב. בלי אישור שלך לא נבצע שום עבודה אחרת."
         : reason === "update"
           ? "עדכנו את הצעת המחיר לפי התשובה שלך בקישור. זו הגרסה המלאה והעדכנית."
           : "זו הצעת המחיר העדכנית לרכב שלך, לפי מה שסוכם ואושר עד עכשיו."}
     </p>
     <div style="background:#fff;border-radius:12px;padding:6px 16px 12px">
       <div style="font-size:14px;margin-top:10px">רכב: <b>${esc(car || "—")}</b> · מספר רישוי <b dir="ltr">${esc(s.job.plate)}</b>${s.job.odometer_km ? ` · ${Number(s.job.odometer_km).toLocaleString("he-IL")} ק"מ בקבלה` : ""}</div>
-      ${s.lines.map((l) => blockHtml(l, `סוכם בקבלה: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`, l.part_choice)).join("")}
+      ${s.lines.map((l) => blockHtml(l, lineStatus(l), l.part_choice)).join("")}
       ${s.findings.map((f) => blockHtml(f, findingStatus(f), f.status === "approved" ? f.part_choice : null)).join("")}
-      <div style="font-size:16px;margin:14px 0 4px">סה"כ לתשלום לפי מה שסוכם ואושר: <b>${money(t.total)}</b> (כולל מע"מ)</div>
+      <div style="font-size:16px;margin:14px 0 4px">${approveLink ? "סה\"כ לתשלום אחרי האישור" : "סה\"כ לתשלום לפי מה שסוכם ואושר"}: <b>${money(t.total)}</b> (כולל מע"מ)</div>
       ${t.pending ? `<div style="font-size:14px;color:#8a5a00">${t.pending === 1 ? "פריט אחד ממתין" : `${t.pending} פריטים ממתינים`} לתשובה שלך, ולא נכללים בסכום.</div>` : ""}
     </div>
+    ${approveLink ? `<p style="margin:20px 0 6px"><a href="${approveLink}" style="display:inline-block;background:#f2c230;color:#1b2620;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:999px">לאישור ההצעה</a></p>
+    <p style="font-size:13px;color:#4f5b54;margin:0">אותו קישור נשלח גם בוואטסאפ. הוא בתוקף שבוע. שאלות: ${GARAGE.phone}.</p>` : ""}
     <p style="font-size:13px;color:#4f5b54;margin-top:18px">
       ההצעה ניתנת לפי חוק רישוי שירותים ומקצועות בענף הרכב, התשע"ו-2016: לכל חלק הוצע יותר מסוג אחד כשהדבר אפשרי,
       עם הסבר על ההבדל, שעות העבודה הצפויות והאחריות. לא נבצע עבודה שלא מופיעה בהצעה הזו או בעדכון שאישרת.
@@ -186,10 +197,11 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReaso
     reason === "intake" ? "הצעת מחיר" : `הצעת מחיר מעודכנת, גרסה ${version}`,
     `רכב ${car} · ${s.job.plate}`,
     "",
-    ...s.lines.map((l) => line(l, `סוכם בקבלה: ${choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}`)),
+    ...s.lines.map((l) => line(l, lineStatus(l))),
     ...s.findings.map((f) => line(f, findingStatus(f))),
     "",
     `סה"כ לפי מה שסוכם ואושר: ${money(t.total)} כולל מע"מ`,
+    ...(approveLink ? ["", `לאישור ההצעה: ${approveLink}`, "נתחיל לעבוד על הרכב רק אחרי שתאשר."] : []),
     `${GARAGE.manager}, ${GARAGE.managerTitle}`,
     "אתר הדגמה לפרויקט גמר. העסק, האנשים והמחירים בדויים.",
   ].join("\n")

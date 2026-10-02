@@ -48,9 +48,9 @@ export async function signOut() {
  * יוצאת ללקוח במייל (ס' 132(ב): "במסמך מודפס או בהודעת דואר אלקטרוני").
  * בלי מייל — ההצעה מודפסת בדלפק, ונרשמת גרסה מודפסת.
  *
- * הלקוח עומד מול דניאל ומאשר את הצעת העבודה לטיפול שהוזמן, כולל האבחון (החלטה
- * של רועי, 28.9): ככה החלק הראשון מאושר לפני שהרכב זז, וכל מה שיימצא אחר כך
- * הוא תוספת שנשלחת לאישור בנפרד. הרכב עובר לחניה, לתור של הליפטים.
+ * האישור של ההצעה הזו, כולל האבחון, מגיע מהלקוח עצמו (036, רועי 2.10): קישור
+ * לאישור בוואטסאפ ובמייל, או חתימה על עותק מודפס ללקוח בלי סמארטפון. עד אז
+ * הרכב בחניה, והמסד לא נותן להעלות אותו לליפט. קודם זה היה V של דניאל בלבד.
  */
 export async function receiveCar(formData: FormData) {
   const staff = await requireManager()
@@ -66,12 +66,11 @@ export async function receiveCar(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase() || null
   const consent = formData.get("consent") === "on"
   const explained = formData.get("explained") === "on"
-  const approved = formData.get("approved") === "on"
+  // לקוח בלי סמארטפון: חותם על עותק מודפס, ודניאל רושם את החתימה אחר כך.
+  const onPaper = formData.get("on_paper") === "on"
   if (!bookingId || lines.length === 0) redirect(`/staff/arrive/${bookingId}?e=missing`)
   // ס' 131: הסבר על ההבדל בין סוגי החלקים, לפני ההצעה. דניאל מאשר שהסביר.
   if (!explained) redirect(`/staff/arrive/${bookingId}?e=explain`)
-  // תקנה 8: לא מתחילים עבודה שהלקוח לא אישר. גם האבחון הוא עבודה.
-  if (!approved) redirect(`/staff/arrive/${bookingId}?e=approve`)
 
   const supabase = await createClient()
   const [{ data: booking }, { data: picked }] = await Promise.all([
@@ -84,6 +83,8 @@ export async function receiveCar(formData: FormData) {
   ])
   if (!booking || !picked || picked.length !== lines.length) redirect(`/staff/arrive/${bookingId}?e=missing`)
   if (booking.status === "arrived") redirect("/staff")
+  // ס' 132(ב): קישור לאישור רק למי שהסכים לעדכונים אלקטרוניים. בלי הסכמה — עותק מודפס וחתימה.
+  if (!onPaper && !consent && !booking.whatsapp_consent) redirect(`/staff/arrive/${bookingId}?e=paper`)
 
   const { data: job, error } = await supabase
     .from("job_cards")
@@ -101,8 +102,8 @@ export async function receiveCar(formData: FormData) {
       odometer_km: odometer,
       whatsapp_consent: consent || (booking.whatsapp_consent ?? false),
       updates_consent_at: consent ? new Date().toISOString() : null,
-      work_approved_at: new Date().toISOString(),
-      work_approved_by: staff.id,
+      // תקנה 8: לא מתחילים עבודה שהלקוח לא אישר, גם לא אבחון. האישור מגיע מהלקוח (036).
+      work_approved_at: null,
       lift: null,
       status: "open",
       opened_by: staff.id,
@@ -132,22 +133,36 @@ export async function receiveCar(formData: FormData) {
   )
   await supabase.from("bookings").update({ status: "arrived" }).eq("id", booking.id)
 
-  const outcome = await issueQuote(job.id, "intake", email ? "email" : "print")
+  // הקישור לאישור: אותו דף ואותה הודעת בוט כמו בממצאים. המייל של ההצעה מקבל אותו כפתור.
+  let approveToken: string | null = null
+  let requestId: number | null = null
+  if (!onPaper) {
+    const { data: token, error: reqError } = await supabase.rpc("send_intake_request", { p_job_id: job.id })
+    if (reqError || !token) console.error("send_intake_request failed:", reqError?.code, reqError?.message)
+    else {
+      approveToken = String(token)
+      const { data: req } = await supabase.from("quote_requests").select("id").eq("token", approveToken).single()
+      requestId = req?.id ?? null
+    }
+  }
+
+  const outcome = await issueQuote(job.id, "intake", email ? "email" : "print", approveToken)
+  if (requestId) await notifyRequest(supabase, requestId, "intake")
 
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
   revalidatePath("/staff/lift")
-  // בלי מייל, או כשהלקוח רוצה גם דף ביד: דף ההדפסה, ומשם חזרה ללוח.
-  if (outcome === "print" || printCopy) redirect(`/staff/job/${job.id}/quote?print=1&then=board`)
+  // בלי מייל, חתימה על נייר, או כשהלקוח רוצה גם דף ביד: דף ההדפסה, ומשם חזרה ללוח.
+  if (outcome === "print" || printCopy || onPaper) redirect(`/staff/job/${job.id}/quote?print=1&then=board`)
   // דניאל בדלפק ממשיך ללקוח הבא (רועי, 30.9), ולא נשאר בכרטיס.
-  redirect(`/staff?received=${encodeURIComponent(booking.plate)}&quote=${outcome}`)
+  redirect(`/staff?received=${encodeURIComponent(booking.plate)}&quote=${outcome}&intake=${approveToken ? "link" : "failed"}`)
 }
 
 /**
  * מוציא גרסה של ההצעה: רושם אותה (שנה, ס' 132(ג)), ושולח במייל אם צריך.
  * מחזיר מה קרה, כדי שהמסך יגיד לדניאל את האמת: נשלח, נכשל, או להדפיס.
  */
-async function issueQuote(jobId: number, reason: QuoteReason, channel: "email" | "print") {
+async function issueQuote(jobId: number, reason: QuoteReason, channel: "email" | "print", approveToken: string | null = null) {
   const supabase = await createClient()
   // במסד "resend" הוא עדכון; ההבדל רק בנוסח המייל.
   const { data, error } = await supabase.rpc("start_quote_version", {
@@ -162,7 +177,7 @@ async function issueQuote(jobId: number, reason: QuoteReason, channel: "email" |
   if (channel === "print") return "print" as const
 
   const v = data as { id: number; version: number; email: string | null; snapshot: QuoteSnapshot }
-  const sent = await sendEmail(v.email, quoteEmail(v.snapshot, v.version, reason))
+  const sent = await sendEmail(v.email, quoteEmail(v.snapshot, v.version, reason, approveToken))
   await supabase.rpc("finish_quote_version", {
     p_id: v.id,
     p_status: sent.ok ? "sent" : "failed",
@@ -170,6 +185,43 @@ async function issueQuote(jobId: number, reason: QuoteReason, channel: "email" |
   })
   if (sent.ok) return "sent" as const
   return sent.reason === "not_configured" ? ("noemail" as const) : ("failed" as const)
+}
+
+// ------------------------------------------------- אישור ההצעה של הקבלה (036)
+
+/** הלקוח חתם בדלפק על העותק המודפס (לקוח בלי סמארטפון). מאותו רגע הרכב יכול לעלות לליפט. */
+export async function markIntakeSigned(formData: FormData) {
+  await requireManager()
+  const jobId = Number(formData.get("job_id"))
+  if (!jobId) return
+  const supabase = await createClient()
+  await supabase.rpc("mark_intake_signed", { p_job_id: jobId })
+  revalidatePath("/staff")
+  revalidatePath("/staff/floor")
+  revalidatePath("/staff/lift")
+  revalidatePath(`/staff/job/${jobId}`)
+}
+
+/**
+ * שולח שוב את הקישור לאישור הקבלה: אותו קישור אם עוד בתוקף, חדש אם פג.
+ * וואטסאפ (דרך הבוט) ומייל עם ההצעה.
+ */
+export async function resendIntakeRequest(formData: FormData) {
+  await requireManager()
+  const jobId = Number(formData.get("job_id"))
+  if (!jobId) return
+  const supabase = await createClient()
+  const { data: token, error } = await supabase.rpc("send_intake_request", { p_job_id: jobId })
+  if (error || !token) {
+    redirect(`/staff/job/${jobId}?intake=${error?.hint === "law-132b" ? "consent" : "failed"}`)
+  }
+  const { data: req } = await supabase.from("quote_requests").select("id").eq("token", String(token)).single()
+  const { data: job } = await supabase.from("job_cards").select("customer_email").eq("id", jobId).single()
+  if (job?.customer_email) await issueQuote(jobId, "intake", "email", String(token))
+  if (req) await notifyRequest(supabase, req.id, "intake")
+  revalidatePath("/staff")
+  revalidatePath(`/staff/job/${jobId}`)
+  redirect(`/staff/job/${jobId}?intake=sent`)
 }
 
 /** שולח שוב את ההצעה במייל (גרסה חדשה), או רושם גרסה מודפסת. */

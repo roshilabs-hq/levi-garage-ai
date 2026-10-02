@@ -222,7 +222,7 @@ export default async function LiftPage() {
   const [{ data: cards }, { data: priceList }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, engine_code, status, lift, inspected_at, opened_at, parked_at, outside_at, priority_at, work_done_at")
+      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, engine_code, status, lift, inspected_at, opened_at, parked_at, outside_at, priority_at, work_done_at, work_approved_at")
       .in("status", [...ACTIVE])
       .order("opened_at", { ascending: true }),
     supabase.from("price_list").select("id, title, price_original, fixed_price").eq("active", true).order("sort"),

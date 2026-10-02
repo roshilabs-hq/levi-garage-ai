@@ -74,3 +74,15 @@ export async function decideRequest(token: string, decisions: Decision[]) {
   }
   return { ok: true as const }
 }
+
+/**
+ * 036: ההצעה של הקבלה, כולה. "approved" = אפשר להתחיל לעבוד על הרכב.
+ * "declined" = לא נוגעים ברכב, ודניאל מתקשר (הלוח שלו מתעדכן לבד).
+ */
+export async function decideIntake(token: string, decision: "approved" | "declined") {
+  if (!TOKEN.test(token) || (decision !== "approved" && decision !== "declined")) return { ok: false as const }
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("intake_decide", { p_token: token, p_decision: decision })
+  if (error || data !== "done") return { ok: false as const }
+  return { ok: true as const }
+}

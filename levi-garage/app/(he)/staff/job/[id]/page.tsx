@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
-import { reissueQuote, resendReadyNotice, resendRequestNotice, setJobStatus } from "../../actions"
+import { markIntakeSigned, reissueQuote, resendIntakeRequest, resendReadyNotice, resendRequestNotice, setJobStatus } from "../../actions"
 import { noticeLabel } from "@/lib/staff/notify"
 import { QuoteBuilder, type BuilderDraft } from "@/components/staff/quote-builder"
 import { AddPhoto } from "@/components/staff/add-photo"
@@ -24,6 +24,12 @@ export const metadata: Metadata = { title: "כרטיס עבודה | מוסך ל�
 //   2. נשלח ללקוח: לפי הודעה (בקשה), לא לפי ממצא. מה אושר, מה נדחה, מה ממתין.
 //   3. הצעת המחיר מהקבלה, והגרסאות שיצאו במייל.
 //   4. האבחון, ומה שבוטל.
+
+const INTAKE_NOTE: Record<string, string> = {
+  sent: "הקישור לאישור ההצעה נשלח שוב ללקוח: במייל אם יש, ובוואטסאפ (אם עברו 10 דקות מהשליחה הקודמת).",
+  consent: "הלקוח לא הסכים לעדכונים בוואטסאפ ובמייל: להדפיס את ההצעה ולהחתים אותו.",
+  failed: "השליחה נכשלה. לנסות שוב, או להדפיס ולהחתים.",
+}
 
 const QUOTE_NOTE: Record<string, string> = {
   sent: "הצעת המחיר נשלחה ללקוח במייל.",
@@ -47,11 +53,11 @@ export default async function JobCardPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ quote?: string }>
+  searchParams: Promise<{ quote?: string; intake?: string }>
 }) {
   const staff = await requireStaff()
   const { id } = await params
-  const { quote } = await searchParams
+  const { quote, intake } = await searchParams
   const jobId = Number(id)
   if (!Number.isFinite(jobId)) notFound()
 
@@ -191,6 +197,38 @@ export default async function JobCardPage({
           </div>
         )}
       </header>
+
+      {/* 036: ההצעה של הקבלה. עד שהלקוח מאשר, הרכב לא עולה לליפט. */}
+      {!job.work_approved_at && job.status !== "delivered" && (job.status as string) !== "cancelled" && (
+        <div className="staff-note notice-failed intake-note" role="status">
+          <b>ממתין לאישור הלקוח על הצעת הקבלה.</b> הרכב בחניה ולא עולה לליפט עד שהלקוח מאשר בקישור, או חותם על העותק המודפס.
+          {canSend && (
+            <div className="intake-note-actions">
+              <form action={markIntakeSigned}>
+                <input type="hidden" name="job_id" value={job.id} />
+                <button className="btn" type="submit">חתם על העותק המודפס</button>
+              </form>
+              <form action={resendIntakeRequest}>
+                <input type="hidden" name="job_id" value={job.id} />
+                <button className="btn quiet" type="submit">לשלוח שוב את הקישור</button>
+              </form>
+              <Link className="btn quiet" href={`/staff/job/${job.id}/quote?print=1`}>להדפיס לחתימה</Link>
+            </div>
+          )}
+        </div>
+      )}
+      {job.work_approved_at && (
+        <p className="staff-meta intake-approved">
+          ההצעה של הקבלה אושרה{" "}
+          {job.work_approved_via === "link" ? "על ידי הלקוח בקישור" : job.work_approved_via === "print" ? "בחתימה על עותק מודפס" : "בדלפק"} ·{" "}
+          {fmtStamp(job.work_approved_at)}
+        </p>
+      )}
+      {intake && INTAKE_NOTE[intake] && (
+        <p className={`staff-note ${intake === "sent" ? "notice-sent" : "notice-failed"}`} role="status">
+          {INTAKE_NOTE[intake]}
+        </p>
+      )}
 
       {(mechanicDone || job.work_done_at) && job.status !== "ready" && job.status !== "delivered" && (job.status as string) !== "cancelled" && (
         <p className="staff-note notice-sent" role="status">

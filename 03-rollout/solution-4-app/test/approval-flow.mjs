@@ -69,6 +69,9 @@ const jobRes = await service(`/rest/v1/job_cards`, {
     customer_phone: "0500000000",
     lift: 2,
     status: "in_progress",
+    // הלקוח כבר אישר את הצעת הקבלה. בלי זה המסד לא נותן לרכב לעלות לליפט (036).
+    work_approved_at: new Date().toISOString(),
+    work_approved_via: "link",
     whatsapp_consent: true,
     updates_consent_at: new Date().toISOString(),
     notes: "רשומת בדיקה אוטומטית",

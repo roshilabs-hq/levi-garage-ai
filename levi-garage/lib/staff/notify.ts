@@ -37,7 +37,7 @@ type Claim = {
 
 type Outcome = { status: "sent" | "failed" | "skipped"; reason?: string }
 
-async function ask(kind: Kind, claim: Claim, to: string): Promise<Outcome> {
+async function ask(kind: Kind, claim: Claim, to: string, extra: Record<string, string> = {}): Promise<Outcome> {
   const url = process.env.GARAGE_NOTIFY_URL
   const token = process.env.GARAGE_NOTIFY_TOKEN
   if (!url || !token) return { status: "skipped", reason: "not_wired" }
@@ -61,6 +61,9 @@ async function ask(kind: Kind, claim: Claim, to: string): Promise<Outcome> {
         // until, day}. הבוט בוחר את הנוסח הקבוע לפי זה (סבב 2.10, ממצא 17: בשישי
         // אחרי 12:00 נאמר ללקוחה "א׳–ה׳ עד 17:00"). בוט שעוד לא מכיר את השדה מתעלם ממנו.
         ...(kind === "ready" ? { pickup: nextPickup() } : {}),
+        // לקישור: stage = "intake" כשזו הצעת הקבלה (036) ולא ממצאים. הבוט בוחר לפי זה
+        // נוסח ("ההצעה שדיברנו עליה בקבלה", ולא "מה מצאנו"). בוט שלא מכיר את השדה מתעלם.
+        ...extra,
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
@@ -73,7 +76,13 @@ async function ask(kind: Kind, claim: Claim, to: string): Promise<Outcome> {
   }
 }
 
-async function notify(supabase: SupabaseClient, kind: Kind, rpc: string, args: Record<string, number>) {
+async function notify(
+  supabase: SupabaseClient,
+  kind: Kind,
+  rpc: string,
+  args: Record<string, number>,
+  extra: Record<string, string> = {},
+) {
   // לא מחובר עדיין: לא תופסים כלום, כדי שכשיחברו, הבא בתור יישלח כרגיל.
   if (!process.env.GARAGE_NOTIFY_URL || !process.env.GARAGE_NOTIFY_TOKEN) return
 
@@ -86,7 +95,7 @@ async function notify(supabase: SupabaseClient, kind: Kind, rpc: string, args: R
   if (!claim || !claim.send) return
 
   const to = toWaNumber(claim.phone)
-  const outcome: Outcome = to ? await ask(kind, claim, to) : { status: "skipped", reason: "bad_phone" }
+  const outcome: Outcome = to ? await ask(kind, claim, to, extra) : { status: "skipped", reason: "bad_phone" }
 
   const { error: finishError } = await supabase.rpc("finish_notice", {
     p_id: claim.id,
@@ -114,8 +123,8 @@ export function notifyQuote(supabase: SupabaseClient, findingId: number) {
  * 027: דניאל שולח כמה ממצאים יחד, והלקוח מקבל הודעה אחת עם קישור אחד לכולם.
  * הבוט מקבל טוקן, כמו קודם, ובונה ממנו את הקישור. הוא לא צריך לדעת שבקישור יש כמה ממצאים.
  */
-export function notifyRequest(supabase: SupabaseClient, requestId: number) {
-  return notify(supabase, "quote", "claim_request_notice", { p_request_id: requestId })
+export function notifyRequest(supabase: SupabaseClient, requestId: number, stage: "findings" | "intake" = "findings") {
+  return notify(supabase, "quote", "claim_request_notice", { p_request_id: requestId }, stage === "intake" ? { stage } : {})
 }
 
 /** מה הצוות רואה בכרטיס. */

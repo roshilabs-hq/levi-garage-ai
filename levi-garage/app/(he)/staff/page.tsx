@@ -8,8 +8,8 @@ import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { StationRequests } from "@/components/staff/station-requests"
 import { Since } from "@/components/staff/since"
-import { markSafetyReported, requeueCar, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
-import { approvedWaitingForUs, placeLabel } from "@/lib/staff/queue"
+import { markIntakeSigned, markSafetyReported, requeueCar, resendIntakeRequest, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
+import { approvedWaitingForUs, awaitingIntake, placeLabel } from "@/lib/staff/queue"
 import { clockOf, heat } from "@/lib/staff/stages"
 
 export const metadata: Metadata = { title: "לוח היום | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -53,11 +53,11 @@ const QUOTE_OUTCOME: Record<string, string> = {
 export default async function StaffBoard({
   searchParams,
 }: {
-  searchParams: Promise<{ reminders?: string; received?: string; quote?: string }>
+  searchParams: Promise<{ reminders?: string; received?: string; quote?: string; intake?: string }>
 }) {
   const staff = await requireStaff()
   const supabase = await createClient()
-  const { reminders, received, quote } = await searchParams
+  const { reminders, received, quote, intake: intakeSent } = await searchParams
   const runNote = reminderRunNote(reminders)
 
   const today = new Date()
@@ -68,7 +68,7 @@ export default async function StaffBoard({
   const [{ data: cards }, { data: booked }, { data: later }, { data: drafts }, { data: calls }, { data: safety }, { data: pending }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, parked_at, outside_at, priority_at, work_done_at")
+      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, customer_phone, parked_at, outside_at, priority_at, work_done_at, work_approved_at")
       .not("status", "in", "(delivered,cancelled)")
       .order("opened_at", { ascending: true }),
     supabase
@@ -125,8 +125,24 @@ export default async function StaffBoard({
   const ready = all.filter((c) => c.status === "ready")
   // רק מה שבאמת בעבודה: על ליפט, בתור או בחוץ. רכב בחניה כבר מופיע בקבוצה של הצעד הבא
   // שלו ("הלקוח אישר", "גמור, מחכה לבדיקה"), ובסבב 2.10 הוא הופיע פעמיים (ממצא 13).
-  const working = all.filter((c) => (c.status === "open" || c.status === "in_progress") && !c.parked_at && !c.work_done_at)
+  // 036: הלקוח עוד לא אישר את הצעת הקבלה. בחניה, מחוץ לתור, ובקבוצה משלו.
+  const intake = all.filter(awaitingIntake)
+  const working = all.filter(
+    (c) => (c.status === "open" || c.status === "in_progress") && !c.parked_at && !c.work_done_at && !awaitingIntake(c),
+  )
   const arriving = booked ?? []
+
+  // הקישור האחרון לכל רכב שמחכה לאישור הקבלה: מתי נשלח, ואם הלקוח דחה.
+  const { data: intakeReqs } = intake.length
+    ? await supabase
+        .from("quote_requests")
+        .select("job_card_id, sent_at, decided_at, decision, expires_at")
+        .eq("kind", "intake")
+        .in("job_card_id", intake.map((c) => c.id))
+        .order("sent_at", { ascending: false })
+    : { data: [] }
+  const intakeOf = new Map<number, { sent_at: string; decision: string | null; expires_at: string }>()
+  for (const r of intakeReqs ?? []) if (!intakeOf.has(r.job_card_id)) intakeOf.set(r.job_card_id, r)
 
   // איזה תור כבר קיבל תזכורת. מכונאי ומנהל רואים (RLS); מסך תלוי לא מגיע לכאן.
   const bookingIds = [...arriving, ...(later ?? [])].map((b) => b.id)
@@ -203,7 +219,12 @@ export default async function StaffBoard({
 
       {received && (
         <p className={`staff-note ${quote === "failed" ? "notice-failed" : "notice-sent"}`} role="status">
-          ✓ <span className="num" dir="ltr">{received}</span> התקבל ונכנס לתור לליפט.
+          ✓ <span className="num" dir="ltr">{received}</span> התקבל.{" "}
+          {intakeSent === "link"
+            ? "הקישור לאישור ההצעה נשלח ללקוח. הרכב מחכה בחניה, ונכנס לתור כשהלקוח מאשר."
+            : intakeSent === "failed"
+              ? "הקישור לאישור לא נשלח: לשלוח שוב מהקבוצה \"מחכים לאישור הלקוח\"."
+              : "נכנס לתור לליפט."}
           {quote && QUOTE_OUTCOME[quote] ? ` ${QUOTE_OUTCOME[quote]}.` : ""}
         </p>
       )}
@@ -407,12 +428,12 @@ export default async function StaffBoard({
         <span className={toSend.length ? "hot" : ""}>
           <b className="num">{toSend.length}</b> {toSend.length === 1 ? "מחכה לשליחה" : "מחכים לשליחה"}
         </span>
-        <span className={waiting.length ? "hot" : ""}>
-          <b className="num">{waiting.length}</b> {waiting.length === 1 ? "מחכה ללקוח" : "מחכים ללקוח"}
+        <span className={waiting.length + intake.length ? "hot" : ""}>
+          <b className="num">{waiting.length + intake.length}</b> {waiting.length + intake.length === 1 ? "מחכה ללקוח" : "מחכים ללקוח"}
         </span>
         <span>
           {/* הסיכום סופר כל רכב בטיפול, גם בחניה; הרשימה למטה מראה רק את מי שלא מופיע בקבוצה אחרת. */}
-          <b className="num">{all.filter((c) => c.status === "open" || c.status === "in_progress").length}</b> בעבודה
+          <b className="num">{all.filter((c) => (c.status === "open" || c.status === "in_progress") && !awaitingIntake(c)).length}</b> בעבודה
         </span>
         <span>
           <b className="num">{ready.length}</b> {ready.length === 1 ? "מוכן" : "מוכנים"}
@@ -424,6 +445,64 @@ export default async function StaffBoard({
 
       {/* "מחכים שנשלח ללקוח" ירד ב-30.9: אותם רכבים בדיוק מופיעים למעלה, ב"ממצאים שמחכים לך",
           שורה לכל רכב. שתי קבוצות לאותו דבר היו חלק מה"בלאגן". */}
+
+      {intake.length > 0 && (
+        <section className="board-group hot" aria-labelledby="g-intake">
+          <h2 id="g-intake">מחכים לאישור הלקוח על הצעת הקבלה</h2>
+          <p className="board-why">
+            הרכב בחניה ולא עולה לליפט עד שהלקוח מאשר. קישור נשלח אליו בוואטסאפ ובמייל. לקוח שחתם על העותק המודפס: &quot;חתם&quot;.
+          </p>
+          <ul className="board-rows">
+            {intake.map((c) => {
+              const r = intakeOf.get(c.id)
+              const declined = r?.decision === "declined"
+              return (
+                <li key={c.id} className={declined ? "late-late" : undefined}>
+                  <Plate value={c.plate} />
+                  <div>
+                    <b>
+                      {declined ? <span className="light-dot red" aria-hidden /> : null}
+                      {declined ? "הלקוח לא אישר: להתקשר אליו" : carName(c)}
+                    </b>
+                    <span className="staff-meta">
+                      {c.customer_name || "ללא שם"}
+                      {declined && c.customer_phone ? (
+                        <>
+                          {" · "}
+                          <a href={`tel:${c.customer_phone}`} className="num" dir="ltr">{c.customer_phone}</a>
+                        </>
+                      ) : null}
+                      {" · "}
+                      {r && !declined ? (
+                        <>
+                          קישור נשלח <Since iso={r.sent_at} initial={elapsed(r.sent_at)} />
+                        </>
+                      ) : !r ? (
+                        "חותם על עותק מודפס"
+                      ) : (
+                        carName(c)
+                      )}
+                    </span>
+                  </div>
+                  {canRemind && (
+                    <form action={markIntakeSigned}>
+                      <input type="hidden" name="job_id" value={c.id} />
+                      <button className="btn" type="submit">חתם על העותק המודפס</button>
+                    </form>
+                  )}
+                  {canRemind && !declined && (
+                    <form action={resendIntakeRequest}>
+                      <input type="hidden" name="job_id" value={c.id} />
+                      <button className="btn quiet" type="submit">{r ? "לשלוח שוב" : "לשלוח קישור"}</button>
+                    </form>
+                  )}
+                  <Link className="btn quiet" href={`/staff/job/${c.id}`}>הכרטיס</Link>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       {waiting.length > 0 && (
         <section className="board-group hot" aria-labelledby="g-waiting">

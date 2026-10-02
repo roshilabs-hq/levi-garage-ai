@@ -894,6 +894,7 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .arrive-single { font-size: 16px; }
 .arrive-check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; line-height: 1.5; margin-top: 12px; cursor: pointer; }
 .arrive-check input { width: 22px; height: 22px; flex: none; accent-color: var(--forest); margin-top: 1px; }
+.arrive-approval { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--sunk); line-height: 1.6; }
 .arrive-form .btn { margin-top: 14px; min-height: 56px; }
 
 /* ---------- התמחור של דניאל ---------- */
@@ -1326,3 +1327,16 @@ button.gem-link { font: inherit; text-align: inherit; cursor: pointer; width: 10
 .mentor-attached { display: flex; align-items: center; gap: 10px; }
 .mentor-attached img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
 .mentor-foot { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* 036: ההצעה של הקבלה, בדף האישור של הלקוח */
+.intake-lines { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 10px; text-align: start; }
+.intake-lines li { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+.intake-price { font-weight: 700; }
+.intake-meta { color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+.intake-total { margin-top: 14px; font-size: 17px; }
+.intake-actions { display: grid; gap: 10px; margin-top: 18px; }
+.intake-actions .btn { width: 100%; }
+.intake-sure { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--sunk); }
+.intake-sure p { margin: 0; line-height: 1.5; }
+.intake-note-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.intake-approved { margin-top: 6px; }

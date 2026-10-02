@@ -116,6 +116,25 @@ try {
   ok("דניאל פותח כרטיס לרכב שהגיע", opened.ok && Boolean(jobId), `HTTP ${opened.status}`)
   if (!jobId) throw new Error("לא נפתח כרטיס, אין מה לבדוק")
 
+  // 036: עד שהלקוח מאשר את הצעת הקבלה, הרכב בחניה. הבוט אומר שמחכים לאישור שלו,
+  // והמסד לא נותן להעלות אותו לליפט, גם לא לדניאל.
+  {
+    const cust = await (
+      await call(`/rest/v1/rpc/garage_customer`, { method: "POST", body: JSON.stringify({ p_secret: BOT_TOKEN, p_client: clientId }) })
+    ).json()
+    const car = (Array.isArray(cust) ? cust : []).find((c) => c.kind === "job" && c.plate_tail === TAIL)
+    ok("[קבלה] הבוט יודע שהרכב מחכה לאישור של הלקוח", car?.status === "waiting_intake", JSON.stringify(cust))
+    const early = await call(`/rest/v1/job_cards?id=eq.${jobId}`, {
+      token: daniel,
+      method: "PATCH",
+      headers: { prefer: "return=minimal" },
+      body: JSON.stringify({ lift: 3 }),
+    })
+    ok("[קבלה] בלי אישור הלקוח, הרכב לא עולה לליפט", !early.ok, `HTTP ${early.status}`)
+    const signed = await call(`/rest/v1/rpc/mark_intake_signed`, { token: daniel, method: "POST", body: JSON.stringify({ p_job_id: jobId }) })
+    ok("[קבלה] הלקוח חתם על עותק מודפס, ודניאל רושם", signed.ok && (await signed.json()) === "ok", `HTTP ${signed.status}`)
+  }
+
   for (const stage of STAGES) {
     // אותו שינוי שהכפתור שולח (setJobStatus ב-app/(he)/staff/actions.ts): "מוכן"
     // רושם מתי ומפנה את הליפט, "נמסר" רושם מתי. בגרסה הראשונה של הבדיקה זה

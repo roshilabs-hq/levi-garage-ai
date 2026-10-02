@@ -9,7 +9,7 @@ import { Since } from "@/components/staff/since"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { TOO_LONG, stageLabel, type Stage } from "@/lib/staff/stages"
 import { assignLift, lowerCar, requeueCar, sendOutside, setJobStatus, toFrontOfQueue } from "../actions"
-import { approvedWaitingForUs, doneAwaitingCheck, isOutside, isParked, queueOf } from "@/lib/staff/queue"
+import { approvedWaitingForUs, awaitingIntake, doneAwaitingCheck, isOutside, isParked, queueOf } from "@/lib/staff/queue"
 
 export const metadata: Metadata = { title: "מפת המוסך | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -43,6 +43,7 @@ type Card = {
   outside_at: string | null
   priority_at: string | null
   work_done_at: string | null
+  work_approved_at: string | null
 }
 
 function carName(c: { vehicle_make: string | null; vehicle_model: string | null; vehicle_year?: number | null }) {
@@ -93,7 +94,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
     supabase
       .from("job_cards")
       .select(
-        "id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, inspected_at, parked_at, outside_at, priority_at, work_done_at",
+        "id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, inspected_at, parked_at, outside_at, priority_at, work_done_at, work_approved_at",
       )
       .not("status", "in", "(delivered,cancelled)")
       .order("opened_at", { ascending: true }),
@@ -126,7 +127,8 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
   const backToQueue = all.filter(approvedWaitingForUs)
   const isManager = staff.role !== "mechanic"
   const waitingQuote = all.filter((c) => c.status === "waiting_quote")
-  const waitingCustomer = all.filter((c) => c.status === "waiting_approval")
+  // אצל הלקוח: ממצאים שנשלחו, או הצעת הקבלה שעוד לא אושרה (036).
+  const waitingCustomer = all.filter((c) => c.status === "waiting_approval" || awaitingIntake(c))
   const done = all.filter((c) => c.status === "ready")
   // "סיימתי" (028): הליפט התפנה, והרכב בחניה עד שדניאל בודק. ראשונים בעמודה, כי הם מחכים לנו.
   const checking = all.filter(doneAwaitingCheck)
@@ -441,12 +443,20 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                 <li key={c.id} className="chain-card">
                   <div className="chain-card-top">
                     <Plate value={c.plate} />
-                    <span className="chain-tag them">אצל הלקוח</span>
+                    <span className="chain-tag them">{awaitingIntake(c) ? "אישור הקבלה" : "אצל הלקוח"}</span>
                   </div>
                   <b>{carName(c)}</b>
                   <span className="staff-meta">
                     {c.customer_name || "ללא שם"}
-                    {c.lift ? ` · ליפט ${c.lift}` : isParked(c) ? " · בחניה" : queuePos.has(c.id) ? ` · בתור ${queuePos.get(c.id)}` : ""}
+                    {awaitingIntake(c)
+                      ? " · בחניה, לא עולה לליפט עד שהלקוח מאשר"
+                      : c.lift
+                        ? ` · ליפט ${c.lift}`
+                        : isParked(c)
+                          ? " · בחניה"
+                          : queuePos.has(c.id)
+                            ? ` · בתור ${queuePos.get(c.id)}`
+                            : ""}
                   </span>
                   <p className="chain-clock">
                     נשלח לפני{" "}

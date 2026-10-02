@@ -16,12 +16,21 @@ export type QueueCard = {
   priority_at: string | null
   /** המכונאי לחץ "סיימתי" (028). הרכב ירד לחניה ומחכה לבדיקה של דניאל. */
   work_done_at?: string | null
+  /**
+   * הלקוח אישר את הצעת הקבלה (036). null = עוד לא: הרכב בחניה ולא עולה לליפט.
+   * מסך שלא בוחר את השדה (undefined) מתנהג כמו קודם.
+   */
+  work_approved_at?: string | null
 }
 
 const active = (c: QueueCard) => (ACTIVE as readonly string[]).includes(c.status)
 
-/** בחניה, מחכה שמכונאי יתפנה. כל רכב שהתקבל כבר אושר לטיפול שהוזמן, ולכן יש עליו עבודה. */
-export const inQueue = (c: QueueCard) => active(c) && c.lift === null && !c.parked_at && !c.outside_at && !c.work_done_at
+/** הלקוח עוד לא אישר את הצעת הקבלה (036). הליפט לא מחכה לו: הוא מחוץ לתור. */
+export const awaitingIntake = (c: QueueCard) => active(c) && c.lift === null && c.work_approved_at === null
+
+/** בחניה, מחכה שמכונאי יתפנה: הלקוח אישר, ויש עליו עבודה. */
+export const inQueue = (c: QueueCard) =>
+  active(c) && c.lift === null && !c.parked_at && !c.outside_at && !c.work_done_at && c.work_approved_at !== null
 
 /** הורד מהליפט ומחכה ללקוח או לחלק. מחוץ לתור עד שדניאל מחזיר. */
 export const isParked = (c: QueueCard) => active(c) && c.lift === null && Boolean(c.parked_at)
@@ -53,6 +62,7 @@ export function placeLabel(c: QueueCard & { inspected_at?: string | null }) {
   if (c.status === "ready") return "בחצר, מחכה ללקוח"
   if (c.lift !== null) return `ליפט ${c.lift}`
   if (c.outside_at) return "בעבודה בחוץ"
+  if (awaitingIntake(c)) return "בחניה, מחכה לאישור הלקוח"
   if (doneAwaitingCheck(c)) return "גמור, מחכה לבדיקה"
   if (approvedWaitingForUs(c)) return "אושר, חוזר לתור"
   if (c.parked_at) return "בחניה, מחכה לתשובה"
