@@ -1185,6 +1185,8 @@ button[data-pending]::after,
 .answer-call-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
 .answer-who { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
 .answer-pin { width: 9ch; font-size: 22px; letter-spacing: .15em; text-align: center; padding: 8px 10px; }
+/* הריווח נועד לספרות. טקסט עברי במקום ריק ("הקוד שלך") נקרא רגיל. */
+.answer-pin::placeholder { letter-spacing: normal; font-size: 17px; }
 .answer-call-form .staff-error, .answer-call-form .staff-note { width: 100%; margin: 0; }
 
 /* ── 027: הודעה אחת ללקוח. כרטיס העבודה של דניאל ── */

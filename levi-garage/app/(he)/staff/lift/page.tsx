@@ -125,7 +125,7 @@ function Car({
     : allowed === 0
       ? "אין עדיין עבודה מאושרת. להוריד לחניה, והליפט עובר לבא בתור."
       : holding > 0
-        ? `לעבוד על מה שמסומן ✓, ואז להוריד לחניה: ${holding === 1 ? "ממצא אחד" : `${holding} ממצאים`} ${waiting.length ? "מחכים לתשובת הלקוח" : "אצל דניאל"}.`
+        ? `לעבוד על מה שמסומן ✓, ואז להוריד לחניה: ${whereFindings(waiting.length, drafts.length)}.`
         : "לעבוד על מה שמסומן ✓, ואז \"סיימתי\". הליפט מתפנה מיד."
 
   return (
@@ -214,8 +214,20 @@ function Car({
   )
 }
 
-export default async function LiftPage() {
+/**
+ * איפה עומדים הממצאים, במילים. כשחלק אצל הלקוח וחלק אצל דניאל, לכתוב את שניהם:
+ * "2 ממצאים מחכים לתשובת הלקוח" כשאחד מהם עוד אצל דניאל היה לא נכון (צילומי המדריך, 2.10).
+ */
+function whereFindings(atCustomer: number, atDaniel: number) {
+  const n = (k: number) => (k === 1 ? "ממצא אחד" : `${k} ממצאים`)
+  const customer = atCustomer ? `${n(atCustomer)} ${atCustomer === 1 ? "מחכה" : "מחכים"} לתשובת הלקוח` : ""
+  const daniel = atDaniel ? `${n(atDaniel)} אצל דניאל` : ""
+  return [customer, daniel].filter(Boolean).join(", ו")
+}
+
+export default async function LiftPage({ searchParams }: { searchParams: Promise<{ done?: string }> }) {
   const staff = await requireStaff()
+  const { done } = await searchParams
   const supabase = await createClient()
   const atDiag = staff.lift === null
 
@@ -269,6 +281,12 @@ export default async function LiftPage() {
           </p>
         </div>
       </header>
+
+      {done !== undefined && mine.length === 0 && (
+        <p className="staff-note notice-sent" role="status">
+          ✓ {done ? <span className="num" dir="ltr">{done}</span> : "הרכב"} ירד לחניה. דניאל יבדוק ויסמן &quot;מוכן&quot;. הליפט פנוי.
+        </p>
+      )}
 
       {!atDiag && mine.length > 0 && (
         <ul className="lift-list">

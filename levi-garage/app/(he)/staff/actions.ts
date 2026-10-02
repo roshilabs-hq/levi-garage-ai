@@ -307,7 +307,7 @@ export async function callManager(formData: FormData) {
   if (!jobId) return
 
   const supabase = await createClient()
-  const { data: job } = await supabase.from("job_cards").select("lift").eq("id", jobId).maybeSingle()
+  const { data: job } = await supabase.from("job_cards").select("lift, plate").eq("id", jobId).maybeSingle()
   await supabase.from("help_calls").insert({ job_card_id: jobId, lift: job?.lift ?? staff.lift, requested_by: staff.id, kind })
 
   // "סיימתי" מפנה את הליפט מיד (רועי, 2.10). הרכב יורד לחניה, "גמור, מחכה
@@ -323,6 +323,9 @@ export async function callManager(formData: FormData) {
       .in("status", [...ACTIVE])
     revalidatePath("/staff/floor")
     revalidatePath("/wall")
+    revalidatePath("/staff")
+    // אישור למכונאי: הרכב נעלם מהמסך, וצריך לדעת שזה נקלט (צילומי המדריך, 2.10).
+    redirect(`/staff/lift?done=${encodeURIComponent(job?.plate ?? "")}`)
   }
 
   revalidatePath("/staff/lift")
