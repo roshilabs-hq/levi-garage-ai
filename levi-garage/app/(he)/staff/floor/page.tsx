@@ -321,9 +321,13 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                 <li key={c.id} className="chain-card pale">
                   <div className="chain-card-top">
                     <Plate value={c.plate} />
-                    <span className="chain-tag wait">בתור · {queuePos.get(c.id)}</span>
+                    <span className="chain-tag wait">
+                      {queuePos.get(c.id) === 1 ? "ראשון בתור" : `${queuePos.get(c.id)} בתור`}
+                    </span>
                   </div>
                   <b>{carName(c)}</b>
+                  {/* התור משותף לכל הליפטים: הרכב לא מחכה לליפט מסוים (סבב 2.10, ממצא 1). */}
+                  <span className="staff-meta">כל ליפט שמתפנה יכול למשוך</span>
                   <span className="staff-meta">
                     {c.customer_name || "ללא שם"}
                     {c.inspected_at ? "" : " · לפני אבחון"}

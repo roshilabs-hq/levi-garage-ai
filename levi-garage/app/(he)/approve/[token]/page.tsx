@@ -62,7 +62,9 @@ type RequestRow = Omit<RequestItem, "photos"> & {
  * 027: קישור אחד, כמה ממצאים. הלקוח רואה את כולם בדף אחד, ועונה על כולם בשליחה אחת
  * (רועי, 30.9: "לא שולחים הודעה 5 פעמים"). אחרי התשובה הדף הופך לאישור בכתב.
  */
-function RequestPage({ token, rows }: { token: string; rows: RequestRow[] }) {
+type AgreedLine = { title: string; price: number | null }
+
+function RequestPage({ token, rows, agreed }: { token: string; rows: RequestRow[]; agreed: AgreedLine[] }) {
   const first = rows[0]
   const open = rows.filter((r) => !r.decision)
   const decided = open.length === 0
@@ -104,6 +106,7 @@ function RequestPage({ token, rows }: { token: string; rows: RequestRow[] }) {
             </p>
             <RequestForm
               token={token}
+              agreed={agreed}
               items={open.map((r) => ({
                 finding_id: r.finding_id,
                 title: r.title,
@@ -139,7 +142,13 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
   const supabase = await createClient()
 
   const { data: req } = await supabase.rpc("request_view", { p_token: token })
-  if (Array.isArray(req) && req.length > 0) return <RequestPage token={token} rows={req as RequestRow[]} />
+  if (Array.isArray(req) && req.length > 0) {
+    // מה כבר אושר (בקבלה ובהודעות קודמות), כדי שהלקוח יחליט כשהוא יודע את הסכום הכולל (029).
+    const { data: agreedRaw } = await supabase.rpc("request_agreed", { p_token: token })
+    const a = (agreedRaw ?? {}) as { lines?: AgreedLine[]; approved?: AgreedLine[] }
+    const agreed = [...(a.lines ?? []), ...(a.approved ?? [])].filter((l) => l && l.price !== null)
+    return <RequestPage token={token} rows={req as RequestRow[]} agreed={agreed} />
+  }
   const { data } = await supabase.rpc("approval_view", { p_token: token })
   const view = (Array.isArray(data) ? data[0] : null) as View | null
 

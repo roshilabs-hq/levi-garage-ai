@@ -73,7 +73,7 @@ export default async function JobCardPage({
   ] = await Promise.all([
     supabase
       .from("findings")
-      .select("*, approvals(token, request_id, decision, decided_at, part_choice, price_chosen, message_text, sent_at)")
+      .select("*, reporter:safety_reported_by(full_name), approvals(token, request_id, decision, decided_at, part_choice, price_chosen, message_text, sent_at)")
       .eq("job_card_id", jobId)
       .order("created_at", { ascending: true }),
     supabase.from("quote_items").select("title, part_choice, price_original, price_aftermarket, labor_hours").eq("job_card_id", jobId),
@@ -192,7 +192,7 @@ export default async function JobCardPage({
         )}
       </header>
 
-      {mechanicDone && job.status !== "ready" && (
+      {(mechanicDone || job.work_done_at) && job.status !== "ready" && job.status !== "delivered" && (job.status as string) !== "cancelled" && (
         <p className="staff-note notice-sent" role="status">
           המכונאי סיים את העבודה.{canReady ? " לבדוק, ואז \"הרכב מוכן\": הלקוח מקבל הודעה בוואטסאפ." : ""}
         </p>
@@ -217,6 +217,22 @@ export default async function JobCardPage({
           )}
         </div>
       )}
+
+      {/* מה קרה אחרי "מוכן": מתי נמסר, ומתי ועל ידי מי דווח ליקוי בטיחותי שהלקוח דחה.
+          בסבב 2.10 "דווח" נשמר במסד ולא הופיע בשום מקום (ממצא 19). */}
+      {job.status === "delivered" && job.delivered_at && (
+        <p className="staff-note notice-sent" role="status">נמסר ללקוח · {fmtStamp(job.delivered_at)}</p>
+      )}
+      {all
+        .filter((f) => f.safety_reported_at)
+        .map((f) => (
+          <p key={`rep-${f.id}`} className="staff-note notice-sent" role="status">
+            דווח לרשות הרישוי על ליקוי בטיחותי שלא תוקן: {f.title} · {fmtStamp(f.safety_reported_at)}
+            {(Array.isArray(f.reporter) ? f.reporter[0] : f.reporter)?.full_name
+              ? ` · ${(Array.isArray(f.reporter) ? f.reporter[0] : f.reporter).full_name}`
+              : ""}
+          </p>
+        ))}
 
       {quote && QUOTE_NOTE[quote] && (
         <p className={`staff-note ${quote === "sent" ? "notice-sent" : "notice-failed"}`} role="status">

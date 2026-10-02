@@ -365,26 +365,28 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .staff-wrap.wide { max-width: 1240px; }
 
 /* פס התאים. הדבר היחיד שיודע להראות תא ריק. */
+/* תגיות ברוחב התוכן, לא ארבע קופסאות ברוחב העמודות שמתחת: בסבב 2.10 רכב בעמודה
+   "בטיפול" עדיין נראה כאילו הוא מחכה לליפט 2, שישב בדיוק מעליו (ממצא 1). */
 .strip {
   list-style: none;
-  margin: 18px 0 0;
+  margin: 10px 0 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .strip-bay {
   background: var(--surface);
-  border-radius: var(--radius);
+  border-radius: 999px;
   box-shadow: inset 0 0 0 1px var(--line);
-  border-inline-start: 4px solid var(--line);
-  padding: 10px 12px;
+  padding: 6px 14px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
 }
-.strip-bay.busy { border-inline-start-color: var(--forest); }
+.strip-bay.busy { background: color-mix(in srgb, var(--forest) 12%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--forest) 45%, transparent); }
 .strip-bay b { font-size: 13.5px; color: var(--muted); font-weight: 600; }
 .strip-bay .num { font-weight: 800; font-size: 15px; letter-spacing: .02em; }
 .strip-bay small { color: var(--muted); font-size: 12.5px; }
@@ -1238,3 +1240,9 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .arrive-total { font-size: 16px; }
 .draft-msg textarea, .draft-more textarea, .draft-more input { font-family: inherit; font-size: 15px; }
 .approve-choice label b { white-space: nowrap; }
+
+/* דף האישור: מה כבר אושר קודם (029, סבב 2.10 ממצא 11). */
+.req-agreed { margin: 18px 0 0; padding: 12px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--forest) 7%, transparent); font-size: 15px; }
+.req-agreed-title { margin: 0 0 6px; font-weight: 700; }
+.req-agreed ul { margin: 0; padding-inline-start: 18px; }
+.req-agreed li { line-height: 1.6; }

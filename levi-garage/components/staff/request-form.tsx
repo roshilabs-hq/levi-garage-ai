@@ -32,7 +32,16 @@ type Pick = "original" | "aftermarket" | "declined"
 
 const money = (n: number | null) => (n === null ? "—" : `${Number(n).toLocaleString("he-IL")} ש"ח`)
 
-export function RequestForm({ token, items }: { token: string; items: RequestItem[] }) {
+export function RequestForm({
+  token,
+  items,
+  agreed = [],
+}: {
+  token: string
+  items: RequestItem[]
+  /** מה שכבר אושר בקבלה ובהודעות קודמות: כותרת וסכום (029). */
+  agreed?: { title: string; price: number | null }[]
+}) {
   const router = useRouter()
   const [picks, setPicks] = useState<Record<number, Pick>>({})
   const [busy, setBusy] = useState(false)
@@ -45,6 +54,8 @@ export function RequestForm({ token, items }: { token: string; items: RequestIte
     if (p === "aftermarket") return sum + Number(i.price_aftermarket ?? 0)
     return sum
   }, 0)
+
+  const agreedSum = agreed.reduce((sum, l) => sum + Number(l.price ?? 0), 0)
 
   async function submit() {
     setBusy(true)
@@ -137,11 +148,30 @@ export function RequestForm({ token, items }: { token: string; items: RequestIte
         })}
       </ol>
 
+      {agreed.length > 0 && (
+        <div className="req-agreed">
+          <p className="req-agreed-title">כבר אושר קודם:</p>
+          <ul>
+            {agreed.map((l, i) => (
+              <li key={i}>
+                {l.title} · <span className="num">{money(l.price)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="req-foot">
         <p>
           {done ? (
             <>
-              סה"כ למה שאישרת: <b className="num">{money(total)}</b> (כולל חלקים, עבודה ומע"מ)
+              סה"כ למה שאישרת עכשיו: <b className="num">{money(total)}</b> (כולל חלקים, עבודה ומע"מ)
+              {agreed.length > 0 && (
+                <>
+                  <br />
+                  סה"כ לתשלום אחרי האישור הזה: <b className="num">{money(agreedSum + total)}</b>
+                </>
+              )}
             </>
           ) : (
             `לבחור לכל פריט: לאשר או לא. ${items.length - Object.keys(picks).length} עוד לא נבחרו.`

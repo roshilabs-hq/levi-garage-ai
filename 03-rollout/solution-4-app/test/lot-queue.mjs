@@ -236,6 +236,15 @@ try {
     const hToken = await (await rpc("send_quote_request", { p_job_id: h, p_finding_ids: [h1.finding_id] }, manager)).json()
     await rpc("request_decide", { p_token: hToken, p_decisions: [{ finding_id: h1.finding_id, decision: "approved", part_choice: "original" }] })
     ok("028: בלי טיוטה, אחרי התשובה — 'בעבודה' כמו קודם", (await job(h)).status === "in_progress", (await job(h)).status)
+
+    // 029: מה כבר אושר, לדף של הלקוח. ההודעה הנוכחית לא נכללת, וטוקן לא תקין לא מחזיר כלום.
+    const hAgreed = await (await rpc("request_agreed", { p_token: hToken })).json()
+    ok("029: הממצאים של אותה הודעה לא נספרים כ'כבר אושר'", Array.isArray(hAgreed?.approved) && hAgreed.approved.length === 0, JSON.stringify(hAgreed))
+    const gToken2 = await (await rpc("send_quote_request", { p_job_id: g, p_finding_ids: [g2.finding_id] }, manager)).json()
+    const gAgreed = await (await rpc("request_agreed", { p_token: gToken2 })).json()
+    ok("029: בהודעה השנייה, מה שאושר בראשונה מופיע עם הסכום", gAgreed?.approved?.length === 1 && Number(gAgreed.approved[0].price) > 0, JSON.stringify(gAgreed))
+    const junk = await (await rpc("request_agreed", { p_token: "x".repeat(36) })).json()
+    ok("029: טוקן לא תקין — כלום", junk === null, JSON.stringify(junk))
   }
 
   // ---------------------------------------------------------------- תזכורת ללקוח: אחת לבקשה

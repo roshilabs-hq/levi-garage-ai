@@ -8,7 +8,7 @@ import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { Since } from "@/components/staff/since"
 import { markSafetyReported, requeueCar, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
-import { approvedWaitingForUs } from "@/lib/staff/queue"
+import { approvedWaitingForUs, placeLabel } from "@/lib/staff/queue"
 import { clockOf, heat } from "@/lib/staff/stages"
 
 export const metadata: Metadata = { title: "לוח היום | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -122,7 +122,9 @@ export default async function StaffBoard({
   // מופיע בנפרד: זה הזמן היחיד בשרשרת שאנחנו לבד אשמים בו.
   const toSend = all.filter((c) => c.status === "waiting_quote")
   const ready = all.filter((c) => c.status === "ready")
-  const working = all.filter((c) => c.status === "open" || c.status === "in_progress")
+  // רק מה שבאמת בעבודה: על ליפט, בתור או בחוץ. רכב בחניה כבר מופיע בקבוצה של הצעד הבא
+  // שלו ("הלקוח אישר", "גמור, מחכה לבדיקה"), ובסבב 2.10 הוא הופיע פעמיים (ממצא 13).
+  const working = all.filter((c) => (c.status === "open" || c.status === "in_progress") && !c.parked_at && !c.work_done_at)
   const arriving = booked ?? []
 
   // איזה תור כבר קיבל תזכורת. מכונאי ומנהל רואים (RLS); מסך תלוי לא מגיע לכאן.
@@ -406,7 +408,8 @@ export default async function StaffBoard({
           <b className="num">{waiting.length}</b> {waiting.length === 1 ? "מחכה ללקוח" : "מחכים ללקוח"}
         </span>
         <span>
-          <b className="num">{working.length}</b> בעבודה
+          {/* הסיכום סופר כל רכב בטיפול, גם בחניה; הרשימה למטה מראה רק את מי שלא מופיע בקבוצה אחרת. */}
+          <b className="num">{all.filter((c) => c.status === "open" || c.status === "in_progress").length}</b> בעבודה
         </span>
         <span>
           <b className="num">{ready.length}</b> {ready.length === 1 ? "מוכן" : "מוכנים"}
@@ -422,7 +425,7 @@ export default async function StaffBoard({
       {waiting.length > 0 && (
         <section className="board-group hot" aria-labelledby="g-waiting">
           <h2 id="g-waiting">מחכים לתשובת הלקוח</h2>
-          <p className="board-why">הליפט תפוס עד שהלקוח עונה. אם עבר זמן, זה המקום להרים טלפון.</p>
+          <p className="board-why">הרכב בחניה, והליפט פנוי. אם עבר זמן, זה המקום להרים טלפון.</p>
           <ul className="board-rows">
             {waiting.map((c) => (
               <li key={c.id}>
@@ -480,7 +483,7 @@ export default async function StaffBoard({
                 <div>
                   <b>{carName(c)}</b>
                   <span className="staff-meta">
-                    {c.lift ? `ליפט ${c.lift}` : "בלי ליפט"} · נכנס ב-{fmtTime(c.opened_at)} · כבר{" "}
+                    {placeLabel(c)} · נכנס ב-{fmtTime(c.opened_at)} · כבר{" "}
                     <Since iso={c.opened_at} initial={elapsed(c.opened_at)} />
                   </span>
                 </div>
