@@ -7,5 +7,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 unset VERCEL_TOKEN
-export NODE_OPTIONS="--require $(pwd)/scripts/ascii-hostname.cjs"
+# ב-Git Bash ‏pwd מחזיר /c/...; ‏Node ב-Windows צריך C:/..., ולכן pwd -W כשיש
+export NODE_OPTIONS="--require $(pwd -W 2>/dev/null || pwd)/scripts/ascii-hostname.cjs"
 npx vercel --prod --yes
