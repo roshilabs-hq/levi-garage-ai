@@ -23,14 +23,15 @@ create index if not exists mentor_questions_asked_by_idx on public.mentor_questi
 
 alter table public.mentor_questions enable row level security;
 
+-- (בלי "drop policy if exists": הכלי של Supabase מסווג אותו כהרסני, ובקשת האישור לא
+-- מגיעה מהשליטה מרחוק. הטבלה חדשה, אז אין מה למחוק. 2.10)
+
 -- מי ששואל הוא עובד מחובר, ונרשם בשמו בלבד.
-drop policy if exists mentor_questions_create on public.mentor_questions;
 create policy mentor_questions_create on public.mentor_questions
   for insert to authenticated
   with check (public.is_worker() and asked_by = (select auth.uid()));
 
 -- מכונאי רואה את השאלות שלו; אבי ודניאל רואים הכול.
-drop policy if exists mentor_questions_read on public.mentor_questions;
 create policy mentor_questions_read on public.mentor_questions
   for select to authenticated
   using (asked_by = (select auth.uid()) or public.my_role() in ('owner', 'manager'));
