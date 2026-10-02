@@ -1,0 +1,12 @@
+# מה עולה ל-Vercel בפריסה: רק האתר (Root Directory = levi-garage).
+# כל שאר המאגר (תכנון, פתרונות 1–3, תיעוד) נשאר בחוץ, וגם סודות מקומיים
+# ותוצרי בנייה, למקרה שפורסים מהמחשב ולא מ-GitHub.
+/*
+!/levi-garage
+/levi-garage/node_modules
+/levi-garage/.next
+/levi-garage/.vercel
+/levi-garage/.env*
+!/levi-garage/.env.example
+/levi-garage/gcp-sa.json
+/levi-garage/brag-output
