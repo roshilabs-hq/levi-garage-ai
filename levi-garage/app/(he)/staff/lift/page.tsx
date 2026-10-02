@@ -284,7 +284,9 @@ export default async function LiftPage({ searchParams }: { searchParams: Promise
 
       {done !== undefined && mine.length === 0 && (
         <p className="staff-note notice-sent" role="status">
-          ✓ {done ? <span className="num" dir="ltr">{done}</span> : "הרכב"} ירד לחניה. דניאל יבדוק ויסמן &quot;מוכן&quot;. הליפט פנוי.
+          <span>
+            ✓ {done ? <bdi className="num">{done}</bdi> : "הרכב"} ירד לחניה. דניאל יבדוק ויסמן &quot;מוכן&quot;. הליפט פנוי.
+          </span>
         </p>
       )}
 
