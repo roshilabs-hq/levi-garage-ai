@@ -44,8 +44,12 @@ export function StationRequest() {
   }, [waiting])
 
   const approved = state?.status === "approved"
+  // לרשימת השמות, בכתובת נקייה: אם בכתובת נשאר ?who= מלפני שהעמדה בוטלה, רענון
+  // היה פותח ישר את הקוד של אותו מכונאי (רועי, 2.10: "מניח אוטומטית שזה נועם").
   useEffect(() => {
-    if (approved) router.refresh()
+    if (!approved) return
+    router.replace("/station")
+    router.refresh()
   }, [approved, router])
 
   const ask = () => start(async () => setState(await requestStation()))
