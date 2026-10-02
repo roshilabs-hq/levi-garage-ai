@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireManager } from "@/lib/staff/session"
-import { STATION_COOKIE, stationConfigured, stationPassword } from "@/lib/staff/station"
+import { STATION_COOKIE, STATION_REQ_COOKIE, stationConfigured, stationPassword } from "@/lib/staff/station"
 
 // הכניסה בעמדה קבועה (016). הקוד של המכונאי נבדק במסד (station_login), יחד עם
 // הטוקן של העמדה מהעוגייה. רק אם שניהם תקינים, השרת מתחבר בשמו.
@@ -149,4 +149,71 @@ export async function redeemPairCode(formData: FormData) {
   await supabase.auth.signOut()
   revalidatePath("/staff/stations")
   redirect("/station")
+}
+
+// ---------------------------------------------------------------- חיבור הפוך (032)
+
+export type StationReqState =
+  | { status: "none" }
+  | { status: "pending"; code: string }
+  | { status: "approved"; label: string }
+  | { status: "expired" }
+  | { status: "busy" }
+  | { status: "retry" }
+
+const REQ_MAX_AGE = 20 * 60
+
+/**
+ * הטאבלט שליד הליפט: מה מצב הבקשה שלו. כשדניאל אישר, נכנסת העוגייה של העמדה
+ * (אותה עוגייה כמו בצימוד ב-QR), ומי שהיה מחובר במכשיר מתנתק.
+ */
+export async function pollStationRequest(): Promise<StationReqState> {
+  const jar = await cookies()
+  const secret = jar.get(STATION_REQ_COOKIE)?.value
+  if (!secret) return { status: "none" }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("station_request_status", { p_secret: secret })
+  if (error) return { status: "retry" }
+  const r = data as { status: string; code?: string; token?: string; label?: string } | null
+
+  if (r?.status === "pending" && r.code) return { status: "pending", code: r.code }
+  if (r?.status === "approved" && r.token) {
+    jar.set(STATION_COOKIE, r.token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: YEAR })
+    jar.delete(STATION_REQ_COOKIE)
+    await supabase.auth.signOut()
+    revalidatePath("/staff/stations")
+    return { status: "approved", label: r.label ?? "" }
+  }
+  jar.delete(STATION_REQ_COOKIE)
+  return { status: r?.status === "expired" ? "expired" : "none" }
+}
+
+/** הטאבלט: "לבקש מדניאל לחבר". אם כבר יש בקשה פתוחה, מחזיר אותה ולא פותח חדשה. */
+export async function requestStation(): Promise<StationReqState> {
+  const current = await pollStationRequest()
+  if (current.status === "pending" || current.status === "approved") return current
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("request_station")
+  const r = data as { ok: boolean; secret?: string; code?: string } | null
+  if (error || !r?.ok || !r.secret || !r.code) return { status: "busy" }
+
+  const jar = await cookies()
+  jar.set(STATION_REQ_COOKIE, r.secret, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: REQ_MAX_AGE })
+  return { status: "pending", code: r.code }
+}
+
+/** דניאל, מהלוח או ממסך העמדות: המכשיר עם המספר הזה הוא ליפט N. */
+export async function approveStationRequest(formData: FormData) {
+  await requireManager()
+  const id = String(formData.get("id") || "")
+  const raw = String(formData.get("lift") || "")
+  const lift = raw === "diag" ? null : Number(raw)
+  if (!id || (lift !== null && ![1, 2, 3, 4].includes(lift))) return
+
+  const supabase = await createClient()
+  await supabase.rpc("approve_station_request", { p_id: id, p_lift: lift })
+  revalidatePath("/staff")
+  revalidatePath("/staff/stations")
 }

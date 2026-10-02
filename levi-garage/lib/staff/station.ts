@@ -13,6 +13,9 @@ import { createHmac } from "node:crypto"
 
 export const STATION_COOKIE = "garage_station"
 
+// "חיבור הפוך" (032): הסוד של בקשה פתוחה, עד שדניאל מאשר. httpOnly, ל-20 דקות.
+export const STATION_REQ_COOKIE = "garage_station_req"
+
 export function stationPassword(email: string): string {
   const secret = process.env.STATION_SECRET
   if (!secret || secret.length < 32) throw new Error("STATION_SECRET is not configured")

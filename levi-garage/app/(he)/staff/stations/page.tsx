@@ -8,6 +8,7 @@ import { STATION_COOKIE } from "@/lib/staff/station"
 import { fmtStamp } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
 import { PairQr } from "@/components/staff/pair-qr"
+import { StationRequests } from "@/components/staff/station-requests"
 import { pairStation, revokeStation, setStaffPin, unpairThisDevice } from "../../station/actions"
 
 export const metadata: Metadata = { title: "עמדות | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -44,10 +45,16 @@ export default async function StationsPage({ searchParams }: { searchParams: Pro
       {e && MSG[e] && <p className="staff-error" role="alert">{MSG[e]}</p>}
       {ok === "pin" && <p className="staff-note notice-sent" role="status">הקוד נקבע.</p>}
 
+      <StationRequests variant="page" />
+
       <section className="staff-section" aria-labelledby="qr-title">
         <h2 id="qr-title">לחבר טלפון או טאבלט לעמדה</h2>
         <p className="staff-meta">
           בוחרים ליפט, ומופיע קוד QR. סורקים אותו במכשיר שליד הליפט, והוא הופך לעמדה — בלי להתחבר עליו עם הסיסמה שלך.
+        </p>
+        <p className="staff-meta">
+          <b>הכי פשוט:</b> במכשיר שליד הליפט פותחים את מסך העמדה ולוחצים &quot;לבקש מדניאל לחבר&quot;. הבקשה מופיעה כאן ובלוח היום, עם
+          המספר שעל המסך שלו, ומאשרים בבחירת ליפט. ה-QR כאן הוא דרך נוספת.
         </p>
         <PairQr />
         <p className="pair-examiner">

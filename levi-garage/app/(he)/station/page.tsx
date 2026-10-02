@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
 import { STATION_COOKIE } from "@/lib/staff/station"
 import { PinPad } from "@/components/staff/pin-pad"
+import { StationRequest } from "@/components/staff/station-request"
 import { stationSwitch } from "./actions"
 
 export const metadata: Metadata = { title: "עמדה | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -40,11 +41,13 @@ export default async function StationPage({
         <div className="station-box">
           <h1>המכשיר הזה עוד לא עמדה</h1>
           <p>
-            מנהל העבודה מצמד כל מכשיר לעמדה פעם אחת: נכנס עם המשתמש שלו, פותח &quot;עמדות&quot;, ובוחר איזה ליפט זה. אחרי זה המכונאים
-            נכנסים כאן בשם וקוד.
+            מחברים כל מכשיר פעם אחת: לוחצים כאן, ודניאל מאשר מהלוח שלו איזה ליפט זה. אחרי זה המכונאים נכנסים כאן בשם וקוד.
           </p>
           {e && ERRORS[e] && <p className="staff-error" role="alert">{ERRORS[e]()}</p>}
-          <Link className="btn" href="/staff/login">כניסה של מנהל העבודה</Link>
+          <StationRequest />
+          <p className="station-alt">
+            או: <Link href="/staff/login">מנהל העבודה נכנס כאן</Link> ומצמד את המכשיר ממסך &quot;עמדות&quot;.
+          </p>
         </div>
       </main>
     )
@@ -60,8 +63,11 @@ export default async function StationPage({
       <main className="station">
         <div className="station-box">
           <h1>העמדה בוטלה</h1>
-          <p>מנהל העבודה צריך לצמד את המכשיר מחדש.</p>
-          <Link className="btn" href="/staff/login">כניסה של מנהל העבודה</Link>
+          <p>צריך לחבר את המכשיר מחדש: לוחצים כאן, ודניאל מאשר מהלוח שלו.</p>
+          <StationRequest />
+          <p className="station-alt">
+            או: <Link href="/staff/login">מנהל העבודה נכנס כאן</Link> ומצמד את המכשיר ממסך &quot;עמדות&quot;.
+          </p>
         </div>
       </main>
     )

@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/staff/session"
 import { elapsed, fmtStamp, fmtTime, minutesSince } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
+import { StationRequests } from "@/components/staff/station-requests"
 import { Since } from "@/components/staff/since"
 import { markSafetyReported, requeueCar, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
 import { approvedWaitingForUs, placeLabel } from "@/lib/staff/queue"
@@ -206,6 +207,8 @@ export default async function StaffBoard({
           {quote && QUOTE_OUTCOME[quote] ? ` ${QUOTE_OUTCOME[quote]}.` : ""}
         </p>
       )}
+
+      {canRemind && <StationRequests />}
 
       {overdue.length > 0 && (
         <section className="board-group hot late" aria-labelledby="g-late">

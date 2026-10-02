@@ -991,6 +991,27 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .station-actions .btn, .station-actions form .btn { width: 100%; }
 .station-back { display: inline-block; margin-top: 18px; padding: 12px; color: var(--muted); font-size: 16px; }
 
+/* "חיבור הפוך" (032): המכשיר מבקש, ומציג מספר שדניאל משווה בעין מהלוח שלו. */
+.station-req { margin-top: 22px; display: grid; gap: 10px; justify-items: center; }
+.station-req > * { grid-column: 1 / -1; }
+.station-req > p { color: var(--muted); line-height: 1.6; margin: 0; }
+.station-req .btn.big { width: 100%; }
+.station-req-label { font-weight: 700; font-size: 15px; }
+.station-req .station-req-code {
+  font-size: clamp(56px, 18vw, 88px); font-weight: 900; letter-spacing: 0.08em; line-height: 1;
+  color: var(--ink); padding: 14px 26px; border-radius: var(--radius); background: var(--sunk);
+  font-variant-numeric: tabular-nums;
+}
+.station-wait { margin-top: 22px; font-size: 18px; }
+.station-box > p.station-alt { margin-top: 22px; font-size: 15px; }
+.station-alt a { padding: 8px 2px; }
+.station-req-chip {
+  flex: none; min-width: 72px; padding: 8px 10px; border-radius: 10px; text-align: center;
+  background: var(--sunk); color: var(--ink); font-weight: 900; font-size: 22px; letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+.station-req-row .pair-form { margin-top: 0; }
+
 .pin-pad { margin-top: 18px; }
 .pin-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 20px; direction: ltr; }
 .pin-dots span {
