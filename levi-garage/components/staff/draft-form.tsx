@@ -16,6 +16,8 @@ export type Draft = {
   title: string | null
   customer_text: string | null
   price_list_id: number | null
+  /** 030: כמות. המחירים במסד הם הסכום הכולל. */
+  quantity?: number | null
   price_original: number | null
   price_aftermarket: number | null
   list_price_original: number | null
@@ -33,6 +35,8 @@ export type Draft = {
 
 type Fields = {
   price_list_id: string
+  /** כמה יחידות (צמיגים, מגבים). המחירים והשעות שעל המסך הם ליחידה. */
+  quantity: string
   title: string
   price_original: string
   price_aftermarket: string
@@ -49,6 +53,28 @@ type Fields = {
 }
 
 const str = (v: number | string | null | undefined) => (v === null || v === undefined ? "" : String(v))
+
+/** "2 × החלפת צמיג" ← "החלפת צמיג". הכותרת במסד כוללת את הכמות (030). */
+const baseTitle = (t: string) => t.replace(/^\d+\s*×\s*/, "")
+
+const hoursOf = (h: string, qty: number) => (h.trim() === "" ? h : String(Math.round(Number(h) * qty * 100) / 100))
+
+/**
+ * מה שנשמר: מחירים ושעות כפול הכמות, וכותרת "2 × ...", כדי שהלקוח, המייל וחוקי
+ * ס' 132 יקבלו סכום סופי בלי לדעת על כמויות.
+ */
+function totalsOf(f: Fields): Fields {
+  const q = Math.max(1, Number(f.quantity) || 1)
+  if (q === 1) return { ...f, title: baseTitle(f.title) }
+  const times = (v: string) => (v.trim() === "" ? v : String(Math.round(Number(v) * q * 100) / 100))
+  return {
+    ...f,
+    title: `${q} × ${baseTitle(f.title).replace(/\s*\((אחד|אחת)\)/, "")}`,
+    price_original: times(f.price_original),
+    price_aftermarket: times(f.price_aftermarket),
+    labor_hours: times(f.labor_hours),
+  }
+}
 const money = (v: string) => (v.trim() === "" ? "" : `${Number(v).toLocaleString("he-IL")} ש"ח`)
 
 /** מה עוד חסר כדי שמותר לשלוח (אותם כללים כמו במסד). ריק = מוכן. */
@@ -87,14 +113,18 @@ export function DraftForm({
   const [f, setF] = useState<Fields>(() => {
     const it = items.find((i) => i.id === initial)
     // מחירי המחירון, לא אחרי ההנחה: ההנחה מחושבת מהם במסד בכל שמירה.
-    const po = draft.list_price_original ?? draft.price_original
-    const pa = draft.list_price_original !== null ? draft.list_price_aftermarket : draft.price_aftermarket
+    const qty = Math.max(1, Number(draft.quantity ?? 1) || 1)
+    const unit = (v: number | null | undefined) =>
+      v === null || v === undefined ? v : Math.round((Number(v) / qty) * 100) / 100
+    const po = unit(draft.list_price_original ?? draft.price_original)
+    const pa = unit(draft.list_price_original !== null ? draft.list_price_aftermarket : draft.price_aftermarket)
     return {
       price_list_id: str(initial),
-      title: draft.title ?? it?.title ?? "",
+      quantity: String(qty),
+      title: baseTitle(draft.title ?? it?.title ?? ""),
       price_original: str(po ?? it?.price_original),
-      price_aftermarket: str(po !== null ? pa : it?.price_aftermarket),
-      labor_hours: str(draft.labor_hours ?? it?.labor_hours),
+      price_aftermarket: str(po !== null && po !== undefined ? pa : it?.price_aftermarket),
+      labor_hours: str(unit(draft.labor_hours) ?? it?.labor_hours),
       warranty_original: draft.warranty_original ?? it?.warranty_original ?? "",
       warranty_aftermarket: draft.warranty_aftermarket ?? it?.warranty_aftermarket ?? "",
       part_diff: draft.part_diff ?? it?.part_diff ?? "",
@@ -132,7 +162,7 @@ export function DraftForm({
     const fd = new FormData()
     fd.set("finding_id", String(draft.id))
     fd.set("job_id", String(jobId))
-    for (const [k, v] of Object.entries(next)) {
+    for (const [k, v] of Object.entries(totalsOf(next))) {
       if (k === "safety") {
         if (v) fd.set("safety", "on")
       } else fd.set(k, String(v))
@@ -163,6 +193,14 @@ export function DraftForm({
     void save(next)
   }
 
+  function setQty(n: number) {
+    const q = String(Math.min(20, Math.max(1, n)))
+    if (q === f.quantity) return
+    const next = { ...f, quantity: q }
+    setF(next)
+    void save(next)
+  }
+
   // טיוטה שהגיעה עם הצעה מהמחירון (לפי פריט האבחון) ועוד לא נשמרה: נשמרת לבד פעם אחת.
   useEffect(() => {
     if (autoSaved.current || draft.price_original !== null || !initial) return
@@ -173,7 +211,10 @@ export function DraftForm({
 
   const two = f.price_aftermarket.trim() !== ""
   const pct = Number(f.discount_pct) || 0
-  const after = (v: string) => (v.trim() === "" ? "" : money(String(Math.round((Number(v) * (100 - pct)) / 100))))
+  const qty = Math.max(1, Number(f.quantity) || 1)
+  const after = (v: string) =>
+    v.trim() === "" ? "" : money(String(Math.round((Number(v) * qty * (100 - pct)) / 100)))
+  const times = qty > 1 ? `${qty} × · ` : ""
   const steps = [0, 5, 10, 15, 20, 25, 30].filter((n) => n <= maxDiscount)
 
   return (
@@ -190,12 +231,21 @@ export function DraftForm({
             <option key={i.id} value={i.id}>{i.title}</option>
           ))}
         </select>
+        <span className="draft-qty" role="group" aria-label="כמות">
+          <button type="button" className="btn quiet" onClick={() => setQty(qty - 1)} disabled={busy || qty <= 1} aria-label="פחות">
+            −
+          </button>
+          <b className="num" aria-live="polite">{qty}</b>
+          <button type="button" className="btn quiet" onClick={() => setQty(qty + 1)} disabled={busy || qty >= 20} aria-label="עוד אחד">
+            +
+          </button>
+        </span>
         <span className={`draft-sum ${missing.length ? "missing" : ""}`}>
           {f.price_original.trim() === ""
             ? "עוד לא תומחר"
             : two
-              ? `מקורי ${after(f.price_original)} · חלופי ${after(f.price_aftermarket)} · ${f.labor_hours} שע׳`
-              : `${after(f.price_original)} · ${f.labor_hours} שע׳ · אחריות ${f.warranty_original || "?"}`}
+              ? `${times}מקורי ${after(f.price_original)} · חלופי ${after(f.price_aftermarket)} · ${hoursOf(f.labor_hours, qty)} שע׳`
+              : `${times}${after(f.price_original)} · ${hoursOf(f.labor_hours, qty)} שע׳ · אחריות ${f.warranty_original || "?"}`}
           {pct > 0 ? ` · הנחה ${pct}%` : ""}
         </span>
       </div>
@@ -213,11 +263,11 @@ export function DraftForm({
             <input value={f.title} onChange={set("title")} />
           </label>
           <label>
-            <span>שעות עבודה</span>
+            <span>שעות עבודה{qty > 1 ? ", ליחידה" : ""}</span>
             <input value={f.labor_hours} onChange={set("labor_hours")} inputMode="decimal" dir="ltr" />
           </label>
           <label>
-            <span>{two ? "חלק מקורי, כולל מע\"מ" : "מחיר, כולל מע\"מ"}</span>
+            <span>{two ? "חלק מקורי, כולל מע\"מ" : "מחיר, כולל מע\"מ"}{qty > 1 ? ", ליחידה" : ""}</span>
             <input value={f.price_original} onChange={set("price_original")} inputMode="decimal" dir="ltr" />
           </label>
           <label>
@@ -225,7 +275,7 @@ export function DraftForm({
             <input value={f.warranty_original} onChange={set("warranty_original")} />
           </label>
           <label>
-            <span>חלק חלופי, כולל מע"מ</span>
+            <span>חלק חלופי, כולל מע"מ{qty > 1 ? ", ליחידה" : ""}</span>
             <input value={f.price_aftermarket} onChange={set("price_aftermarket")} inputMode="decimal" dir="ltr" placeholder="ריק = אין חלופה" />
           </label>
           <label>

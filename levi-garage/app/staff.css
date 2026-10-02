@@ -1246,3 +1246,8 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .req-agreed-title { margin: 0 0 6px; font-weight: 700; }
 .req-agreed ul { margin: 0; padding-inline-start: 18px; }
 .req-agreed li { line-height: 1.6; }
+
+/* כמות בממצא (030). */
+.draft-qty { display: inline-flex; align-items: center; gap: 6px; }
+.draft-qty .btn { min-width: 36px; padding: 4px 0; }
+.draft-qty b { min-width: 1.5em; text-align: center; font-size: 16px; }

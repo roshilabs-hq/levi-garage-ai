@@ -448,6 +448,8 @@ export async function saveFinding(formData: FormData): Promise<SendResult> {
       customer_text: txt(formData.get("message")),
       title: txt(formData.get("title")),
       price_list_id: num(formData.get("price_list_id")),
+      // 030: המחירים והשעות כבר מוכפלים בכמות בטופס; הכמות נשמרת כדי לחזור למחיר ליחידה.
+      quantity: Math.min(20, Math.max(1, Math.round(num(formData.get("quantity")) ?? 1))),
       price_original: num(formData.get("price_original")),
       price_aftermarket: num(formData.get("price_aftermarket")),
       list_price_original: num(formData.get("price_original")),
