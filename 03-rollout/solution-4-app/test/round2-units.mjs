@@ -5,6 +5,16 @@ const { approvedWaitingForUs, doneAwaitingCheck, inQueue, placeLabel } = await i
 )
 const { pickupPhrase } = await import(new URL("../../../levi-garage/lib/hours.ts", import.meta.url))
 
+// prompt.ts מייבא את brain.generated בלי סיומת (כמו ש-Next מצפה); Node צריך ".ts".
+import { register } from "node:module"
+register(
+  "data:text/javascript," +
+    encodeURIComponent(
+      "export async function resolve(s, c, next) { try { return await next(s, c) } catch (e) { if (s.startsWith('.') && !s.endsWith('.ts')) return next(s + '.ts', c); throw e } }",
+    ),
+)
+const { withVerify, contextLine } = await import(new URL("../../../levi-garage/lib/mentor/prompt.ts", import.meta.url))
+
 let pass = 0
 let fail = 0
 const ok = (name, cond, extra = "") => {
@@ -42,6 +52,14 @@ ok("שלישי 18:00: מחר", at("2026-10-06T15:00:00Z") === "אפשר לאסו
 ok("שלישי 06:30: היום מ-07:00", at("2026-10-06T03:30:00Z") === "אפשר לאסוף היום, מ-07:00 עד 17:00")
 ok("שבת: מחר (ראשון)", at("2026-10-03T09:00:00Z") === "אפשר לאסוף מחר, מ-07:00")
 ok("חמישי 17:30: מחר (שישי)", at("2026-10-08T14:30:00Z") === "אפשר לאסוף מחר, מ-07:00")
+
+// "המוסכניק הוותיק": רשת הביטחון ל"⚠️ לאמת" (גם Pro השמיט אותו, 2.10)
+ok("מספר עם יחידה בלי 'לאמת': נוספת שורה", withVerify("מתח טעינה סביב 14.4V.").includes("⚠️ לאמת"))
+ok("כבר יש 'לאמת': לא נוסף שוב", withVerify("14.4V ⚠️ לאמת מול היצרן").split("לאמת").length === 2)
+ok("בלי מספרים: בלי שינוי", withVerify("לבדוק חזותית את הקטבים.") === "לבדוק חזותית את הקטבים.")
+ok("קוד תקלה הוא לא מספר עם יחידה", withVerify("P0301 בצילינדר 1") === "P0301 בצילינדר 1")
+ok("ברוסית עם проверить: לא נוסף", withVerify("14,4 V — проверить по данным") === "14,4 V — проверить по данным")
+ok("ההקשר: מי שואל, כדי לא להפנות אותו לעצמו", contextLine({ car: "x", year: null, engine: null, complaint: null, inspection: null, asker: { name: "אלכס", role: "mechanic", lang: "ru" } }).includes("השואל: אלכס"))
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

@@ -9,7 +9,7 @@ import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { CaptureButton } from "@/components/staff/capture-button"
 import { AddPhoto } from "@/components/staff/add-photo"
-import { GemLink } from "@/components/staff/gem-link"
+import { Mentor } from "@/components/staff/mentor"
 import { StationIdle } from "@/components/staff/station-idle"
 import { completeInspection, setInspectionItem } from "../../actions"
 
@@ -73,7 +73,7 @@ export default async function InspectPage({
         </div>
       </header>
 
-      <GemLink />
+      <Mentor jobId={jobId} />
 
       {job.inspected_at && <p className="staff-note">האבחון הסתיים. אפשר לעבוד לפי מה שאושר.</p>}
       {e === "incomplete" && (

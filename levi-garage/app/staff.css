@@ -1271,3 +1271,29 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .lift-primary[data-pending] { opacity: .65; cursor: progress; pointer-events: none; }
 .capture.quiet .capture-btn { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .capture.quiet .capture-dot { background: #c0392b; }
+
+/* "המוסכניק הוותיק" בתוך העמדה (סבב 2.10). חלון מעל העמדה, לא טאב חדש. */
+button.gem-link { font: inherit; text-align: inherit; cursor: pointer; width: 100%; }
+.mentor-sheet {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  background: var(--bg, var(--surface)); color: var(--ink);
+  padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+}
+.mentor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.mentor-head h2 { margin: 0; font-size: 19px; }
+.mentor-list { flex: 1; overflow-y: auto; padding: 12px 0; display: flex; flex-direction: column; gap: 10px; }
+.mentor-empty { color: var(--muted); font-size: 15.5px; line-height: 1.6; }
+.mentor-turn { max-width: 92%; padding: 10px 12px; border-radius: 14px; font-size: 16.5px; line-height: 1.55; }
+.mentor-turn p { margin: 0 0 4px; }
+.mentor-turn.user { align-self: flex-start; background: color-mix(in srgb, var(--forest) 14%, var(--surface)); }
+.mentor-turn.model { align-self: flex-end; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.mentor-turn.model.red { box-shadow: inset 0 0 0 2px #c0392b; }
+.mentor-photo { display: block; max-width: 160px; border-radius: 10px; margin-bottom: 6px; }
+.mentor-wait { color: var(--muted); font-size: 15px; }
+.mentor-ask { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.mentor-ask textarea { width: 100%; font: inherit; font-size: 17px; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: inherit; resize: none; }
+.mentor-row { display: flex; gap: 8px; }
+.mentor-row .btn { flex: 1; min-height: 50px; }
+.mentor-attached { display: flex; align-items: center; gap: 10px; }
+.mentor-attached img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; }
+.mentor-foot { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }

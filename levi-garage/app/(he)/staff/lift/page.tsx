@@ -13,7 +13,7 @@ import { elapsed } from "@/lib/staff/format"
 import { ACTIVE, queueOf } from "@/lib/staff/queue"
 import { StationIdle } from "@/components/staff/station-idle"
 import { AnswerCall } from "@/components/staff/answer-call"
-import { GemLink } from "@/components/staff/gem-link"
+import { Mentor } from "@/components/staff/mentor"
 
 export const metadata: Metadata = { title: "הליפט שלי | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -198,7 +198,7 @@ function Car({
             {helpCall ? `דניאל בדרך · קראת לפני ${elapsed(helpCall.created_at)}` : "דניאל, בוא לעמדה"}
           </button>
         </form>
-        <GemLink compact />
+        <Mentor jobId={card.id} compact />
       </div>
       {helpCall && <AnswerCall callId={helpCall.id} answerers={answerers} />}
 
