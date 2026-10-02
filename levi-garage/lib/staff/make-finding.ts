@@ -31,6 +31,7 @@ export async function createFindingFromAudio({
   mediaPaths,
   item,
   source = "voice",
+  typed = null,
 }: {
   supabase: SupabaseClient
   job: Job
@@ -40,6 +41,8 @@ export async function createFindingFromAudio({
   mediaPaths: string[]
   item?: ReportContext["item"]
   source?: "voice" | "intake"
+  /** מה שהמכונאי הקליד (סבב 2.10: "התיאור גם וגם"). */
+  typed?: string | null
 }) {
   const report = await reportFromVoice(
     audio ? { data: audio.bytes.toString("base64"), mime: audio.mime } : null,
@@ -52,6 +55,7 @@ export async function createFindingFromAudio({
       engine: job.engine_code,
       item: item ?? null,
     },
+    typed,
   )
 
   const { data: finding, error } = await supabase

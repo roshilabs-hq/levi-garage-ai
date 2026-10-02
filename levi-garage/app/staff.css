@@ -1251,3 +1251,23 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .draft-qty { display: inline-flex; align-items: center; gap: 6px; }
 .draft-qty .btn { min-width: 36px; padding: 4px 0; }
 .draft-qty b { min-width: 1.5em; text-align: center; font-size: 16px; }
+
+/* הקלדה לצד הקלטה (סבב 2.10, ממצא 6). */
+.capture-alts { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; }
+.capture-hint { margin: 6px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+.capture-type { display: flex; flex-direction: column; gap: 8px; }
+.capture-type textarea { width: 100%; font: inherit; font-size: 17px; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: inherit; }
+.capture-type-row { display: flex; gap: 8px; }
+.capture-type-row .btn { flex: 1; min-height: 48px; }
+
+/* מסך העמדה: כפתור ראשי אחד לפי המצב (סבב 2.10, ממצא 8). */
+.lift-primary {
+  width: 100%; min-height: 84px; margin-top: 16px; border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--amber); color: var(--amber-ink);
+  font: 800 21px/1.2 var(--font-body), sans-serif; padding-inline: 20px;
+  touch-action: manipulation; transition: transform 160ms var(--ease-out);
+}
+.lift-primary:active { transform: scale(0.985); }
+.lift-primary[data-pending] { opacity: .65; cursor: progress; pointer-events: none; }
+.capture.quiet .capture-btn { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.capture.quiet .capture-dot { background: #c0392b; }

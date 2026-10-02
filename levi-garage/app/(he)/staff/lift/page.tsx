@@ -118,13 +118,15 @@ function Car({
   const names = (list: Finding[]) => list.map((f) => f.title || f.summary || "ממצא").join(", ")
 
   // מה עושים עכשיו, במשפט אחד (רועי, 30.9: "מה עושים שם? כאן הלכתי לאיבוד").
+  // סבב 2.10, ממצא 8: הכפתור הגדול הוא תמיד הפעולה של המשפט הזה.
+  const finish = allowed > 0 && holding === 0 && !doneCall
   const now = doneCall
     ? "סיימת. דניאל יודע, והוא ימסור את הרכב."
     : allowed === 0
-      ? "אין עדיין עבודה מאושרת. אם אין מה לעשות ברכב: להוריד לחניה."
+      ? "אין עדיין עבודה מאושרת. להוריד לחניה, והליפט עובר לבא בתור."
       : holding > 0
-        ? `לעבוד על מה שמסומן ✓. כשמסיימים, להוריד לחניה: ${waiting.length ? "יש ממצאים שמחכים לתשובת הלקוח" : "יש ממצאים אצל דניאל, שעוד לא נשלחו ללקוח"}.`
-        : "לעבוד על מה שמסומן ✓. כשמסיימים: \"סיימתי את העבודה\"."
+        ? `לעבוד על מה שמסומן ✓, ואז להוריד לחניה: ${holding === 1 ? "ממצא אחד" : `${holding} ממצאים`} ${waiting.length ? "מחכים לתשובת הלקוח" : "אצל דניאל"}.`
+        : "לעבוד על מה שמסומן ✓, ואז \"סיימתי\". הליפט מתפנה מיד."
 
   return (
     <li className="lift-car">
@@ -167,7 +169,25 @@ function Car({
         )}
       </div>
 
-      <CaptureButton jobId={card.id} />
+      {/* הפעולה של עכשיו: כפתור אחד, גדול. "סיימתי" כשהכול מאושר, ואחרת להוריד לחניה —
+          הליפט לא מחכה לתשובה של לקוח, ודניאל יחזיר את הרכב לתור כשיאשר. */}
+      {finish ? (
+        <form action={callManager}>
+          <input type="hidden" name="job_id" value={card.id} />
+          <input type="hidden" name="kind" value="done" />
+          <button className="lift-primary" type="submit">סיימתי את העבודה</button>
+        </form>
+      ) : (
+        !doneCall && (
+          <form action={lowerCar}>
+            <input type="hidden" name="job_id" value={card.id} />
+            <button className="lift-primary" type="submit">להוריד מהליפט לחניה</button>
+          </form>
+        )
+      )}
+
+      {/* ממצא נוסף: משני, כי הוא לא הצעד של עכשיו. */}
+      <CaptureButton jobId={card.id} size="small" quiet label="ממצא נוסף: צילום ודיווח" />
       <PricePick jobId={card.id} items={pick} />
 
       <div className="lift-calls">
@@ -178,29 +198,17 @@ function Car({
             {helpCall ? `דניאל בדרך · קראת לפני ${elapsed(helpCall.created_at)}` : "דניאל, בוא לעמדה"}
           </button>
         </form>
-        {helpCall && <AnswerCall callId={helpCall.id} answerers={answerers} />}
-        <form action={callManager}>
-          <input type="hidden" name="job_id" value={card.id} />
-          <input type="hidden" name="kind" value="done" />
-          <button className="btn quiet big" type="submit" disabled={Boolean(doneCall) || holding > 0}>
-            {doneCall ? "דניאל יודע שסיימת" : "סיימתי את העבודה"}
-          </button>
-        </form>
-        {holding > 0 && !doneCall && (
-          <p className="staff-meta">"סיימתי" נפתח כשאין ממצאים שמחכים. עד אז: להוריד לחניה, והליפט עובר לבא בתור.</p>
-        )}
+        <GemLink compact />
       </div>
+      {helpCall && <AnswerCall callId={helpCall.id} answerers={answerers} />}
 
-      {/* הליפט לא מחכה לתשובה של לקוח. דניאל יחזיר את הרכב לתור כשיאשר. */}
-      <form action={lowerCar} className={waiting.length + drafts.length > 0 ? "lift-lower hot" : "lift-lower"}>
-        <input type="hidden" name="job_id" value={card.id} />
-        {waiting.length + drafts.length > 0 && (
-          <p className="staff-meta">סיימת את מה שמאושר ומחכים ללקוח? להוריד לחניה, והליפט עובר לבא בתור.</p>
-        )}
-        <button className="btn quiet" type="submit">להוריד מהליפט לחניה</button>
-      </form>
-
-      <GemLink compact />
+      {/* מחכים לחלק, גם כשהכול מאושר: אפשר תמיד להוריד לחניה. */}
+      {finish && (
+        <form action={lowerCar} className="lift-lower">
+          <input type="hidden" name="job_id" value={card.id} />
+          <button className="btn quiet" type="submit">מחכים לחלק? להוריד לחניה</button>
+        </form>
+      )}
       <Link className="lift-link" href={`/staff/job/${card.id}`}>הכרטיס המלא</Link>
     </li>
   )

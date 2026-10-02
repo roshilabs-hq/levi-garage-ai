@@ -47,11 +47,13 @@ export async function POST(req: Request) {
   const photoFile = form?.get("photo")
   const itemKey = String(form?.get("item") ?? "")
   const light = String(form?.get("light") ?? "")
+  // הקלדה במקום הקלטה, או לצידה (סבב 2.10, ממצא 6). עד 1,000 תווים.
+  const typed = String(form?.get("text") ?? "").trim().slice(0, 1000) || null
 
   const audio = audioFile instanceof Blob && audioFile.size > 0 ? audioFile : null
   const photo = photoFile instanceof Blob && photoFile.size > 0 ? photoFile : null
 
-  if (!Number.isFinite(jobId) || (!audio && !photo)) return NextResponse.json({ error: "bad" }, { status: 400 })
+  if (!Number.isFinite(jobId) || (!audio && !photo && !typed)) return NextResponse.json({ error: "bad" }, { status: 400 })
   if (audio && audio.size > MAX_AUDIO) return NextResponse.json({ error: "size" }, { status: 400 })
   if (photo && (photo.size > MAX_PHOTO || !ALLOWED_PHOTO.includes(photoMime(photo.type)))) {
     return NextResponse.json({ error: "photo" }, { status: 400 })
@@ -94,9 +96,10 @@ export async function POST(req: Request) {
     if (up.error) console.error("capture audio upload failed:", up.error.message)
     else saved.push({ path, kind: "audio", mime, bytes })
   }
-  if (saved.length === 0) return NextResponse.json({ error: "upload" }, { status: 502 })
+  // טקסט בלבד הוא לכידה תקינה, בלי קובץ. רק כשניסינו להעלות ונכשלנו זו שגיאה.
+  if (saved.length === 0 && (audio || photo)) return NextResponse.json({ error: "upload" }, { status: 502 })
 
-  await supabase.from("media").insert(
+  if (saved.length) await supabase.from("media").insert(
     saved.map((m) => ({
       job_card_id: job.id,
       kind: m.kind,
@@ -120,6 +123,7 @@ export async function POST(req: Request) {
       mediaPaths: saved.map((m) => m.path),
       item: item ? { label: item.label, light: light as "yellow" | "red", safety: item.safety } : null,
       source: item ? "intake" : "voice",
+      typed,
     })
 
     if (item) {
@@ -132,6 +136,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, finding_id, title: report.title, red_list: report.red_list, urgency: report.urgency })
   } catch (e) {
     console.error("capture report failed:", (e as Error).message)
+    // מה שהוקלד לא נשמר כקובץ, ולכן אין "לנסות שוב" — טיוטה ישירות מהטקסט, בלי
+    // המודל. דניאל מקבל את מה שהמכונאי כתב, וממשיך ממנו כמו מכל טיוטה.
+    if (typed) {
+      const urgency = light === "red" ? "red" : "yellow"
+      const { data: f } = await supabase
+        .from("findings")
+        .insert({
+          job_card_id: job.id,
+          source: item ? "intake" : "voice",
+          transcript: typed,
+          title: item ? item.label : typed.slice(0, 60),
+          summary: typed,
+          customer_text: typed,
+          urgency,
+          safety: Boolean(item?.safety),
+          red_list: false,
+          model: "typed",
+          created_by: staff.id,
+          status: "draft",
+        })
+        .select("id")
+        .single()
+      if (f) {
+        if (saved.length) await supabase.from("media").update({ finding_id: f.id }).in("storage_path", saved.map((m) => m.path))
+        if (item) await supabase.rpc("set_inspection_item", { p_job_id: job.id, p_key: item.key, p_light: light, p_finding_id: f.id })
+        else await supabase.from("job_cards").update({ status: "waiting_quote" }).eq("id", job.id).in("status", ["open", "in_progress"])
+        return NextResponse.json({ ok: true, finding_id: f.id, title: item ? item.label : typed.slice(0, 60), red_list: false, urgency })
+      }
+    }
     // הקבצים שמורים, ולכן אפשר לנסות שוב מהכרטיס בלי לבקש מהמכונאי לדבר שוב.
     return NextResponse.json({ error: "model", saved: true }, { status: 502 })
   }

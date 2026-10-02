@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation"
 //   3. הכול נשלח, ודניאל מקבל טיוטה. המכונאי לא אומר מחיר — המחיר מהמחירון.
 // אם אין מצלמה או מיקרופון, יש מסלול בלי תמונה ומסלול בלי קול.
 
-type State = "idle" | "shooting" | "recording" | "sending" | "done" | "error"
+type State = "idle" | "shooting" | "recording" | "typing" | "sending" | "done" | "error"
 
 const MAX_EDGE = 1600
 const QUALITY = 0.82
@@ -44,6 +44,7 @@ export function CaptureButton({
   label = "צילום ודיווח",
   size = "big",
   requirePhoto = false,
+  quiet = false,
 }: {
   jobId: number
   /** מבדיקת הכניסה: איזה פריט ואיזה צבע */
@@ -52,6 +53,8 @@ export function CaptureButton({
   size?: "big" | "small"
   /** ממצא אדום או בטיחותי: תמונה חובה, ולכן אין "בלי תמונה" (החלטה של רועי, 27.9) */
   requirePhoto?: boolean
+  /** פעולה משנית (בעמדה, כשהפעולה של עכשיו היא אחרת): בלי הכתום הגדול. */
+  quiet?: boolean
 }) {
   const router = useRouter()
   const input = useRef<HTMLInputElement | null>(null)
@@ -63,6 +66,11 @@ export function CaptureButton({
   const [seconds, setSeconds] = useState(0)
   const [message, setMessage] = useState("")
   const [needTap, setNeedTap] = useState(false)
+  // "התיאור גם וגם" (רועי, 2.10): אפשר תמיד לכתוב במקום לדבר. אחרי תמונה שצולמה
+  // למטרת כתיבה, לא מתחילה הקלטה; הקלטה שהתחילה אפשר להחליף בכתיבה.
+  const typeNext = useRef(false)
+  const discard = useRef(false)
+  const [text, setText] = useState("")
 
   useEffect(() => () => cleanup.current(), [])
 
@@ -76,12 +84,13 @@ export function CaptureButton({
     return () => el.removeEventListener("cancel", onCancel)
   }, [])
 
-  async function send(audio: Blob | null) {
+  async function send(audio: Blob | null, typed = "") {
     setState("sending")
     const form = new FormData()
     form.append("job_id", String(jobId))
     if (photo.current) form.append("photo", photo.current, "photo.jpg")
     if (audio && audio.size > 0) form.append("audio", audio, "note.webm")
+    if (typed.trim()) form.append("text", typed.trim())
     if (item) {
       form.append("item", item.key)
       form.append("light", item.light)
@@ -98,6 +107,7 @@ export function CaptureButton({
         )
         return
       }
+      setText("")
       setState("done")
       setMessage(json.red_list ? `נרשם: ${json.title}. רשימה אדומה: לעצור ולקרוא לאבי.` : `נרשם: ${json.title}. דניאל קיבל.`)
       router.refresh()
@@ -135,6 +145,12 @@ export function CaptureButton({
     rec.ondataavailable = (e) => e.data.size > 0 && chunks.current.push(e.data)
     rec.onstop = () => {
       cleanup.current()
+      // עבר לכתיבה באמצע ההקלטה: ההקלטה לא נשלחת, התמונה נשמרת לכתיבה.
+      if (discard.current) {
+        discard.current = false
+        setState("typing")
+        return
+      }
       send(new Blob(chunks.current, { type: rec.mimeType }))
     }
 
@@ -185,6 +201,11 @@ export function CaptureButton({
       return
     }
     photo.current = await shrink(file)
+    if (typeNext.current) {
+      typeNext.current = false
+      setState("typing")
+      return
+    }
     // הקלטה בלי לחיצה נוספת.
     await record(false)
   }
@@ -192,12 +213,31 @@ export function CaptureButton({
   function start() {
     setMessage("")
     photo.current = null
+    typeNext.current = false
     setState("shooting")
     input.current?.click()
   }
 
+  /** לכתוב במקום לדבר. כשהתמונה חובה, קודם המצלמה, ואחריה שדה הכתיבה. */
+  function startTyping() {
+    setMessage("")
+    if (state === "recording") {
+      discard.current = true
+      stop()
+      return
+    }
+    photo.current = null
+    if (requirePhoto) {
+      typeNext.current = true
+      setState("shooting")
+      input.current?.click()
+      return
+    }
+    setState("typing")
+  }
+
   return (
-    <div className={`capture ${size} ${state}`}>
+    <div className={`capture ${size} ${state}${quiet ? " quiet" : ""}`}>
       <input
         ref={input}
         type="file"
@@ -207,11 +247,50 @@ export function CaptureButton({
         onChange={(e) => onPhoto(e.target.files)}
       />
 
-      {state === "recording" ? (
-        <button type="button" className="capture-btn recording" onClick={stop} aria-live="polite">
-          <span className="capture-dot" aria-hidden />
-          מקליט {seconds} שנ׳ · לחיצה לסיום
-        </button>
+      {state === "typing" ? (
+        <form
+          className="capture-type"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (text.trim()) send(null, text)
+          }}
+        >
+          {photo.current && <p className="capture-hint">התמונה צולמה. עכשיו במילים:</p>}
+          <textarea
+            rows={3}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="מה מצאת? למשל: רפידות קדמיות שחוקות, נשאר 2 מ״מ"
+            maxLength={1000}
+            autoFocus
+          />
+          <div className="capture-type-row">
+            <button type="submit" className="btn" disabled={!text.trim()}>
+              שליחה לדניאל
+            </button>
+            <button
+              type="button"
+              className="btn quiet"
+              onClick={() => {
+                setText("")
+                photo.current = null
+                setState("idle")
+              }}
+            >
+              ביטול
+            </button>
+          </div>
+        </form>
+      ) : state === "recording" ? (
+        <>
+          <button type="button" className="capture-btn recording" onClick={stop} aria-live="polite">
+            <span className="capture-dot" aria-hidden />
+            מקליט {seconds} שנ׳ · לחיצה לסיום
+          </button>
+          <button type="button" className="capture-alt" onClick={startTyping}>
+            להקליד במקום לדבר
+          </button>
+        </>
       ) : needTap ? (
         <button type="button" className="capture-btn" onClick={() => record()}>
           <span className="capture-dot" aria-hidden />
@@ -224,11 +303,19 @@ export function CaptureButton({
         </button>
       )}
 
-      {!requirePhoto && (state === "idle" || state === "done" || state === "error") ? (
-        <button type="button" className="capture-alt" onClick={() => { setMessage(""); photo.current = null; record() }}>
-          בלי תמונה, רק לדבר
-        </button>
+      {state === "idle" || state === "done" || state === "error" ? (
+        <div className="capture-alts">
+          {!requirePhoto && (
+            <button type="button" className="capture-alt" onClick={() => { setMessage(""); photo.current = null; record() }}>
+              בלי תמונה, רק לדבר
+            </button>
+          )}
+          <button type="button" className="capture-alt" onClick={startTyping}>
+            {requirePhoto ? "תמונה, ואז לכתוב" : "לכתוב במקום לדבר"}
+          </button>
+        </div>
       ) : null}
+      {requirePhoto && state === "idle" && <p className="capture-hint">אדום או פריט בטיחות: תמונה חובה, כדי שהלקוח יראה מה נמצא.</p>}
 
       {message && (
         <p className={`capture-msg ${state}`} role="status">
