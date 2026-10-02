@@ -158,6 +158,7 @@ export type StationReqState =
   | { status: "pending"; code: string }
   | { status: "approved"; label: string }
   | { status: "expired" }
+  | { status: "declined" }
   | { status: "busy" }
   | { status: "retry" }
 
@@ -186,7 +187,7 @@ export async function pollStationRequest(): Promise<StationReqState> {
     return { status: "approved", label: r.label ?? "" }
   }
   jar.delete(STATION_REQ_COOKIE)
-  return { status: r?.status === "expired" ? "expired" : "none" }
+  return { status: r?.status === "expired" ? "expired" : r?.status === "declined" ? "declined" : "none" }
 }
 
 /** הטאבלט: "לבקש מדניאל לחבר". אם כבר יש בקשה פתוחה, מחזיר אותה ולא פותח חדשה. */
@@ -204,6 +205,17 @@ export async function requestStation(): Promise<StationReqState> {
   return { status: "pending", code: r.code }
 }
 
+/** דניאל: הבקשה הזו לא שלנו, או נפתחה בטעות. יוצאת מהלוח מיד (034). */
+export async function declineStationRequest(formData: FormData) {
+  await requireManager()
+  const id = String(formData.get("id") || "")
+  if (!id) return
+  const supabase = await createClient()
+  await supabase.rpc("decline_station_request", { p_id: id })
+  revalidatePath("/staff")
+  revalidatePath("/staff/stations")
+}
+
 /** דניאל, מהלוח או ממסך העמדות: המכשיר עם המספר הזה הוא ליפט N. */
 export async function approveStationRequest(formData: FormData) {
   await requireManager()
@@ -216,4 +228,53 @@ export async function approveStationRequest(formData: FormData) {
   await supabase.rpc("approve_station_request", { p_id: id, p_lift: lift })
   revalidatePath("/staff")
   revalidatePath("/staff/stations")
+}
+
+// ------------------------------------------------- דניאל מאשר על הטאבלט עצמו (033)
+
+/** מי יכול לאשר כאן בקוד: מנהל העבודה והבעלים, שמות בלבד. רק למכשיר עם בקשה פתוחה. */
+export async function stationApprovers(): Promise<{ id: string; full_name: string }[]> {
+  const secret = (await cookies()).get(STATION_REQ_COOKIE)?.value
+  if (!secret) return []
+  const supabase = await createClient()
+  const { data } = await supabase.rpc("station_request_approvers", { p_secret: secret })
+  return (data ?? []) as { id: string; full_name: string }[]
+}
+
+export type HereResult = { ok: true; label: string } | { ok: false; error: string } | null
+
+const HERE_ERRORS: Record<string, (left?: number) => string> = {
+  pin: (left) => `הקוד לא נכון.${left ? ` נשארו ${left} ניסיונות לפני נעילה.` : ""}`,
+  locked: () => "יותר מדי ניסיונות. הקוד נעול ל-15 דקות. אפשר לאשר מהלוח במחשב.",
+  who: () => "לבחור מי מאשר.",
+  lift: () => "לבחור איזה ליפט זה.",
+  gone: () => "הבקשה כבר לא פתוחה. לבקש שוב.",
+}
+
+/**
+ * דניאל ליד הליפט: בוחר ליפט, נוגע בשם שלו ומקיש קוד, על הטאבלט עצמו. הטאבלט
+ * לא יוצא מהמסך שלו, ואף אחד לא מתחבר עליו (רועי, 2.10). אחרי אישור, העמדה
+ * נכנסת מיד, בלי לחכות לבדיקה הבאה.
+ */
+export async function approveHere(_prev: HereResult, formData: FormData): Promise<HereResult> {
+  const secret = (await cookies()).get(STATION_REQ_COOKIE)?.value
+  if (!secret) return { ok: false, error: HERE_ERRORS.gone() }
+  const raw = String(formData.get("lift") || "")
+  if (!raw) return { ok: false, error: HERE_ERRORS.lift() }
+  const lift = raw === "diag" ? null : Number(raw)
+  const staffId = String(formData.get("staff_id") || "")
+  const pin = String(formData.get("pin") || "").replace(/\D/g, "")
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("approve_station_request_with_pin", {
+    p_secret: secret,
+    p_staff_id: staffId,
+    p_pin: pin,
+    p_lift: lift,
+  })
+  const r = data as { ok: boolean; reason?: string; left?: number } | null
+  if (error || !r?.ok) return { ok: false, error: (HERE_ERRORS[r?.reason ?? ""] ?? (() => "האישור נכשל. לנסות שוב."))(r?.left) }
+
+  const now = await pollStationRequest()
+  return now.status === "approved" ? { ok: true, label: now.label } : { ok: false, error: "אושר, אבל החיבור לא הושלם. לרענן את הדף." }
 }

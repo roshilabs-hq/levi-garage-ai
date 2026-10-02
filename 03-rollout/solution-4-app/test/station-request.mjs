@@ -122,6 +122,37 @@ try {
   const staleSt = await rpcJson("station_request_status", { p_secret: stale.secret })
   ok("אישור שלא נאסף רבע שעה: פג, בלי טוקן", staleSt?.status === "expired" && !staleSt?.token)
 
+  // --- "לא לאשר" (034): הבקשה יורדת מהלוח מיד, והטאבלט יודע שנדחתה
+  const nope = await ask()
+  const nopeId = await idOf(nope.secret)
+  ok("אורח לא דוחה", !(await rpc("decline_station_request", { p_id: nopeId })).ok)
+  ok("מכונאי לא דוחה", !(await rpc("decline_station_request", { p_id: nopeId }, mechanic)).ok)
+  ok("דניאל דוחה", (await rpcJson("decline_station_request", { p_id: nopeId }, manager)) === "ok")
+  ok("בקשה שנדחתה יוצאת מהלוח מיד", !((await rpcJson("open_station_requests", {}, manager)) ?? []).some((r) => r.id === nopeId))
+  ok("הטאבלט רואה: נדחתה", (await rpcJson("station_request_status", { p_secret: nope.secret }))?.status === "declined")
+  ok("ואי אפשר לאשר אותה אחרי הדחייה", (await rpcJson("approve_station_request", { p_id: nopeId, p_lift: 2 }, manager)) === "gone")
+
+  // --- דניאל מאשר על הטאבלט עצמו, בקוד שלו (033)
+  const pin = process.env.STATION_DEMO_PIN
+  const here = await ask()
+  const approvers = await rpcJson("station_request_approvers", { p_secret: here.secret })
+  const daniel = (approvers ?? []).find((a) => a.full_name?.startsWith("דניאל"))
+  ok("טאבלט עם בקשה פתוחה רואה מי יכול לאשר: דניאל ואבי, בלי מכונאים", Boolean(daniel) && approvers.length === 2, JSON.stringify(approvers?.map((a) => a.full_name)))
+  ok("ורק שמות, בלי שום פרט אחר", daniel && Object.keys(daniel).sort().join(",") === "full_name,id")
+  ok("בלי בקשה פתוחה: אין רשימה", ((await rpcJson("station_request_approvers", { p_secret: "0".repeat(32) })) ?? []).length === 0)
+  const wrong = await rpcJson("approve_station_request_with_pin", { p_secret: here.secret, p_staff_id: daniel?.id, p_pin: pin === "000000" ? "111111" : "000000", p_lift: 4 })
+  ok("קוד שגוי: לא מאושר, ואומר כמה ניסיונות נשארו", wrong?.ok === false && wrong?.reason === "pin" && wrong?.left >= 1, JSON.stringify(wrong))
+  ok("אחרי קוד שגוי הבקשה עדיין ממתינה", (await rpcJson("station_request_status", { p_secret: here.secret }))?.status === "pending")
+  const mech = (await (await admin(`/rest/v1/staff?select=id&role=eq.mechanic&limit=1`)).json())[0]
+  const asMech = await rpcJson("approve_station_request_with_pin", { p_secret: here.secret, p_staff_id: mech?.id, p_pin: pin, p_lift: 4 })
+  ok("מכונאי לא מאשר עמדה גם עם הקוד שלו", asMech?.ok === false && asMech?.reason === "who")
+  const good = await rpcJson("approve_station_request_with_pin", { p_secret: here.secret, p_staff_id: daniel?.id, p_pin: pin, p_lift: 4 })
+  ok("דניאל עם הקוד שלו: מאושר, ליפט 4", good?.ok === true, JSON.stringify(good))
+  const hereSt = await rpcJson("station_request_status", { p_secret: here.secret })
+  ok("הטאבלט מקבל מיד טוקן של ליפט 4", hereSt?.status === "approved" && hereSt?.label === "ליפט 4" && /^[0-9a-f]{48}$/.test(hereSt?.token ?? ""))
+  const stolen = await rpcJson("approve_station_request_with_pin", { p_secret: "f".repeat(32), p_staff_id: daniel?.id, p_pin: pin, p_lift: 1 })
+  ok("קוד נכון בלי הסוד של הטאבלט: לא קורה כלום", stolen?.ok === false && stolen?.reason === "gone")
+
   // --- הצפה: לא יותר מ-10 בקשות פתוחות
   let busy = null
   for (let i = 0; i < 12 && !busy; i++) {

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { approveStationRequest } from "@/app/(he)/station/actions"
+import { approveStationRequest, declineStationRequest } from "@/app/(he)/station/actions"
 
 // הצד של דניאל ב"חיבור הפוך" (032): מכשירים שמבקשים להיות עמדה. מופיע בלוח
 // היום (שמתרענן לבד כשמכשיר מבקש) ובמסך העמדות. רק מנהל העבודה והבעלים.
@@ -25,7 +25,7 @@ export async function StationRequests({ variant = "board" }: { variant?: "board"
     <section className={variant === "board" ? "board-group hot" : "staff-section"} aria-labelledby="g-station-req">
       <h2 id="g-station-req">{rows.length === 1 ? "מכשיר מבקש להיות עמדה" : `${rows.length} מכשירים מבקשים להיות עמדה`}</h2>
       <p className="board-why">
-        לאשר רק אם המספר זהה למה שרואים על המסך של המכשיר שליד הליפט. בקשה שלא מכירים — לא לאשר, והיא תפוג לבד.
+        לאשר רק אם המספר זהה למה שרואים על המסך של המכשיר שליד הליפט. בקשה שלא מכירים, או שנפתחה בטעות: &quot;לא לאשר&quot;, והיא יורדת מכאן.
       </p>
       <ul className="board-rows">
         {rows.map((r) => (
@@ -52,6 +52,12 @@ export async function StationRequests({ variant = "board" }: { variant?: "board"
               </select>
               <button className="btn" type="submit">
                 לאשר
+              </button>
+            </form>
+            <form action={declineStationRequest}>
+              <input type="hidden" name="id" value={r.id} />
+              <button className="btn quiet" type="submit">
+                לא לאשר
               </button>
             </form>
           </li>

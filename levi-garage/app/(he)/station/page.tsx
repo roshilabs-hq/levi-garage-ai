@@ -45,9 +45,7 @@ export default async function StationPage({
           </p>
           {e && ERRORS[e] && <p className="staff-error" role="alert">{ERRORS[e]()}</p>}
           <StationRequest />
-          <p className="station-alt">
-            או: <Link href="/staff/login">מנהל העבודה נכנס כאן</Link> ומצמד את המכשיר ממסך &quot;עמדות&quot;.
-          </p>
+
         </div>
       </main>
     )
@@ -65,9 +63,7 @@ export default async function StationPage({
           <h1>העמדה בוטלה</h1>
           <p>צריך לחבר את המכשיר מחדש: לוחצים כאן, ודניאל מאשר מהלוח שלו.</p>
           <StationRequest />
-          <p className="station-alt">
-            או: <Link href="/staff/login">מנהל העבודה נכנס כאן</Link> ומצמד את המכשיר ממסך &quot;עמדות&quot;.
-          </p>
+
         </div>
       </main>
     )
