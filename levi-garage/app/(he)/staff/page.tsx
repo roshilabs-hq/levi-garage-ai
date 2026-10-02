@@ -67,7 +67,7 @@ export default async function StaffBoard({
   const [{ data: cards }, { data: booked }, { data: later }, { data: drafts }, { data: calls }, { data: safety }, { data: pending }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, parked_at, outside_at, priority_at")
+      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, parked_at, outside_at, priority_at, work_done_at")
       .not("status", "in", "(delivered,cancelled)")
       .order("opened_at", { ascending: true }),
     supabase
@@ -248,20 +248,29 @@ export default async function StaffBoard({
                   {job && <Plate value={job.plate} />}
                   <div>
                     <b>
-                      {c.kind === "done" ? "סיים את העבודה" : "צריך אותך בעמדה"}
-                      {c.lift ? ` · ליפט ${c.lift}` : " · בחניה"}
+                      {c.kind === "done" ? "גמור, מחכה לבדיקה שלך" : "צריך אותך בעמדה"}
+                      {c.kind === "done" ? " · בחניה" : c.lift ? ` · ליפט ${c.lift}` : " · בחניה"}
                     </b>
                     <span className="staff-meta">
-                      {who?.full_name ?? "מכונאי"} · לפני <Since iso={c.created_at} initial={elapsed(c.created_at)} />
-                      {c.kind === "done" ? " · לבדוק ולסמן מוכן בכרטיס" : ""}
+                      {who?.full_name ?? "מכונאי"}
+                      {c.kind === "done" && c.lift ? ` · מליפט ${c.lift}` : ""} · לפני <Since iso={c.created_at} initial={elapsed(c.created_at)} />
                     </span>
                   </div>
                   <div className="board-actions">
                     <Link className="btn quiet" href={`/staff/job/${c.job_card_id}`}>הכרטיס</Link>
-                    {canRemind && (
+                    {/* "סיימתי": פעולה אחת שעושה את כל העבודה — מוכן, הודעה ללקוח, וסגירת
+                        הקריאה (ב-setJobStatus). "טופל" רק העלים את ההתראה (סבב 2.10, ממצא 15). */}
+                    {canRemind && c.kind === "done" && (
+                      <form action={setJobStatus}>
+                        <input type="hidden" name="job_id" value={c.job_card_id} />
+                        <input type="hidden" name="status" value="ready" />
+                        <button className="btn" type="submit">בדקתי · הרכב מוכן</button>
+                      </form>
+                    )}
+                    {canRemind && c.kind !== "done" && (
                       <form action={resolveCall}>
                         <input type="hidden" name="call_id" value={c.id} />
-                        <button className="btn" type="submit">{c.kind === "done" ? "טופל" : "הגעתי"}</button>
+                        <button className="btn" type="submit">הגעתי</button>
                       </form>
                     )}
                   </div>

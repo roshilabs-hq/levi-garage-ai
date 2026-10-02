@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { nextPickup } from "@/lib/hours"
 
 // "הרכב מוכן": ההודעה שמחליפה את 25–35 שיחות "מתי מוכן" ביום.
 //
@@ -56,6 +57,10 @@ async function ask(kind: Kind, claim: Claim, to: string): Promise<Outcome> {
         ...(kind === "quote" ? { token: claim.token } : {}),
         // לתזכורת: מתי, ומזהה התור ב-Cal.com. את הנוסח ואת הקישור לביטול הבוט בונה.
         ...(kind === "reminder" ? { at: claim.at, uid: claim.uid } : {}),
+        // ל"מוכן": מתי אפשר לבוא, כנתונים ולא כטקסט — {when: today|tomorrow|day, from,
+        // until, day}. הבוט בוחר את הנוסח הקבוע לפי זה (סבב 2.10, ממצא 17: בשישי
+        // אחרי 12:00 נאמר ללקוחה "א׳–ה׳ עד 17:00"). בוט שעוד לא מכיר את השדה מתעלם ממנו.
+        ...(kind === "ready" ? { pickup: nextPickup() } : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })

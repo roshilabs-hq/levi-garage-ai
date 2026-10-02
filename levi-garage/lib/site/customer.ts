@@ -1,4 +1,6 @@
 // "מה המצב של הרכב שלי?" — מי כותב לבוט, ומה הרכבים שלו.
+
+import { pickupPhrase } from "@/lib/hours"
 //
 // הבוט שולח מזהה אטום של השולח (HMAC של המספר). המסד מחשב את אותו מזהה על
 // הטלפונים שבתורים ובכרטיסים, ומחזיר רק את הרכבים של מי שכותב (sql/003 של
@@ -59,8 +61,7 @@ const JOB_STATE: Record<string, string> = {
   in_progress: WORKING,
   waiting_quote: WORKING,
   waiting_approval: "מחכה לאישור: נשלח בוואטסאפ קישור עם מה שמצאנו והמחיר, ושם מאשרים או דוחים",
-  ready: "מוכן לאיסוף. אפשר לאסוף א׳–ה׳ עד 17:00, ו׳ עד 12:00",
-  delivered: "נמסר",
+  // "מוכן" ו"נמסר" מחושבים ב-describeCars, לפי השעה (סבב 2.10, ממצאים 17–18).
 }
 
 /** איך קוראים לרכב, תמיד באותו ניסוח: "מיצובישי אאוטלנדר (מספר רישוי שמסתיים ב-311)". */
@@ -93,7 +94,15 @@ export function describeCars(cars: CustomerCar[]): string {
         const at = c.drop_off_at ? when.format(new Date(c.drop_off_at)) : "מועד לא ידוע"
         return `- ${car}: יש תור לטיפול ברכב, מסירה ב${at}. התור נקלט במערכת. יום לפני תישלח תזכורת בוואטסאפ.`
       }
-      const state = JOB_STATE[c.status] ?? "אצלנו במוסך"
+      // "נמסר" לבד הפך אצל Gemini ל"נמסר למוסך" (2.10), כלומר ההפך. העובדה צריכה
+      // להיות חד-משמעית: הרכב כבר אצל הלקוח, ומתי. ו"מוכן" אומר מתי אפשר לבוא בפועל,
+      // לא שעות פתיחה כלליות: בשישי אחרי 12:00 זה "ביום ראשון, מ-07:00".
+      const state =
+        c.status === "ready"
+          ? `מוכן לאיסוף. ${pickupPhrase()}`
+          : c.status === "delivered"
+            ? `כבר נאסף מהמוסך${c.since ? `, ב${when.format(new Date(c.since))}` : ""}. הרכב אצל הלקוח, לא אצלנו`
+            : (JOB_STATE[c.status] ?? "אצלנו במוסך")
       const eta = c.eta && c.status !== "ready" && c.status !== "delivered" ? ` זמן מוכן משוער: ${c.eta}.` : ""
       return `- ${car}: ${state}.${eta}`
     })

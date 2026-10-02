@@ -217,6 +217,27 @@ try {
   const screenIns = await rpc("set_inspection_item", { p_job_id: d, p_key: "fluids", p_light: "red" }, screen)
   ok("מסך תלוי לא מסמן פריטים", !screenIns.ok, `status ${screenIns.status}`)
 
+  // ---------------------------------------------------------------- תשובה כשבינתיים נמצא עוד משהו (028)
+  // סבב 2.10, ממצא 9: הלקוח עונה, אבל בזמן שחיכו לו המכונאי מצא ממצא נוסף שדניאל
+  // עוד לא שלח. הכרטיס צריך להישאר "מחכה לשליחה", לא "בעבודה" — אחרת הלוח מציג
+  // "הלקוח אישר: להחזיר לתור" על רכב שיש לדניאל מה לשלוח עליו.
+  {
+    const g = await newJob({ lift: 2, status: "in_progress" })
+    const g1 = await (await rpc("add_price_list_finding", { p_job_id: g, p_price_list_id: item("wipers").id }, mechanic)).json()
+    const gToken = await (await rpc("send_quote_request", { p_job_id: g, p_finding_ids: [g1.finding_id] }, manager)).json()
+    ok("028: אחרי שליחה, הכרטיס מחכה ללקוח", (await job(g)).status === "waiting_approval")
+    const g2 = await (await rpc("add_price_list_finding", { p_job_id: g, p_price_list_id: item("bulb-head").id }, mechanic)).json()
+    ok("028: ממצא חדש בזמן ההמתנה לא משנה את המצב", Boolean(g2.finding_id) && (await job(g)).status === "waiting_approval")
+    await rpc("request_decide", { p_token: gToken, p_decisions: [{ finding_id: g1.finding_id, decision: "approved", part_choice: "original" }] })
+    ok("028: הלקוח ענה ויש טיוטה שלא נשלחה — 'מחכה לשליחה', לא 'בעבודה'", (await job(g)).status === "waiting_quote", (await job(g)).status)
+
+    const h = await newJob({ lift: 3, status: "in_progress" })
+    const h1 = await (await rpc("add_price_list_finding", { p_job_id: h, p_price_list_id: item("wipers").id }, mechanic)).json()
+    const hToken = await (await rpc("send_quote_request", { p_job_id: h, p_finding_ids: [h1.finding_id] }, manager)).json()
+    await rpc("request_decide", { p_token: hToken, p_decisions: [{ finding_id: h1.finding_id, decision: "approved", part_choice: "original" }] })
+    ok("028: בלי טיוטה, אחרי התשובה — 'בעבודה' כמו קודם", (await job(h)).status === "in_progress", (await job(h)).status)
+  }
+
   // ---------------------------------------------------------------- תזכורת ללקוח: אחת לבקשה
   const badNudge = await rpc("claim_due_nudges", { p_secret: "wrong" })
   ok("תזכורות: טוקן שגוי נדחה", !badNudge.ok, `status ${badNudge.status}`)

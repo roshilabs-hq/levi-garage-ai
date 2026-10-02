@@ -36,6 +36,7 @@ type Card = {
   parked_at: string | null
   outside_at: string | null
   priority_at: string | null
+  work_done_at: string | null
 }
 
 const carName = (c: { vehicle_make: string | null; vehicle_model: string | null }) =>
@@ -96,7 +97,7 @@ export default async function WallPage() {
   const [{ data: cards }, { data: booked }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, status, lift, lift_since, status_since, inspected_at, opened_at, parked_at, outside_at, priority_at")
+      .select("id, plate, vehicle_make, vehicle_model, status, lift, lift_since, status_since, inspected_at, opened_at, parked_at, outside_at, priority_at, work_done_at")
       .not("status", "in", "(delivered,cancelled)")
       .order("status_since", { ascending: true }),
     supabase
@@ -110,9 +111,10 @@ export default async function WallPage() {
 
   const all = (cards ?? []) as Card[]
   const arriving = booked ?? []
-  const working = all.filter((c) => c.status === "open" || c.status === "in_progress")
+  // "סיימתי" (028): הרכב גמור ומחכה לבדיקה של דניאל, ולכן כבר ב"הסתיים" ולא ב"בטיפול".
+  const working = all.filter((c) => (c.status === "open" || c.status === "in_progress") && !c.work_done_at)
   const waiting = all.filter((c) => c.status === "waiting_quote" || c.status === "waiting_approval")
-  const done = all.filter((c) => c.status === "ready")
+  const done = all.filter((c) => c.status === "ready" || ((c.status === "open" || c.status === "in_progress") && c.work_done_at))
 
   const counts: Record<Stage, number> = {
     booked: arriving.length,

@@ -9,7 +9,7 @@ import { Since } from "@/components/staff/since"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { TOO_LONG, stageLabel, type Stage } from "@/lib/staff/stages"
 import { assignLift, lowerCar, requeueCar, sendOutside, setJobStatus, toFrontOfQueue } from "../actions"
-import { approvedWaitingForUs, isOutside, isParked, queueOf } from "@/lib/staff/queue"
+import { approvedWaitingForUs, doneAwaitingCheck, isOutside, isParked, queueOf } from "@/lib/staff/queue"
 
 export const metadata: Metadata = { title: "מפת המוסך | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -42,6 +42,7 @@ type Card = {
   parked_at: string | null
   outside_at: string | null
   priority_at: string | null
+  work_done_at: string | null
 }
 
 function carName(c: { vehicle_make: string | null; vehicle_model: string | null; vehicle_year?: number | null }) {
@@ -92,7 +93,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
     supabase
       .from("job_cards")
       .select(
-        "id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, inspected_at, parked_at, outside_at, priority_at",
+        "id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, inspected_at, parked_at, outside_at, priority_at, work_done_at",
       )
       .not("status", "in", "(delivered,cancelled)")
       .order("opened_at", { ascending: true }),
@@ -127,6 +128,8 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
   const waitingQuote = all.filter((c) => c.status === "waiting_quote")
   const waitingCustomer = all.filter((c) => c.status === "waiting_approval")
   const done = all.filter((c) => c.status === "ready")
+  // "סיימתי" (028): הליפט התפנה, והרכב בחניה עד שדניאל בודק. ראשונים בעמודה, כי הם מחכים לנו.
+  const checking = all.filter(doneAwaitingCheck)
 
   const busyBays = new Set(all.filter((c) => c.lift !== null).map((c) => c.lift as number))
   const free = LIFTS.filter((n) => !busyBays.has(n))
@@ -473,11 +476,35 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
         <section className={colClass} aria-labelledby="c4">
           <div className="chain-head">
             <h2 id="c4">הסתיים</h2>
-            <span className="chain-count num">{done.length}</span>
+            <span className="chain-count num">{done.length + checking.length}</span>
           </div>
-          <p className="chain-why">הליפט כבר התפנה. הרכב מחכה בחצר שהלקוח יגיע לקחת אותו.</p>
+          <p className="chain-why">הליפט כבר התפנה. רכב שהמכונאי סיים מחכה לבדיקה של דניאל, ואחריה בחצר, עד שהלקוח יגיע.</p>
 
-          {done.length === 0 ? (
+          {checking.length > 0 && (
+            <ul className="chain-cards">
+              {checking.map((c) => (
+                <li key={c.id} className="chain-card">
+                  <div className="chain-card-top">
+                    <Plate value={c.plate} />
+                  </div>
+                  <b>{carName(c)}</b>
+                  <span className="staff-meta">{c.customer_name || "ללא שם"} · גמור, מחכה לבדיקה</span>
+                  <p className="chain-clock">
+                    סיים <Since iso={c.work_done_at!} initial={elapsed(c.work_done_at!)} />
+                  </p>
+                  {isManager && (
+                    <form action={setJobStatus} className="chain-do">
+                      <input type="hidden" name="job_id" value={c.id} />
+                      <input type="hidden" name="status" value="ready" />
+                      <button className="btn" type="submit">בדקתי · הרכב מוכן</button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {done.length === 0 && checking.length === 0 ? (
             <p className="chain-empty">עוד לא סיימנו רכב היום.</p>
           ) : (
             <ul className="chain-cards">
@@ -509,7 +536,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
           )}
 
           {/* הבטחה שלא מומשה היא גרועה יותר מהבטחה שלא ניתנה, ולכן זה כתוב על המסך. */}
-          <p className="chain-note">הודעת "הרכב מוכן" יוצאת ללקוח בוואטסאפ ברגע שלוחצים "סיום טיפול".</p>
+          <p className="chain-note">הודעת "הרכב מוכן" יוצאת ללקוח בוואטסאפ ברגע שלוחצים "בדקתי · הרכב מוכן".</p>
           {(deliveredToday ?? 0) > 0 && <p className="chain-note">נמסרו היום: {deliveredToday}</p>}
         </section>
         )}

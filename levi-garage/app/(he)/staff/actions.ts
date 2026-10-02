@@ -183,6 +183,25 @@ export async function reissueQuote(formData: FormData) {
   redirect(channel === "print" ? `/staff/job/${jobId}/quote?print=1` : `/staff/job/${jobId}?quote=${outcome}`)
 }
 
+// ---------------------------------------------------------------- ממצאים שעוד לא נשלחו
+
+/**
+ * יש ממצאים שדניאל עוד לא שלח? הכרטיס "מחכה לשליחה" (waiting_quote).
+ * בלי זה, רכב שירד לחניה עם טיוטות נראה בלוח כאילו הלקוח כבר אישר
+ * ("הלקוח אישר: להחזיר לתור"), כי הלוח מסיק את זה מהמצב (סבב 2.10, ממצא 9).
+ * נקרא בסיום האבחון ובהורדה לחניה; ממצא קולי מהליפט כבר עושה את זה בעצמו.
+ */
+async function markWaitingIfDrafts(supabase: Awaited<ReturnType<typeof createClient>>, jobId: number) {
+  const { count } = await supabase
+    .from("findings")
+    .select("id", { count: "exact", head: true })
+    .eq("job_card_id", jobId)
+    .eq("status", "draft")
+  if (count) {
+    await supabase.from("job_cards").update({ status: "waiting_quote" }).eq("id", jobId).in("status", ["open", "in_progress"])
+  }
+}
+
 // ---------------------------------------------------------------- בדיקת הכניסה
 
 /** סימון פריט באבחון: ירוק, צהוב או אדום. */
@@ -218,6 +237,7 @@ export async function completeInspection(formData: FormData) {
   const now = new Date().toISOString()
   await supabase.from("inspections").update({ completed_at: now }).eq("job_card_id", jobId)
   await supabase.from("job_cards").update({ inspected_at: now, inspected_by: staff.id }).eq("id", jobId)
+  await markWaitingIfDrafts(supabase, jobId)
 
   revalidatePath("/staff")
   revalidatePath("/staff/floor")
@@ -237,6 +257,21 @@ export async function callManager(formData: FormData) {
   const supabase = await createClient()
   const { data: job } = await supabase.from("job_cards").select("lift").eq("id", jobId).maybeSingle()
   await supabase.from("help_calls").insert({ job_card_id: jobId, lift: job?.lift ?? staff.lift, requested_by: staff.id, kind })
+
+  // "סיימתי" מפנה את הליפט מיד (רועי, 2.10). הרכב יורד לחניה, "גמור, מחכה
+  // לבדיקה", ודניאל בודק על הקרקע ומסמן "מוכן" מתי שהוא פנוי. עד 2.10 הרכב
+  // נשאר על הליפט עד הבדיקה, והליפט חיכה לבן אדם.
+  if (kind === "done") {
+    const now = new Date().toISOString()
+    await supabase
+      .from("job_cards")
+      .update({ lift: null, parked_at: now, work_done_at: now })
+      .eq("id", jobId)
+      .not("lift", "is", null)
+      .in("status", [...ACTIVE])
+    revalidatePath("/staff/floor")
+    revalidatePath("/wall")
+  }
 
   revalidatePath("/staff/lift")
   revalidatePath("/staff")
@@ -297,7 +332,7 @@ export async function markSafetyReported(formData: FormData) {
 
 /** מעדכן מצב של כרטיס: בעבודה, ממתין לתשובה, מוכן, נמסר. */
 export async function setJobStatus(formData: FormData) {
-  await requireStaff()
+  const staff = await requireStaff()
   const id = Number(formData.get("job_id"))
   const status = String(formData.get("status") || "")
   if (!id || !["in_progress", "waiting_quote", "ready", "delivered", "cancelled"].includes(status)) return
@@ -314,6 +349,16 @@ export async function setJobStatus(formData: FormData) {
   if (status === "delivered") patch.delivered_at = new Date().toISOString()
 
   const { error } = await supabase.from("job_cards").update(patch).eq("id", id)
+
+  // "מוכן" או "נמסר" סוגרים את "סיימתי" ו"בוא לעמדה" של הרכב הזה. בלי זה
+  // "קוראים לך: סיים את העבודה" נשארה בלוח גם אחרי המסירה (סבב 2.10, ממצא 16).
+  if (!error && (status === "ready" || status === "delivered" || status === "cancelled")) {
+    await supabase
+      .from("help_calls")
+      .update({ resolved_at: new Date().toISOString(), resolved_by: staff.id })
+      .eq("job_card_id", id)
+      .is("resolved_at", null)
+  }
 
   // הלקוח יודע שהרכב מוכן בלי להתקשר. המסד בודק שוב שהכרטיס באמת "מוכן",
   // שיש הסכמה ושלא נשלח כבר, ולכן אין כאן בדיקות משלנו.
@@ -637,6 +682,7 @@ export async function lowerCar(formData: FormData) {
     .eq("id", id)
     .not("lift", "is", null)
     .in("status", [...ACTIVE])
+  await markWaitingIfDrafts(supabase, id)
   revalidateFloor(id)
 }
 
@@ -648,7 +694,7 @@ export async function requeueCar(formData: FormData) {
   const supabase = await createClient()
   await supabase
     .from("job_cards")
-    .update({ parked_at: null, outside_at: null, priority_at: new Date().toISOString() })
+    .update({ parked_at: null, outside_at: null, work_done_at: null, priority_at: new Date().toISOString() })
     .eq("id", id)
     .is("lift", null)
     .in("status", [...ACTIVE])
