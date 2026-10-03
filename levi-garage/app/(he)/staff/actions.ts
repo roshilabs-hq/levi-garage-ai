@@ -10,7 +10,7 @@ import { INSPECTION_ITEMS, progress, type InspectionState, type Light } from "@/
 import { quoteEmail, requestEmail, type QuoteReason, type QuoteSnapshot } from "@/lib/staff/quote"
 import { sendEmail } from "@/lib/staff/email"
 import { ACTIVE } from "@/lib/staff/queue"
-import { isOtherDay, releaseCalSlot } from "@/lib/staff/cal"
+import { isUpcoming, releaseCalSlot } from "@/lib/staff/cal"
 
 // כל הפעולות של אזור הצוות עוברות כאן. הן רצות בשרת בזהות של המשתמש המחובר,
 // ולכן ה-RLS והפונקציות במסד אוכפים אותן שוב, גם אם מישהו יקרא להן ישירות.
@@ -77,7 +77,7 @@ export async function receiveCar(formData: FormData) {
   const [{ data: booking }, { data: picked }] = await Promise.all([
     supabase
       .from("bookings")
-      .select("id, status, cal_uid, drop_off_at, plate, customer_name, customer_phone, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
+      .select("id, status, plate, customer_name, customer_phone, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
       .eq("id", bookingId)
       .maybeSingle(),
     supabase.from("price_list").select("*").in("id", lines.map((l) => l.id)),
@@ -133,8 +133,6 @@ export async function receiveCar(formData: FormData) {
     }),
   )
   await supabase.from("bookings").update({ status: "arrived" }).eq("id", booking.id)
-  // 3.10: הגיע ביום אחר מיום התור: המקום ביומן מתפנה ללקוח אחר.
-  if (booking.cal_uid && isOtherDay(booking.drop_off_at)) await releaseCalSlot(booking.cal_uid)
 
   // הקישור לאישור: אותו דף ואותה הודעת בוט כמו בממצאים. המייל של ההצעה מקבל אותו כפתור.
   let approveToken: string | null = null
@@ -421,6 +419,17 @@ export async function setJobStatus(formData: FormData) {
   // הלקוח יודע שהרכב מוכן בלי להתקשר. המסד בודק שוב שהכרטיס באמת "מוכן",
   // שיש הסכמה ושלא נשלח כבר, ולכן אין כאן בדיקות משלנו.
   if (!error && status === "ready") await notifyReady(supabase, id)
+
+  // 3.10 (ממצאים 1 ו-12): רכב שהגיע לפני מועד התור שלו. כשהוא נמסר, המועד
+  // המקורי מתפנה ביומן ללקוח אחר. דווקא במסירה ולא בקבלה (רועי): "האירוע בוטל"
+  // במייל של Cal.com מבלבל כשהרכב עוד במוסך. מועד שכבר עבר — לא נוגעים.
+  if (!error && status === "delivered") {
+    const { data: job } = await supabase.from("job_cards").select("booking_id").eq("id", id).maybeSingle()
+    if (job?.booking_id) {
+      const { data: b } = await supabase.from("bookings").select("cal_uid, drop_off_at").eq("id", job.booking_id).maybeSingle()
+      if (b?.cal_uid && isUpcoming(b.drop_off_at)) await releaseCalSlot(b.cal_uid)
+    }
+  }
 
   revalidatePath("/staff")
   revalidatePath("/staff/floor")

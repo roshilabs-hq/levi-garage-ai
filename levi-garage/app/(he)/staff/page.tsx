@@ -73,7 +73,7 @@ export default async function StaffBoard({
       .order("opened_at", { ascending: true }),
     supabase
       .from("bookings")
-      .select("id, plate, customer_name, service, drop_off_at, status, vehicle_make, vehicle_model")
+      .select("id, plate, customer_name, service, drop_off_at, status, vehicle_make, vehicle_model, whatsapp_consent")
       .gte("drop_off_at", today.toISOString())
       .lt("drop_off_at", tomorrow.toISOString())
       .in("status", ["booked", "rescheduled"])
@@ -82,7 +82,7 @@ export default async function StaffBoard({
     // היה נגיש מהלוח בכלל, והיה צריך לחכות למחר כדי לפתוח לו כרטיס.
     supabase
       .from("bookings")
-      .select("id, plate, customer_name, service, drop_off_at, status, vehicle_make, vehicle_model")
+      .select("id, plate, customer_name, service, drop_off_at, status, vehicle_make, vehicle_model, whatsapp_consent")
       .gte("drop_off_at", tomorrow.toISOString())
       .lt("drop_off_at", twoWeeks.toISOString())
       .in("status", ["booked", "rescheduled"])
@@ -150,14 +150,23 @@ export default async function StaffBoard({
     ? await supabase.from("customer_notices").select("booking_id, status").eq("kind", "reminder").in("booking_id", bookingIds)
     : { data: [] }
   const reminderOf = new Map((reminded ?? []).map((n) => [n.booking_id, n.status]))
-  const reminderTag = (id: number) =>
-    reminderOf.get(id) === "sent" ? " · ✓ נשלחה תזכורת" : reminderOf.get(id) === "skipped" ? " · בלי תזכורת (לא כתב לנו)" : ""
+  // 3.10 (ממצא 10): בלי הסכמה לוואטסאפ לא יוצאת תזכורת, ודניאל צריך לדעת את זה מראש.
+  const reminderTag = (b: { id: number; whatsapp_consent?: boolean | null }, ahead = false) =>
+    reminderOf.get(b.id) === "sent"
+      ? " · ✓ נשלחה תזכורת"
+      : reminderOf.get(b.id) === "skipped"
+        ? " · בלי תזכורת (לא כתב לנו)"
+        : ahead && !b.whatsapp_consent
+          ? " · בלי וואטסאפ: אין תזכורת"
+          : ""
   const canRemind = staff.role === "owner" || staff.role === "manager"
   // התזכורת יוצאת לבד בערב. כפתור "לשלוח עכשיו" מוצג רק כשיש למי לשלוח;
   // אחרת דניאל לוחץ ומקבל "אין מה לשלוח", וזה נראה כמו תקלה.
   const dayAfter = new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000)
   const tomorrowBooked = (later ?? []).filter((b) => new Date(b.drop_off_at) < dayAfter)
-  const remindLeft = tomorrowBooked.filter((b) => !["sent", "skipped"].includes(reminderOf.get(b.id) ?? "")).length
+  // רק מי שהסכים לוואטסאפ יקבל. התור של מי שלא הסכים לא נספר (ממצא 10).
+  const remindable = tomorrowBooked.filter((b) => b.whatsapp_consent)
+  const remindLeft = remindable.filter((b) => !["sent", "skipped"].includes(reminderOf.get(b.id) ?? "")).length
   // הלקוח ענה, והרכב עדיין בחניה: מחזירים לתור (דניאל, לא המכונאי).
   const backToQueue = all.filter(approvedWaitingForUs)
   const HOUR = 60 * 60 * 1000
@@ -597,7 +606,7 @@ export default async function StaffBoard({
                     <span className="staff-meta">
                       {fmtTime(b.drop_off_at)} · {b.service || "ללא שירות"}
                       {b.vehicle_make ? ` · ${carName(b)}` : ""}
-                      {reminderTag(b.id)}
+                      {reminderTag(b)}
                     </span>
                   </div>
                   <Link className="btn" href={`/staff/arrive/${b.id}`}>קבלת רכב</Link>
@@ -612,15 +621,15 @@ export default async function StaffBoard({
         <section className="board-group" aria-labelledby="g-later">
           <h2 id="g-later">תורים בימים הקרובים</h2>
           <p className="board-why">לקוח שהגיע לפני המועד שלו: אותו כפתור, והכרטיס נפתח עם כל הפרטים מהתור.</p>
-          {canRemind && tomorrowBooked.length > 0 && (
+          {canRemind && remindable.length > 0 && (
             <form action={sendRemindersNow} className="board-remind">
-              <p className="board-why">תזכורת בוואטסאפ יוצאת לבד כל ערב, לכל מי שיש לו תור מחר.</p>
+              <p className="board-why">תזכורת בוואטסאפ יוצאת לבד כל ערב, לכל מי שיש לו תור מחר והסכים לעדכונים בוואטסאפ.</p>
               {remindLeft > 0 ? (
                 <button className="btn quiet" type="submit">
                   לשלוח עכשיו את התזכורות למחר ({remindLeft})
                 </button>
               ) : (
-                !runNote && <p className="staff-note">✓ התזכורות למחר כבר יצאו, לכל {tomorrowBooked.length === 1 ? "התור" : `${tomorrowBooked.length} התורים`}.</p>
+                !runNote && <p className="staff-note">✓ התזכורות למחר כבר יצאו, לכל {remindable.length === 1 ? "התור" : `${remindable.length} התורים`} שהסכימו.</p>
               )}
             </form>
           )}
@@ -634,7 +643,7 @@ export default async function StaffBoard({
                   <span className="staff-meta">
                     {fmtStamp(b.drop_off_at)} · {b.service || "ללא שירות"}
                     {b.vehicle_make ? ` · ${carName(b)}` : ""}
-                    {reminderTag(b.id)}
+                    {reminderTag(b, true)}
                   </span>
                 </div>
                 <Link className="btn quiet" href={`/staff/arrive/${b.id}`}>הגיע מוקדם</Link>

@@ -1,11 +1,11 @@
-// 3.10: רכב שהתקבל ביום אחר מיום התור שלו. המקום ביומן של Cal.com מתפנה, כדי
-// שלקוח אחר יוכל לקבוע בו. הביטול חוזר אלינו דרך Make, והמסד לא נותן לו לבטל
-// רכב שכבר התקבל (039). המפתח (CAL_SITE_KEY) הוא מפתח ייעודי בלי תאריך תפוגה.
+// 3.10: רכב שהגיע לפני מועד התור שלו ונמסר. המועד המקורי מתפנה ביומן של
+// Cal.com, כדי שלקוח אחר יוכל לקבוע בו. הביטול חוזר אלינו דרך Make, והמסד לא
+// נותן לו לבטל רכב שכבר התקבל (039). המפתח (CAL_SITE_KEY) ייעודי, בלי תפוגה.
 //
-// Cal.com שולח ללקוח מייל ביטול, ולא ניתן לכבות אותו מה-API. לכן הסיבה כתובה
-// אליו, והיא מופיעה במייל: הרכב כבר אצלנו, ואין צורך לעשות דבר.
+// Cal.com שולח ללקוח מייל ביטול, ולא ניתן לכבות אותו מה-API. לכן זה קורה
+// במסירה ולא בקבלה (רועי), והסיבה כתובה אליו: הרכב כבר נמסר, ואין מה לעשות.
 
-const REASON = "הרכב שלך כבר התקבל במוסך, לפני מועד התור, ולכן המועד המקורי התפנה. אין צורך לעשות דבר."
+const REASON = "הרכב שלך כבר טופל ונמסר, ולכן המועד המקורי שנקבע לו התפנה. אין צורך לעשות דבר."
 
 export async function releaseCalSlot(uid: string): Promise<boolean> {
   const key = process.env.CAL_SITE_KEY
@@ -26,10 +26,8 @@ export async function releaseCalSlot(uid: string): Promise<boolean> {
   }
 }
 
-const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" })
-
-/** התור ליום אחר מהיום (שעון ישראל)? רק אז מפנים את המקום. באותו יום, בשעה אחרת, לא נוגעים. */
-export function isOtherDay(dropOffIso: string | null, now = new Date()): boolean {
+/** מועד התור עוד לא הגיע? רק אז יש מה לפנות. מועד שעבר — אין מקום לשחרר, ואין סיבה למייל. */
+export function isUpcoming(dropOffIso: string | null, now = new Date()): boolean {
   if (!dropOffIso) return false
-  return day.format(new Date(dropOffIso)) !== day.format(now)
+  return new Date(dropOffIso).getTime() > now.getTime()
 }

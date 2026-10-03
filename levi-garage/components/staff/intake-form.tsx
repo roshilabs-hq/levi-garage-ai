@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { decideIntake } from "@/app/(he)/approve/actions"
 
-// הלקוח מאשר את ההצעה של הקבלה, כולה (036). שני כפתורים, בלי בחירות: על סוג החלק
+// הלקוח מאשר את ההצעה של הקבלה, כולה (036). בלשון ניטרלית (3.10): לא יודעים מי הלקוח. שני כפתורים, בלי בחירות: על סוג החלק
 // ועל העבודות כבר דיברו מול דניאל בדלפק, וכאן רק "כן, תתחילו" או "לא, תתקשרו".
 // ההכרעה נשמרת דרך השרת והמסד (intake_decide), ולכן אי אפשר לכתוב שום דבר אחר.
 
@@ -48,17 +48,17 @@ export function IntakeForm({ token, needsTerms = false }: { token: string; needs
         </label>
       )}
       <button className="btn big" type="button" disabled={busy !== null || !terms} onClick={() => decide("approved")}>
-        {busy === "approved" ? "שומרים…" : "מאשר את ההצעה, אפשר להתחיל"}
+        {busy === "approved" ? "שומרים…" : "אישור ההצעה, אפשר להתחיל"}
       </button>
       {!sure ? (
         <button className="btn quiet" type="button" disabled={busy !== null || !terms} onClick={() => setSure(true)}>
-          לא מאשר
+          לא לאשר
         </button>
       ) : (
-        <div className="intake-sure" role="group" aria-label="לא מאשר">
+        <div className="intake-sure" role="group" aria-label="לא לאשר">
           <p>בלי אישור לא נוגעים ברכב, ודניאל יתקשר אליך לדבר על זה. לשלוח?</p>
           <button className="btn quiet" type="button" disabled={busy !== null} onClick={() => decide("declined")}>
-            {busy === "declined" ? "שומרים…" : "כן, לא מאשר"}
+            {busy === "declined" ? "שומרים…" : "כן, לא לאשר"}
           </button>
           <button className="btn quiet" type="button" disabled={busy !== null} onClick={() => setSure(false)}>
             חזרה

@@ -228,7 +228,7 @@ function IntakePage({ token, view }: { token: string; view: Intake }) {
         ) : (
           <>
             <p className="approve-message">
-              {view.customer ? `${view.customer}, ` : ""}נתחיל לעבוד על הרכב, כולל האבחון, רק אחרי שתאשר. אם יימצא משהו נוסף, נשלח אליך קישור
+              {view.customer ? `${view.customer}, ` : ""}נתחיל לעבוד על הרכב, כולל האבחון, רק אחרי שתאשר/י. אם יימצא משהו נוסף, נשלח אליך קישור
               נפרד, ולא נוגעים בזה בלי אישור שלך.
             </p>
             <IntakeForm token={token} needsTerms={Boolean(view.needs_terms)} />

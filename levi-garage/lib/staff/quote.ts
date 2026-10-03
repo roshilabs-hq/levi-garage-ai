@@ -156,7 +156,7 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReaso
       שלום${s.job.customer ? ` ${esc(s.job.customer.split(" ")[0])}` : ""},<br>
       ${reason === "intake"
         ? approveLink
-          ? "זו הצעת המחיר לעבודה שדיברנו עליה בקבלת הרכב. <b>נתחיל לעבוד על הרכב רק אחרי שתאשר אותה</b>, בכפתור שבסוף המייל או בקישור שקיבלת בוואטסאפ."
+          ? "זו הצעת המחיר לעבודה שדיברנו עליה בקבלת הרכב. <b>נתחיל לעבוד על הרכב רק אחרי שתאשר/י אותה</b>, בכפתור שבסוף המייל או בקישור שקיבלת בוואטסאפ."
           : "זו הצעת המחיר לעבודה שסיכמנו בקבלת הרכב. בלי אישור שלך לא נבצע שום עבודה אחרת."
         : reason === "update"
           ? "עדכנו את הצעת המחיר לפי התשובה שלך בקישור. זו הגרסה המלאה והעדכנית."
@@ -202,7 +202,7 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReaso
     ...s.findings.map((f) => line(f, findingStatus(f))),
     "",
     `סה"כ לפי מה שסוכם ואושר: ${money(t.total)} כולל מע"מ`,
-    ...(approveLink ? ["", `לאישור ההצעה: ${approveLink}`, "נתחיל לעבוד על הרכב רק אחרי שתאשר."] : []),
+    ...(approveLink ? ["", `לאישור ההצעה: ${approveLink}`, "נתחיל לעבוד על הרכב רק אחרי שתאשר/י."] : []),
     `${GARAGE.manager}, ${GARAGE.managerTitle}`,
     "אתר הדגמה לפרויקט גמר. העסק, האנשים והמחירים בדויים.",
   ].join("\n")
