@@ -167,6 +167,7 @@ export function quoteEmail(s: QuoteSnapshot, version: number, reason: QuoteReaso
       ${s.lines.map((l) => blockHtml(l, lineStatus(l), l.part_choice)).join("")}
       ${s.findings.map((f) => blockHtml(f, findingStatus(f), f.status === "approved" ? f.part_choice : null)).join("")}
       <div style="font-size:16px;margin:14px 0 4px">${approveLink ? "סה\"כ לתשלום אחרי האישור" : "סה\"כ לתשלום לפי מה שסוכם ואושר"}: <b>${money(t.total)}</b> (כולל מע"מ)</div>
+      ${reason === "intake" ? `<div style="font-size:14px;color:#4f5b54;margin-top:6px">בנוסף, בלי תשלום: בדיקת בטיחות של 9 נקודות, כמו לכל רכב שמגיע אלינו. מה שיימצא בה נשלח אליך לאישור בנפרד.</div>` : ""}
       ${t.pending ? `<div style="font-size:14px;color:#8a5a00">${t.pending === 1 ? "פריט אחד ממתין" : `${t.pending} פריטים ממתינים`} לתשובה שלך, ולא נכללים בסכום.</div>` : ""}
     </div>
     ${approveLink ? `<p style="margin:20px 0 6px"><a href="${approveLink}" style="display:inline-block;background:#f2c230;color:#1b2620;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:999px">לאישור ההצעה</a></p>

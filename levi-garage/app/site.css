@@ -391,6 +391,32 @@ section { position: relative; }
 .legal .legal-end { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); }
 .legal .legal-end .legal-back { margin-bottom: 0; }
 
+/* הגיעו מהטופס של קביעת התור, בחלון חדש: הדרך חזרה, גדולה וראשונה */
+.return-bar {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--sunk);
+  box-shadow: inset 0 0 0 2px var(--amber);
+}
+.return-bar p { margin: 0; font-size: 17px; font-weight: 600; }
+.return-bar .btn { min-height: 52px; font-size: 18px; }
+.return-bar .return-help { font-weight: 400; font-size: 16px; }
+
+/* לא סימנו עדכונים בוואטסאפ בטופס: מה מפסידים, ואיך מתקנים בלחיצה */
+.booked-nudge {
+  margin-top: 20px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--sunk);
+  box-shadow: inset 0 0 0 2px var(--amber);
+}
+.booked-nudge h3 { margin: 0 0 8px; font-size: 19px; }
+.booked-nudge ul { margin: 8px 0 0; padding-inline-start: 22px; }
+
 /* אחרי קביעת תור: הצעד היחיד שנשאר, בולט ולא מתחנן */
 .booked-step {
   margin-top: 32px;

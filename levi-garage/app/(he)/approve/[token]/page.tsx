@@ -155,8 +155,13 @@ type Intake = {
   plate_last3: string | null
   vehicle: string | null
   customer: string | null
+  /** 039: רכב שהגיע בלי תור. הלקוח לא עבר בטופס של Cal.com, ולכן מאשר כאן את התקנון. */
+  needs_terms?: boolean
   lines: IntakeLine[]
 }
+
+// 3.10: בדיקת הכניסה לא עולה כסף, ואף אחד לא ידע את זה. ללקוח זה שירות.
+const FREE_INSPECTION = "בנוסף, בלי תשלום: בדיקת בטיחות של 9 נקודות, כמו לכל רכב שמגיע אלינו. מה שיימצא בה נשלח אליך לאישור בנפרד."
 
 const shekel = (n: number | null) => (n === null ? "—" : `${Number(n).toLocaleString("he-IL")} ש"ח`)
 
@@ -204,6 +209,7 @@ function IntakePage({ token, view }: { token: string; view: Intake }) {
           סה&quot;כ: <b className="num">{shekel(total)}</b> · כולל מע&quot;מ
           {hoursTotal > 0 ? ` · ${hoursTotal.toLocaleString("he-IL")} שעות עבודה` : ""}
         </p>
+        <p className="intake-free">{FREE_INSPECTION}</p>
 
         {view.status === "approved" || view.status === "signed" ? (
           <div className="approve-done approved">
@@ -225,7 +231,7 @@ function IntakePage({ token, view }: { token: string; view: Intake }) {
               {view.customer ? `${view.customer}, ` : ""}נתחיל לעבוד על הרכב, כולל האבחון, רק אחרי שתאשר. אם יימצא משהו נוסף, נשלח אליך קישור
               נפרד, ולא נוגעים בזה בלי אישור שלך.
             </p>
-            <IntakeForm token={token} />
+            <IntakeForm token={token} needsTerms={Boolean(view.needs_terms)} />
           </>
         )}
 

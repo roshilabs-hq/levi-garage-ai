@@ -215,6 +215,11 @@ export default async function StaffBoard({
         <p>
           כל רכב שנמצא אצלנו עכשיו, ומה הצעד הבא בכל אחד. איפה כל אחד עומד פיזית, ב<Link href="/staff/floor">מפת המוסך</Link>.
         </p>
+        {canRemind && (
+          <Link className="btn quiet board-walkin" href="/staff/walkin">
+            + רכב בלי תור
+          </Link>
+        )}
       </header>
 
       {received && (

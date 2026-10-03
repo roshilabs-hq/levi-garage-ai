@@ -41,6 +41,31 @@ export async function customerCars(client: string): Promise<CustomerCar[]> {
   }
 }
 
+/**
+ * 3.10: הלקוח כתב "אשמח לקבל עדכונים" (lib/site/consent.ts). מסמן הסכמה בתור
+ * ובכרטיס שלו. מחזיר כמה שורות השתנו; לעולם לא זורק.
+ */
+export async function grantConsent(client: string): Promise<number> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  const token = process.env.GARAGE_BOT_TOKEN
+  if (!url || !key || !token || !/^wa-[0-9a-f]{16}$/.test(client)) return 0
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/grant_whatsapp_consent`, {
+      method: "POST",
+      headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ p_secret: token, p_client: client }),
+      signal: AbortSignal.timeout(5000),
+      cache: "no-store",
+    })
+    if (!res.ok) return 0
+    const n = await res.json()
+    return typeof n === "number" ? n : 0
+  } catch {
+    return 0
+  }
+}
+
 const when = new Intl.DateTimeFormat("he-IL", {
   timeZone: "Asia/Jerusalem",
   weekday: "long",

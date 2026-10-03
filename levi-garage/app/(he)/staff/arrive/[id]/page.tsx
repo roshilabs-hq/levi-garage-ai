@@ -8,6 +8,7 @@ import { serviceToCode } from "@/lib/staff/inspection"
 import { fmtStamp } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
 import { ArriveForm, type PriceItem } from "@/components/staff/arrive-form"
+import { CounterQr } from "@/components/staff/counter-qr"
 
 export const metadata: Metadata = { title: "קבלת רכב | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -38,7 +39,7 @@ export default async function ArrivePage({
   const [{ data: booking }, { data: items }] = await Promise.all([
     supabase
       .from("bookings")
-      .select("id, status, plate, customer_name, customer_email, whatsapp_consent, service, notes, drop_off_at, vehicle_make, vehicle_model, vehicle_year")
+      .select("id, source, status, plate, customer_name, customer_email, whatsapp_consent, service, notes, drop_off_at, vehicle_make, vehicle_model, vehicle_year")
       .eq("id", bookingId)
       .maybeSingle(),
     supabase.from("price_list").select("*").eq("active", true).order("sort", { ascending: true }),
@@ -60,7 +61,8 @@ export default async function ArrivePage({
           </h1>
           <p>
             {booking.customer_name || "ללא שם"} · {car}
-            {booking.vehicle_year ? `, ${booking.vehicle_year}` : ""} · תור ל-{fmtStamp(booking.drop_off_at)}
+            {booking.vehicle_year ? `, ${booking.vehicle_year}` : ""} ·{" "}
+            {booking.source === "walkin" ? "הגיע בלי תור" : `תור ל-${fmtStamp(booking.drop_off_at)}`}
             {booking.service ? ` · ביקש: ${booking.service}` : ""}
           </p>
           {booking.notes && <p className="staff-note">הלקוח כתב: {booking.notes}</p>}
@@ -72,6 +74,8 @@ export default async function ArrivePage({
           {ERRORS[e]}
         </p>
       )}
+
+      {!booking.whatsapp_consent && <CounterQr bookingId={booking.id} walkin={booking.source === "walkin"} />}
 
       <ArriveForm
         bookingId={booking.id}

@@ -5,6 +5,9 @@
 // מכונאים שמתוגמלים על העבודה על הליפט. בעמדת האבחון הידיים נקיות יחסית,
 // והרכב עוד לא פורק. המכונאים מתעדים רק מה שמתגלה תוך כדי עבודה.
 //
+// בלי תשלום (3.10, רועי): ללקוח זה שירות, ולמוסך זה המקור של רוב העבודות הנוספות.
+// זה כתוב בקבלה, בהצעה ללקוח, במייל ובאתר.
+//
 // קצר בכוונה: תשעה פריטים, שלוש לחיצות אפשריות לכל אחד. "תבניות ארוכות" הן
 // התלונה הראשונה של מכונאים על מערכות כאלה.
 
@@ -30,7 +33,9 @@ export const INSPECTION_ITEMS: InspectionItem[] = [
   { key: "leaks", label: "דליפות", hint: "מתחת לרכב: שמן, מים, דלק", safety: false },
   { key: "battery", label: "מצבר וטעינה", hint: "מתח, קטבים, בדיקת עומס", safety: false, suggest: "battery" },
   { key: "wipers", label: "מגבים ושמשות", hint: "גומיות, סדקים בשמשה", safety: false, suggest: "wipers" },
-  { key: "scan", label: "סריקת מחשב", hint: "תקלות שמורות ונורות בלוח", safety: false, suggest: "diag-scan" },
+  // 3.10: "קריאת תקלות שמורות" ולא "סריקת מחשב": זה חלק מהבדיקה החינמית, ולא
+  // "אבחון מחשב" שבמחירון (250), שמוצא את הסיבה לתקלה.
+  { key: "scan", label: "קריאת תקלות שמורות", hint: "תקלות שמורות במחשב ונורות בלוח", safety: false, suggest: "diag-scan" },
 ]
 
 export const itemByKey = (key: string) => INSPECTION_ITEMS.find((i) => i.key === key)
@@ -46,6 +51,7 @@ export function progress(items: InspectionState) {
 /** מהשירות שנבחר בתור ב-Cal.com לעבודה במחירון. דניאל יכול להחליף בקבלה. */
 export function serviceToCode(service: string | null): string {
   const s = service ?? ""
+  if (s.includes("לפני קנייה")) return "pre-purchase"
   if (s.includes("טסט")) return "test-prep"
   if (s.includes("טיפול")) return "service-small"
   if (s.includes("בלם")) return "brakes-front-pads"

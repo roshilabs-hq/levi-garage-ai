@@ -79,9 +79,14 @@ export async function decideRequest(token: string, decisions: Decision[]) {
  * 036: ההצעה של הקבלה, כולה. "approved" = אפשר להתחיל לעבוד על הרכב.
  * "declined" = לא נוגעים ברכב, ודניאל מתקשר (הלוח שלו מתעדכן לבד).
  */
-export async function decideIntake(token: string, decision: "approved" | "declined") {
+export async function decideIntake(token: string, decision: "approved" | "declined", termsAccepted = false) {
   if (!TOKEN.test(token) || (decision !== "approved" && decision !== "declined")) return { ok: false as const }
   const supabase = await createClient()
+  // 039: רכב בלי תור. הסימון "קראתי ואני מאשר/ת את התקנון" נרשם לפני ההכרעה.
+  if (termsAccepted) {
+    const { data: t } = await supabase.rpc("intake_accept_terms", { p_token: token })
+    if (t !== "done") return { ok: false as const }
+  }
   const { data, error } = await supabase.rpc("intake_decide", { p_token: token, p_decision: decision })
   if (error || data !== "done") return { ok: false as const }
   return { ok: true as const }

@@ -1336,9 +1336,21 @@ button.gem-link { font: inherit; text-align: inherit; cursor: pointer; width: 10
 .intake-price { font-weight: 700; }
 .intake-meta { color: var(--muted); font-size: 14.5px; line-height: 1.5; }
 .intake-total { margin-top: 14px; font-size: 17px; }
+.intake-free { margin-top: 8px; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+.intake-terms { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 4px; font-size: 15.5px; line-height: 1.5; }
+.intake-terms input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
 .intake-actions { display: grid; gap: 10px; margin-top: 18px; }
 .intake-actions .btn { width: 100%; }
 .intake-sure { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--sunk); }
 .intake-sure p { margin: 0; line-height: 1.5; }
 .intake-note-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .intake-approved { margin-top: 6px; }
+
+/* 3.10: רכב בלי תור, והקוד שהלקוח סורק בדלפק כדי להסכים לעדכונים */
+.board-walkin { margin-top: 10px; }
+.walkin-form { max-width: 560px; }
+.counter-qr { display: grid; grid-template-columns: 168px 1fr; gap: 18px; align-items: start; margin: 16px 0; padding: 16px; border-radius: 14px; background: var(--surface, #fff); box-shadow: inset 0 0 0 2px var(--amber, #d6932a); }
+.counter-qr-code { background: #fff; border-radius: 10px; padding: 8px; }
+.counter-qr-code svg { display: block; width: 100%; height: auto; }
+.counter-qr h2 { margin: 0 0 6px; font-size: 18px; }
+@media (max-width: 560px) { .counter-qr { grid-template-columns: 1fr; } .counter-qr-code { max-width: 200px; } }

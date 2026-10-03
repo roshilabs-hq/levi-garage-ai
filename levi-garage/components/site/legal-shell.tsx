@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react"
 
 import { SiteFooter } from "@/components/site/footer"
 import { SiteHeader } from "@/components/site/header"
+import { ReturnBar } from "@/components/site/return-bar"
 import { dicts } from "@/lib/site/dict"
 
 // דפי המדיניות נפתחים מהתחתית, ומי שקורא אותם עד הסוף צריך דרך ברורה חזרה.
@@ -22,6 +23,7 @@ export function LegalShell({ title, updated, children }: { title: string; update
     <>
       <SiteHeader t={t} overPhoto={false} />
       <main id="main" className="wrap legal">
+        <ReturnBar />
         <BackHome />
         <h1>{title}</h1>
         {updated && <p className="updated">עודכן לאחרונה: {updated}</p>}

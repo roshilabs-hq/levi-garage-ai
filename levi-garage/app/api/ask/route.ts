@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 
 import { generateJson } from "@/lib/site/gemini"
 import { knowledge } from "@/lib/site/knowledge"
-import { customerCars, describeCars, firstName } from "@/lib/site/customer"
+import { asksForUpdates } from "@/lib/site/consent"
+import { customerCars, describeCars, firstName, grantConsent } from "@/lib/site/customer"
 
 // "תשאלו אותנו": עוזר מידע שעונה רק מתוך בסיס הידע של המוסך.
 // לא שומרים את השאלות. הגבלת קצב פשוטה לפי IP (בזיכרון של השרת; מספיק לדמו, לא לייצור בהיקף).
@@ -62,8 +63,10 @@ function rateKey(req: Request, client: unknown) {
 // כשהבוט שואל בשם לקוח, העוזר יודע מה הרכבים של אותו לקוח — ורק שלו.
 // בלי זה, "מתי הרכב שלי מוכן", קטגוריית השיחות הגדולה במוסך, הייתה נענית
 // ב"תתקשרו".
-async function customerSection(req: Request, client: unknown) {
+async function customerSection(req: Request, client: unknown, question: string) {
   if (!fromBot(req) || typeof client !== "string") return ""
+  // 3.10: "אשמח לקבל עדכונים" היא ההסכמה. נרשמת לפני שקוראים את הרכבים, כדי שהתשובה תדע.
+  const granted = asksForUpdates(question) ? await grantConsent(client) : 0
   const cars = await customerCars(client)
   const name = firstName(cars)
   if (cars.length === 0) {
@@ -84,7 +87,8 @@ ${name ? `First name: ${name}
 - If they ask how their car is doing and it only has a booking (not yet at the garage), say the car has not arrived yet and remind them of the booking day and time in one short sentence. Do not repeat the whole booking confirmation.
 - If they say they just booked, confirm in this shape (translated to their language): "התור שלך לטיפול ברכב <the car as written above> נקבע ל<day, date and time>. יום לפני תקבל/י תזכורת בוואטסאפ, וכשהרכב יהיה מוכן תקבל/י הודעה."
 - Their gender is unknown. In Hebrew, address them with slash forms (תקבל/י, תוכל/י, מוזמן/ת) or gender-neutral wording, never masculine or feminine alone.
-- They are already writing on WhatsApp: never tell them to contact the garage on WhatsApp.`
+- They are already writing on WhatsApp: never tell them to contact the garage on WhatsApp.${granted > 0 ? `
+- They just asked to get updates on WhatsApp, and it is now recorded. Confirm it in one short sentence (in Hebrew: "רשמנו: מעכשיו העדכונים יגיעו אליך כאן בוואטסאפ.").` : ""}`
 }
 
 type Turn = { role: "user" | "model"; text: string }
@@ -111,7 +115,7 @@ export async function POST(req: Request) {
     : []
 
   try {
-    const customer = await customerSection(req, body.client)
+    const customer = await customerSection(req, body.client, question)
     const out = await generateJson<{ answer: string; action: "book" | "whatsapp" | "none" }>({
       system: `${system}${customer}\n\nReply language: ${LANG_NAME[lang]}.`,
       contents: [...history, { role: "user", text: question }],
