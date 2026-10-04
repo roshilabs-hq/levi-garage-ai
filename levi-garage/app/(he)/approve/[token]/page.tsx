@@ -45,8 +45,16 @@ type View = {
   discount_pct: number | null
 }
 
-const photoUrl = (path: string) =>
-  `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/shared-quotes/${path.split("/").map(encodeURIComponent).join("/")}`
+// 049: הדלי פרטי. כתובת חתומה לשעה, והמסד נותן אותה רק כל עוד האישור בתוקף,
+// ולכן אחרי שהקישור פג גם התמונות לא נפתחות (כמו שכתוב במדיניות הפרטיות).
+type Supa = Awaited<ReturnType<typeof createClient>>
+async function signPhotos(supabase: Supa, paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {}
+  const { data } = await supabase.storage.from("shared-quotes").createSignedUrls(paths, 60 * 60)
+  const urls: Record<string, string> = {}
+  for (const d of data ?? []) if (d.path && d.signedUrl && !d.error) urls[d.path] = d.signedUrl
+  return urls
+}
 
 type RequestRow = Omit<RequestItem, "photos"> & {
   photo_paths: string[] | null
@@ -70,7 +78,7 @@ const agreedTotal = (agreed: AgreedLine[], rows: RequestRow[]) =>
   agreed.reduce((sum, l) => sum + Number(l.price ?? 0), 0) +
   rows.reduce((sum, r) => sum + (r.decision === "approved" ? Number(r.price_chosen ?? 0) : 0), 0)
 
-function RequestPage({ token, rows, agreed }: { token: string; rows: RequestRow[]; agreed: AgreedLine[] }) {
+function RequestPage({ token, rows, agreed, photoUrls }: { token: string; rows: RequestRow[]; agreed: AgreedLine[]; photoUrls: Record<string, string> }) {
   const first = rows[0]
   const open = rows.filter((r) => !r.decision)
   const decided = open.length === 0
@@ -114,7 +122,7 @@ function RequestPage({ token, rows, agreed }: { token: string; rows: RequestRow[
               </div>
             )}
             <p className="req-total">
-              סה"כ לתשלום לפי מה שאישרת: <b className="num">{shekel(agreedTotal(agreed, rows))}</b> (כולל מע"מ)
+              סה&quot;כ לתשלום לפי מה שאישרת: <b className="num">{shekel(agreedTotal(agreed, rows))}</b> (כולל מע&quot;מ)
             </p>
             <p className="approve-stamp">
               נרשם אצלנו בכתב, {fmtStamp(rows.find((r) => r.decided_at)?.decided_at ?? null)}. אם השארת לנו מייל, הצעת המחיר המעודכנת נשלחת אליך לשם.
@@ -143,7 +151,7 @@ function RequestPage({ token, rows, agreed }: { token: string; rows: RequestRow[
                 single_reason: r.single_reason,
                 safety: r.safety,
                 eta: r.eta,
-                photos: (r.photo_paths ?? []).map(photoUrl),
+                photos: (r.photo_paths ?? []).map((p) => photoUrls[p]).filter(Boolean),
                 discount_pct: r.discount_pct,
                 list_price_original: r.list_price_original,
                 list_price_aftermarket: r.list_price_aftermarket,
@@ -153,7 +161,7 @@ function RequestPage({ token, rows, agreed }: { token: string; rows: RequestRow[
         )}
 
         <p className="approve-small">
-          המחירים כוללים חלקים, עבודה ומע"מ. בלי האישור שלך לא נוגעים ברכב. אם משהו לא ברור, אנחנו כאן: 055-3048489.
+          המחירים כוללים חלקים, עבודה ומע&quot;מ. בלי האישור שלך לא נוגעים ברכב. אם משהו לא ברור, אנחנו כאן: 055-3048489.
         </p>
       </div>
     </main>
@@ -278,7 +286,9 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
     const { data: agreedRaw } = await supabase.rpc("request_agreed", { p_token: token })
     const a = (agreedRaw ?? {}) as { lines?: AgreedLine[]; approved?: AgreedLine[] }
     const agreed = [...(a.lines ?? []), ...(a.approved ?? [])].filter((l) => l && l.price !== null)
-    return <RequestPage token={token} rows={req as RequestRow[]} agreed={agreed} />
+    const rows = req as RequestRow[]
+    const photoUrls = await signPhotos(supabase, rows.filter((r) => !r.expired && !r.decision).flatMap((r) => r.photo_paths ?? []))
+    return <RequestPage token={token} rows={rows} agreed={agreed} photoUrls={photoUrls} />
   }
   const { data } = await supabase.rpc("approval_view", { p_token: token })
   const view = (Array.isArray(data) ? data[0] : null) as View | null
@@ -296,7 +306,8 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
   }
 
   const decided = Boolean(view.decision)
-  const photos = view.photo_paths ?? []
+  const photoUrls = view.expired ? {} : await signPhotos(supabase, view.photo_paths ?? [])
+  const photos = (view.photo_paths ?? []).filter((p) => photoUrls[p])
 
   return (
     <main className="approve">
@@ -320,9 +331,9 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
         {photos.length > 0 && (
           <div className="approve-photos">
             {photos.map((p, i) => (
-              <a key={p} href={photoUrl(p)} target="_blank" rel="noreferrer">
+              <a key={p} href={photoUrls[p]} target="_blank" rel="noreferrer">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl(p)} alt={`מה שהמכונאי צילם, תמונה ${i + 1}`} loading="lazy" />
+                <img src={photoUrls[p]} alt={`מה שהמכונאי צילם, תמונה ${i + 1}`} loading="lazy" />
               </a>
             ))}
           </div>
@@ -393,7 +404,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
         )}
 
         <p className="approve-small">
-          המחירים כוללים חלקים, עבודה ומע"מ. בלי האישור שלך לא נוגעים ברכב. אם משהו לא ברור, אנחנו כאן: 055-3048489.
+          המחירים כוללים חלקים, עבודה ומע&quot;מ. בלי האישור שלך לא נוגעים ברכב. אם משהו לא ברור, אנחנו כאן: 055-3048489.
         </p>
       </div>
     </main>
