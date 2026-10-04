@@ -1354,3 +1354,6 @@ button.gem-link { font: inherit; text-align: inherit; cursor: pointer; width: 10
 .counter-qr-code svg { display: block; width: 100%; height: auto; }
 .counter-qr h2 { margin: 0 0 6px; font-size: 18px; }
 @media (max-width: 560px) { .counter-qr { grid-template-columns: 1fr; } .counter-qr-code { max-width: 200px; } }
+
+/* מספר הגרסה בתחתית מסכי הצוות (4.10). שקט: רק מי שמחפש אותו רואה. */
+.staff-version { margin: 32px auto 16px; text-align: center; color: var(--muted); font-size: 12.5px; direction: ltr; unicode-bidi: plaintext; }

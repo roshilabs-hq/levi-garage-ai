@@ -9,6 +9,8 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
     <>
       <PendingSubmit />
       {children}
+      {/* איזו גרסה רצה עכשיו במוסך (4.10). השינויים בכל גרסה: CHANGELOG.md בריפו. */}
+      <p className="staff-version">גרסה {process.env.APP_VERSION}</p>
     </>
   )
 }

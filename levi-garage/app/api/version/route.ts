@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
-// איזו בנייה רצה עכשיו בשרת. ראו next.config.mjs ו-components/staff/auto-refresh.tsx.
+// איזו גרסה ואיזו בנייה רצות עכשיו בשרת. ראו next.config.mjs, CHANGELOG.md
+// ו-components/staff/auto-refresh.tsx.
 export const dynamic = "force-dynamic"
 
 export function GET() {
-  return NextResponse.json({ build: process.env.APP_BUILD ?? "" }, { headers: { "cache-control": "no-store" } })
+  return NextResponse.json({ version: process.env.APP_VERSION ?? "", build: process.env.APP_BUILD ?? "" }, { headers: { "cache-control": "no-store" } })
 }

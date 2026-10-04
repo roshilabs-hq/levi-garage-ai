@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs"
+
 // כותרות אבטחה לכל דף (27.9, בדיקת OWASP A02).
 //
 // frame-ancestors / X-Frame-Options: אף אתר לא יכול להטמיע אותנו. בלי זה, אתר
@@ -17,12 +19,16 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=()" },
 ]
 
+// מספר הגרסה מ-package.json (4.10, v1.0.0). מוצג בתחתית מסכי הצוות וב-/api/version,
+// כדי לענות תמיד על "איזו גרסה רצה עכשיו במוסך". ראו CHANGELOG.md.
+const { version: APP_VERSION } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // מזהה של הבנייה, שנכנס גם לקוד שבדפדפן וגם לשרת. מסך שפתוח ימים (הטלוויזיה
   // בסדנה, בחדר ההמתנה) משווה אותו מול השרת לפני כל רענון, ואם השרת הוחלף —
   // טוען את הדף מחדש, במקום לערבב קוד ישן עם תוכן חדש (שגיאת React #418).
-  env: { APP_BUILD: String(Date.now()) },
+  env: { APP_BUILD: String(Date.now()), APP_VERSION },
   // לא לפרסם באיזו מסגרת האתר בנוי.
   poweredByHeader: false,
   async headers() {
