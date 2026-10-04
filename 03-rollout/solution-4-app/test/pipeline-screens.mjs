@@ -162,10 +162,9 @@ try {
       ok(`${tag} הרכב נעלם מחדר ההמתנה`, mine.length === 0, JSON.stringify(mine))
     }
 
-    // הסדנה: אותה שאילתה שהדף שולח, ואותו קיבוץ.
-    const wallRows = await (
-      await call(`/rest/v1/job_cards?id=eq.${jobId}&status=not.in.(delivered,cancelled)&select=status,lift`, { token: wallScreen })
-    ).json()
+    // הסדנה: מה שהדף מקבל מ-wall_board (046), ואותו קיבוץ.
+    const board = await (await call(`/rest/v1/rpc/wall_board`, { method: "POST", body: "{}", token: wallScreen })).json()
+    const wallRows = (board?.cards ?? []).filter((c) => c.id === jobId)
     if (stage.wall) {
       const seen = Array.isArray(wallRows) && wallRows.length === 1 ? wallGroup(wallRows[0].status) : null
       ok(`${tag} הסדנה מראה אותו תחת "${stage.wall}"`, seen === stage.wall, JSON.stringify(wallRows))

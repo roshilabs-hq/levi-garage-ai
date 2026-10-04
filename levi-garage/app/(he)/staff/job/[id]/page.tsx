@@ -32,6 +32,12 @@ const INTAKE_NOTE: Record<string, string> = {
   failed: "השליחה נכשלה. לנסות שוב, או להדפיס ולהחתים.",
 }
 
+// 043: "הרכב מוכן" מכל מקום (לוח, מפה) נבדק בשרת. כשנחסם, מגיעים לכאן ורואים למה.
+const READY_NOTE: Record<string, string> = {
+  inspect: "\"הרכב מוכן\" עוד לא: האבחון של הרכב לא הסתיים.",
+  open: "\"הרכב מוכן\" עוד לא: יש ממצא שמחכה לשליחה או לתשובת הלקוח. קודם לסגור אותו (לשלוח, לבטל, או לחכות לתשובה).",
+}
+
 // באילו מצבים אפשר להוסיף ממצא: כמו ב-add_price_list_finding במסד.
 const ADDABLE = ["open", "in_progress", "waiting_quote", "waiting_approval"]
 
@@ -57,11 +63,11 @@ export default async function JobCardPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ quote?: string; intake?: string }>
+  searchParams: Promise<{ quote?: string; intake?: string; ready?: string }>
 }) {
   const staff = await requireStaff()
   const { id } = await params
-  const { quote, intake } = await searchParams
+  const { quote, intake, ready } = await searchParams
   const jobId = Number(id)
   if (!Number.isFinite(jobId)) notFound()
 
@@ -83,7 +89,7 @@ export default async function JobCardPage({
   ] = await Promise.all([
     supabase
       .from("findings")
-      .select("*, reporter:safety_reported_by(full_name), approvals(token, request_id, decision, decided_at, part_choice, price_chosen, message_text, sent_at)")
+      .select("*, reporter:safety_reported_by(full_name), approvals(request_id, decision, decided_at, part_choice, price_chosen, message_text, sent_at)")
       .eq("job_card_id", jobId)
       .order("created_at", { ascending: true }),
     supabase.from("quote_items").select("title, part_choice, price_original, price_aftermarket, labor_hours").eq("job_card_id", jobId),
@@ -92,7 +98,7 @@ export default async function JobCardPage({
     supabase.from("inspections").select("items, completed_at").eq("job_card_id", jobId).maybeSingle(),
     supabase.from("media").select("id, kind, storage_path, mime, finding_id, created_at").eq("job_card_id", jobId).order("created_at", { ascending: true }),
     supabase.from("customer_notices").select("kind, ref, status, reason, sent_at").eq("job_card_id", jobId),
-    supabase.from("quote_requests").select("id, token, sent_at, decided_at, expires_at, nudged_at").eq("job_card_id", jobId).order("sent_at", { ascending: false }),
+    supabase.from("quote_requests").select("id, sent_at, decided_at, expires_at, nudged_at").eq("job_card_id", jobId).order("sent_at", { ascending: false }),
     supabase.from("help_calls").select("id").eq("job_card_id", jobId).eq("kind", "done").is("resolved_at", null).limit(1),
   ])
 
@@ -144,6 +150,11 @@ export default async function JobCardPage({
   }
 
   const canSend = staff.role !== "mechanic"
+  // 045: הקישור של הלקוח (הטוקן) רק לדניאל ולאבי, דרך פונקציה שבודקת תפקיד.
+  const { data: tokenRows } = canSend ? await supabase.rpc("staff_job_tokens", { p_job_id: jobId }) : { data: [] }
+  const tokens = (tokenRows ?? []) as { kind: string; ref: number; token: string }[]
+  const requestToken = new Map(tokens.filter((t) => t.kind === "request").map((t) => [t.ref, t.token]))
+  const approvalToken = new Map(tokens.filter((t) => t.kind === "approval").map((t) => [t.ref, t.token]))
   const pending = drafts.length + all.filter((f) => f.status === "sent").length
   // "הרכב מוכן" רק כשבאמת אפשר: אחרי אבחון, ובלי ממצאים שמחכים (רועי, 30.9: הכפתור הופיע
   // על רכב שעוד לא עלה לליפט, ולחיצה בטעות שולחת ללקוח "הרכב מוכן").
@@ -155,11 +166,11 @@ export default async function JobCardPage({
   const groups: Group[] = []
   for (const r of requests ?? []) {
     const items = sent.filter((f) => approvalOf(f)?.request_id === r.id)
-    if (items.length) groups.push({ key: `r${r.id}`, requestId: r.id, token: r.token, sentAt: r.sent_at, decidedAt: r.decided_at, items })
+    if (items.length) groups.push({ key: `r${r.id}`, requestId: r.id, token: requestToken.get(r.id) ?? "", sentAt: r.sent_at, decidedAt: r.decided_at, items })
   }
   for (const f of sent.filter((x) => !approvalOf(x)?.request_id)) {
     const a = approvalOf(f)
-    groups.push({ key: `f${f.id}`, requestId: null, token: a?.token ?? "", sentAt: a?.sent_at ?? f.sent_at, decidedAt: a?.decided_at ?? null, items: [f] })
+    groups.push({ key: `f${f.id}`, requestId: null, token: approvalToken.get(f.id) ?? "", sentAt: a?.sent_at ?? f.sent_at, decidedAt: a?.decided_at ?? null, items: [f] })
   }
 
   return (
@@ -275,6 +286,12 @@ export default async function JobCardPage({
               : ""}
           </p>
         ))}
+
+      {ready && READY_NOTE[ready] && (
+        <p className="staff-note notice-failed" role="status">
+          {READY_NOTE[ready]}
+        </p>
+      )}
 
       {quote && QUOTE_NOTE[quote] && (
         <p className={`staff-note ${quote === "sent" ? "notice-sent" : "notice-failed"}`} role="status">

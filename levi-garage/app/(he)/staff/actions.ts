@@ -142,8 +142,9 @@ export async function receiveCar(formData: FormData) {
     if (reqError || !token) console.error("send_intake_request failed:", reqError?.code, reqError?.message)
     else {
       approveToken = String(token)
-      const { data: req } = await supabase.from("quote_requests").select("id").eq("token", approveToken).single()
-      requestId = req?.id ?? null
+      // 045: הטוקן לא נקרא ישירות מהטבלה; פונקציה שבודקת שזה דניאל או אבי.
+      const { data: rid } = await supabase.rpc("request_id_by_token", { p_token: approveToken })
+      requestId = rid ? Number(rid) : null
     }
   }
 
@@ -216,7 +217,8 @@ export async function resendIntakeRequest(formData: FormData) {
   if (error || !token) {
     redirect(`/staff/job/${jobId}?intake=${error?.hint === "law-132b" ? "consent" : "failed"}`)
   }
-  const { data: req } = await supabase.from("quote_requests").select("id").eq("token", String(token)).single()
+  const { data: rid } = await supabase.rpc("request_id_by_token", { p_token: String(token) })
+  const req = rid ? { id: Number(rid) } : null
   const { data: job } = await supabase.from("job_cards").select("customer_email").eq("id", jobId).single()
   if (job?.customer_email) await issueQuote(jobId, "intake", "email", String(token))
   if (req) await notifyRequest(supabase, req.id, "intake")
@@ -316,12 +318,15 @@ export async function callManager(formData: FormData) {
   // נשאר על הליפט עד הבדיקה, והליפט חיכה לבן אדם.
   if (kind === "done") {
     const now = new Date().toISOString()
-    await supabase
+    let done = supabase
       .from("job_cards")
       .update({ lift: null, parked_at: now, work_done_at: now })
       .eq("id", jobId)
       .not("lift", "is", null)
       .in("status", [...ACTIVE])
+    // 043: מכונאי מסיים רק את הרכב שעל הליפט שלו.
+    if (staff.role === "mechanic") done = done.eq("lift", staff.lift ?? -1)
+    await done
     revalidatePath("/staff/floor")
     revalidatePath("/wall")
     revalidatePath("/staff")
@@ -388,12 +393,24 @@ export async function markSafetyReported(formData: FormData) {
 
 /** מעדכן מצב של כרטיס: בעבודה, ממתין לתשובה, מוכן, נמסר. */
 export async function setJobStatus(formData: FormData) {
-  const staff = await requireStaff()
+  // 043: "מוכן", "נמסר" ו"חזרה לעבודה" הם של דניאל ואבי. מכונאי לוחץ "סיימתי"
+  // בעמדה, ודניאל בודק. המסד חוסם את זה שוב (job_cards_guard).
+  const staff = await requireManager()
   const id = Number(formData.get("job_id"))
   const status = String(formData.get("status") || "")
   if (!id || !["in_progress", "waiting_quote", "ready", "delivered", "cancelled"].includes(status)) return
 
   const supabase = await createClient()
+  // "הרכב מוכן" רק אחרי האבחון, ורק כשלא נשאר ממצא שמחכה לדניאל או ללקוח: אותה
+  // בדיקה כמו הכפתור בכרטיס, עכשיו לכל הכפתורים (בלוח, במפה ובכרטיס). בלי זה
+  // "בדקתי · הרכב מוכן" שלח ללקוח "מוכן" כשעוד חיכה לו קישור לאישור.
+  if (status === "ready") {
+    const [{ data: card }, { count: open }] = await Promise.all([
+      supabase.from("job_cards").select("inspected_at").eq("id", id).maybeSingle(),
+      supabase.from("findings").select("id", { count: "exact", head: true }).eq("job_card_id", id).in("status", ["draft", "sent"]),
+    ])
+    if (!card?.inspected_at || (open ?? 0) > 0) redirect(`/staff/job/${id}?ready=${card?.inspected_at ? "open" : "inspect"}`)
+  }
   const patch: Record<string, unknown> = { status }
   if (status === "ready") {
     patch.ready_at = new Date().toISOString()
@@ -439,7 +456,7 @@ export async function setJobStatus(formData: FormData) {
 
 /** שולח שוב הודעת "מוכן" שנכשלה. המסד מאפשר זאת רק להודעה שנכשלה. */
 export async function resendReadyNotice(formData: FormData) {
-  await requireStaff()
+  await requireManager()
   const id = Number(formData.get("job_id"))
   if (!id) return
 
@@ -451,7 +468,8 @@ export async function resendReadyNotice(formData: FormData) {
 
 /** מעלה רכב שממתין לליפט פנוי, או מוריד אותו ממנו. */
 export async function assignLift(formData: FormData) {
-  await requireStaff()
+  // 043: דניאל ואבי משבצים. מכונאי מושך לליפט שלו בלבד ("למשוך לליפט", takeCar).
+  await requireManager()
   const id = Number(formData.get("job_id"))
   const raw = String(formData.get("lift") || "")
   const lift = raw === "" ? null : Number(raw)
@@ -611,9 +629,10 @@ export async function sendQuoteRequest(_prev: RequestState, formData: FormData):
     return { ok: false, error: f?.title ? `${f.title}: ${why}` : why }
   }
 
-  const { data: req } = await supabase.from("quote_requests").select("id").eq("token", String(token)).single()
+  const { data: rid } = await supabase.rpc("request_id_by_token", { p_token: String(token) })
+  const req = rid ? { id: Number(rid) } : null
   if (req) {
-    const { data: rows } = await supabase.from("approvals").select("finding_id, token").eq("request_id", req.id)
+    const { data: rows } = await supabase.rpc("request_approval_tokens", { p_request_id: req.id })
     for (const a of rows ?? []) await sharePhotos(a.finding_id, a.token)
     await notifyRequest(supabase, req.id)
   }

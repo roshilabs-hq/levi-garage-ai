@@ -12,6 +12,7 @@
 // הסיסמאות והקוד נקראים מ-levi-garage/.env.staff.local ולא מודפסים.
 // דפדפן: Chrome שמותקן במחשב (channel: "chrome").
 
+import { createHmac } from "node:crypto"
 import { mkdirSync, readFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -317,7 +318,8 @@ try {
   await shot(d, "d10-floor-done", 'section:has(h2:text-is("הסתיים")), .chain-col:has(h2:text-is("הסתיים"))')
 
   // עמדות: מכשיר שמבקש להתחבר, כדי שיראו את "לאשר" ו"לא לאשר".
-  const req = await rpc("request_station", {})
+  // 044: פתיחת בקשה דורשת את מפתח השרת, כמו ש-lib/staff/station.ts שולח.
+  const req = await rpc("request_station", { p_key: createHmac("sha256", process.env.STATION_SECRET ?? "").update("station-rpc").digest("hex") })
   const reqRow = (await (await admin(`/rest/v1/station_requests?code=eq.${req.code}&select=id&order=created_at.desc&limit=1`)).json())[0]
   if (reqRow) made.stationRequests.push(reqRow.id)
   await d.goto(`${BASE}/staff/stations`)

@@ -82,9 +82,11 @@ ok(
 ok("אין בה מספר רישוי מלא", view.every((r) => String(r.plate_last3).length === 3))
 ok("ואין מצב שמסגיר שממתינים לאישור הלקוח", view.every((r) => r.state === "working" || r.state === "ready"))
 
-// ---------- 3. מסך הסדנה תלוי באזור העבודה, ולכן הוא כן קורא ----------
+// ---------- 3. מסך הסדנה: רק מה שהוא מציג, מ-wall_board (046) ----------
 const wallCards = await rows(wall, `/rest/v1/job_cards?select=id`)
-ok("מסך הסדנה כן קורא את הכרטיסים", wallCards.length > 0)
+ok("מסך הסדנה לא קורא את הטבלה ישירות (טלפונים, שמות)", wallCards.length === 0)
+const board = await (await call(`/rest/v1/rpc/wall_board`, { token: wall, method: "POST", body: "{}" })).json()
+ok("מסך הסדנה מקבל את הלוח מהפונקציה, בלי פרטי לקוח", Array.isArray(board?.cards) && board.cards.every((c) => !("customer_phone" in c) && !("customer_name" in c)))
 const wallLobby = await (await call(`/rest/v1/rpc/lobby_view`, { token: wall, method: "POST", body: "{}" })).json()
 ok("אבל הוא לא מקבל את הרשימה של חדר ההמתנה", Array.isArray(wallLobby) && wallLobby.length === 0)
 

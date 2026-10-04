@@ -22,4 +22,14 @@ export function stationPassword(email: string): string {
   return createHmac("sha256", secret).update(`mechanic:${email.trim().toLowerCase()}`).digest("base64url")
 }
 
+/**
+ * 044: המפתח שמוכיח למסד שהקריאה לחיבור עמדה מגיעה מהשרת שלנו ולא מכל אחד עם
+ * המפתח הציבורי. במסד נשמר רק ה-SHA-256 שלו (private.settings, station_rpc_hash).
+ */
+export function stationRpcKey(): string {
+  const secret = process.env.STATION_SECRET
+  if (!secret || secret.length < 32) throw new Error("STATION_SECRET is not configured")
+  return createHmac("sha256", secret).update("station-rpc").digest("hex")
+}
+
 export const stationConfigured = () => Boolean(process.env.STATION_SECRET && process.env.STATION_SECRET.length >= 32)

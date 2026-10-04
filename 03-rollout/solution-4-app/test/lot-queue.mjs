@@ -57,10 +57,14 @@ const item = (code) => items.find((i) => i.code === code)
 const PLATE = "9990018"
 const jobs = []
 
+// הכרטיס נוצר כמאושר. מ-043 אף עובד לא כותב אישור ישירות (רק הלקוח בקישור,
+// או "חתם"), ולכן ההכנה נעשית במפתח השירות, כמו קבלה שהלקוח כבר אישר.
 async function newJob(extra = {}) {
   const res = await call(`/rest/v1/job_cards`, {
     method: "POST",
-    token: manager,
+    token: serviceKey,
+    key: serviceKey,
+    headers: { prefer: "return=representation" },
     body: JSON.stringify({
       plate: PLATE,
       customer_name: "בדיקה אוטומטית",

@@ -91,24 +91,12 @@ export default async function WallPage() {
   const viewer = await requireScreen("wall")
   const supabase = await createClient()
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
-
-  const [{ data: cards }, { data: booked }] = await Promise.all([
-    supabase
-      .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, status, lift, lift_since, status_since, inspected_at, opened_at, parked_at, outside_at, priority_at, work_done_at, work_approved_at")
-      .not("status", "in", "(delivered,cancelled)")
-      .order("status_since", { ascending: true }),
-    supabase
-      .from("bookings")
-      .select("id, plate, service, drop_off_at, vehicle_make, vehicle_model")
-      .gte("drop_off_at", today.toISOString())
-      .lt("drop_off_at", tomorrow.toISOString())
-      .in("status", ["booked", "rescheduled"])
-      .order("drop_off_at", { ascending: true }),
-  ])
+  // 046: המסך מקבל רק את מה שהוא מציג, מפונקציה אחת (בלי שמות, טלפונים ומיילים),
+  // ו"היום" נקבע במסד לפי שעון ישראל.
+  const { data: board } = await supabase.rpc("wall_board")
+  const b = (board ?? {}) as { cards?: Card[]; bookings?: { id: number; plate: string; service: string | null; drop_off_at: string; vehicle_make: string | null; vehicle_model: string | null }[] }
+  const cards = b.cards ?? []
+  const booked = b.bookings ?? []
 
   const all = (cards ?? []) as Card[]
   const arriving = booked ?? []

@@ -284,7 +284,8 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                     />
                   </p>
                   {/* רק אחרי אבחון (30.9: הכפתור הופיע על רכב שעוד לא אובחן). */}
-                  {c.inspected_at && (
+                  {/* 043: "מוכן" רק לדניאל ולאבי. מכונאי לוחץ "סיימתי" בעמדה. */}
+                  {c.inspected_at && isManager && (
                     <div className="chain-do">
                       <form action={setJobStatus}>
                         <input type="hidden" name="job_id" value={c.id} />
@@ -375,13 +376,15 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                   </div>
                   <b>{carName(c)}</b>
                   <span className="staff-meta">{c.customer_name || "ללא שם"} · עבודה קטנה, בלי ליפט</span>
-                  <div className="chain-do">
-                    <form action={setJobStatus}>
-                      <input type="hidden" name="job_id" value={c.id} />
-                      <input type="hidden" name="status" value="ready" />
-                      <button className="btn quiet" type="submit">סיום טיפול</button>
-                    </form>
-                  </div>
+                  {isManager && (
+                    <div className="chain-do">
+                      <form action={setJobStatus}>
+                        <input type="hidden" name="job_id" value={c.id} />
+                        <input type="hidden" name="status" value="ready" />
+                        <button className="btn quiet" type="submit">סיום טיפול</button>
+                      </form>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -428,13 +431,15 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                     <Link className="btn" href={`/staff/job/${c.id}`}>
                       שלח ללקוח
                     </Link>
-                    <form action={setJobStatus}>
-                      <input type="hidden" name="job_id" value={c.id} />
-                      <input type="hidden" name="status" value="in_progress" />
-                      <button className="btn quiet" type="submit">
-                        חזרה לעבודה
-                      </button>
-                    </form>
+                    {isManager && (
+                      <form action={setJobStatus}>
+                        <input type="hidden" name="job_id" value={c.id} />
+                        <input type="hidden" name="status" value="in_progress" />
+                        <button className="btn quiet" type="submit">
+                          חזרה לעבודה
+                        </button>
+                      </form>
+                    )}
                   </div>
                 </li>
               ))}
@@ -537,13 +542,15 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                       className={minutesSince(c.status_since) > TOO_LONG.ready ? "hot" : ""}
                     />
                   </p>
-                  <form action={setJobStatus} className="chain-do">
-                    <input type="hidden" name="job_id" value={c.id} />
-                    <input type="hidden" name="status" value="delivered" />
-                    <button className="btn" type="submit">
-                      נמסר ללקוח
-                    </button>
-                  </form>
+                  {isManager && (
+                    <form action={setJobStatus} className="chain-do">
+                      <input type="hidden" name="job_id" value={c.id} />
+                      <input type="hidden" name="status" value="delivered" />
+                      <button className="btn" type="submit">
+                        נמסר ללקוח
+                      </button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>

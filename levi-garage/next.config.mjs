@@ -17,6 +17,8 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=()" },
+  // HTTPS בלבד, גם בתת-דומיינים (043). Vercel שולח כבר max-age, בלי includeSubDomains.
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
 ]
 
 // מספר הגרסה מ-package.json (4.10, v1.0.0). מוצג בתחתית מסכי הצוות וב-/api/version,

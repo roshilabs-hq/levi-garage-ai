@@ -1,8 +1,11 @@
+import { timingSafeEqual } from "node:crypto"
+
 import { NextResponse } from "next/server"
 
 import { generateJson } from "@/lib/site/gemini"
 import { knowledge } from "@/lib/site/knowledge"
 import { asksForUpdates, REMOVED_REPLY, wantsRemoval } from "@/lib/site/consent"
+import { allowed, ipKey } from "@/lib/site/rate"
 import { customerCars, describeCars, firstName, grantConsent, revokeConsent } from "@/lib/site/customer"
 
 // "תשאלו אותנו": עוזר מידע שעונה רק מתוך בסיס הידע של המוסך.
@@ -52,7 +55,11 @@ function limited(key: string) {
 function fromBot(req: Request) {
   const token = process.env.GARAGE_BOT_TOKEN
   const sent = req.headers.get("x-garage-bot-token")
-  return Boolean(token && sent && sent === token)
+  // השוואה בזמן קבוע (043), כדי שזמן התגובה לא ירמוז כמה תווים נכונים.
+  if (!token || !sent) return false
+  const a = Buffer.from(token)
+  const b = Buffer.from(sent)
+  return a.length === b.length && timingSafeEqual(a, b)
 }
 
 function rateKey(req: Request, client: unknown) {
@@ -102,6 +109,9 @@ export async function POST(req: Request) {
   }
 
   if (limited(rateKey(req, body.client))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  // 047: גם מונה משותף לכל השרתים, במסד. כל פנייה כאן היא קריאה ל-Gemini.
+  const shared = fromBot(req) ? `ask:bot:${typeof body.client === "string" ? body.client.slice(0, 40) : "unknown"}` : ipKey(req, "ask")
+  if (!(await allowed(shared, 600, fromBot(req) ? 40 : 20))) return NextResponse.json({ error: "limit" }, { status: 429 })
 
   const question = typeof body.question === "string" ? body.question.trim().slice(0, 400) : ""
   const lang = body.lang === "ar" || body.lang === "ru" ? body.lang : "he"

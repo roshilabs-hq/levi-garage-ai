@@ -62,7 +62,8 @@ export async function requireScreen(kind: ScreenKind): Promise<StaffMember> {
 /** לפעולות של מנהל עבודה, כמו שליחת מחיר ללקוח. המסד אוכף שוב, זה רק המסך. */
 export async function requireManager(): Promise<StaffMember> {
   const staff = await requireStaff()
-  if (staff.role === "mechanic") redirect("/staff")
+  // רשימה של מי שמותר, לא של מי שאסור (043): תפקיד חדש לא נכנס בטעות.
+  if (staff.role !== "owner" && staff.role !== "manager") redirect("/staff")
   return staff
 }
 

@@ -15,7 +15,8 @@ export const maxDuration = 90
 
 export async function POST(req: Request) {
   const staff = await getStaff()
-  if (!staff) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  // 043: מסך תלוי (display) לא מתמלל.
+  if (!staff || staff.role === "display") return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   const body = await req.json().catch(() => null)
   const mediaId = Number(body?.media_id)

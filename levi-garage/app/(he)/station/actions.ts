@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireManager } from "@/lib/staff/session"
-import { STATION_COOKIE, STATION_REQ_COOKIE, stationConfigured, stationPassword } from "@/lib/staff/station"
+import { STATION_COOKIE, STATION_REQ_COOKIE, stationConfigured, stationPassword, stationRpcKey } from "@/lib/staff/station"
 
 // הכניסה בעמדה קבועה (016). הקוד של המכונאי נבדק במסד (station_login), יחד עם
 // הטוקן של העמדה מהעוגייה. רק אם שניהם תקינים, השרת מתחבר בשמו.
@@ -174,7 +174,7 @@ export async function pollStationRequest(): Promise<StationReqState> {
   if (!secret) return { status: "none" }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc("station_request_status", { p_secret: secret })
+  const { data, error } = await supabase.rpc("station_request_status", { p_secret: secret, p_key: stationRpcKey() })
   if (error) return { status: "retry" }
   const r = data as { status: string; code?: string; token?: string; label?: string } | null
 
@@ -196,7 +196,7 @@ export async function requestStation(): Promise<StationReqState> {
   if (current.status === "pending" || current.status === "approved") return current
 
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc("request_station")
+  const { data, error } = await supabase.rpc("request_station", { p_key: stationRpcKey() })
   const r = data as { ok: boolean; secret?: string; code?: string } | null
   if (error || !r?.ok || !r.secret || !r.code) return { status: "busy" }
 
@@ -237,7 +237,7 @@ export async function stationApprovers(): Promise<{ id: string; full_name: strin
   const secret = (await cookies()).get(STATION_REQ_COOKIE)?.value
   if (!secret) return []
   const supabase = await createClient()
-  const { data } = await supabase.rpc("station_request_approvers", { p_secret: secret })
+  const { data } = await supabase.rpc("station_request_approvers", { p_secret: secret, p_key: stationRpcKey() })
   return (data ?? []) as { id: string; full_name: string }[]
 }
 
@@ -271,6 +271,7 @@ export async function approveHere(_prev: HereResult, formData: FormData): Promis
     p_staff_id: staffId,
     p_pin: pin,
     p_lift: lift,
+    p_key: stationRpcKey(),
   })
   const r = data as { ok: boolean; reason?: string; left?: number } | null
   if (error || !r?.ok) return { ok: false, error: (HERE_ERRORS[r?.reason ?? ""] ?? (() => "האישור נכשל. לנסות שוב."))(r?.left) }

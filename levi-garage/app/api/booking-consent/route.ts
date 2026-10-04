@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 
+import { allowed, ipKey } from "@/lib/site/rate"
+
 // 3.10: דף "התור נקבע" שואל אם הלקוח סימן עדכונים בוואטסאפ, כדי להציע לו את
 // זה שוב אם לא. מקבל את ה-uid ש-Cal.com מסר לדף, ומחזיר רק כן/לא (039,
 // booking_consent). ה-uid ארוך ואקראי, ותור ישן מיומיים לא נענה.
@@ -9,6 +11,8 @@ export async function GET(req: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   if (!url || !key || !/^[A-Za-z0-9]{16,40}$/.test(uid)) return NextResponse.json({ found: false })
+  // 047: הדף שואל עד 9 פעמים לכל תור. מעבר לזה, מישהו מנחש.
+  if (!(await allowed(ipKey(req, "consent"), 600, 60))) return NextResponse.json({ found: false }, { status: 429 })
   try {
     const res = await fetch(`${url}/rest/v1/rpc/booking_consent`, {
       method: "POST",

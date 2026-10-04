@@ -10,7 +10,7 @@
 //
 // כל מה שנוצר כאן נמחק בסוף.
 
-import { createHash } from "node:crypto"
+import { createHash, createHmac } from "node:crypto"
 
 import { passwordFor } from "./_auth.mjs"
 
@@ -37,7 +37,12 @@ const call = (path, { token = anonKey, key = anonKey, ...init } = {}) =>
     headers: { apikey: key, authorization: `Bearer ${token}`, "content-type": "application/json", ...(init.headers || {}) },
   })
 const admin = (path, init = {}) => call(path, { ...init, token: serviceKey, key: serviceKey })
-const rpc = (fn, body, token) => call(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(body), token })
+// 044: ארבע הפונקציות של החיבור ההפוך דורשות מפתח שרק השרת יודע. הבדיקה מוסיפה
+// אותו כמו שהשרת מוסיף (lib/staff/station.ts, stationRpcKey).
+const GATED = new Set(["request_station", "station_request_status", "station_request_approvers", "approve_station_request_with_pin"])
+const STATION_KEY = createHmac("sha256", process.env.STATION_SECRET ?? "").update("station-rpc").digest("hex")
+const rawRpc = (fn, body, token) => call(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(body), token })
+const rpc = (fn, body, token) => rawRpc(fn, GATED.has(fn) ? { ...body, p_key: STATION_KEY } : body, token)
 const rpcJson = async (fn, body, token) => (await rpc(fn, body, token)).json()
 
 async function signIn(email) {
@@ -62,6 +67,9 @@ const manager = await signIn("test1@test.com")
 const mechanic = await signIn("test5@test.com")
 
 try {
+  // 044: בלי המפתח של השרת, אף אחד מבחוץ לא פותח בקשה ולא מנחש קוד.
+  ok("בלי מפתח השרת: אי אפשר לפתוח בקשה", !(await rawRpc("request_station", {})).ok && !(await rawRpc("request_station", { p_key: "x".repeat(64) })).ok)
+  ok("בלי מפתח השרת: אי אפשר לנחש קוד", !(await rawRpc("approve_station_request_with_pin", { p_secret: "x", p_staff_id: "00000000-0000-0000-0000-000000000000", p_pin: "123456", p_lift: 1 })).ok)
   // --- הטאבלט מבקש
   const req = await ask()
   ok("אורח (טאבלט בלי משתמש) מבקש, ומקבל סוד ומספר", req?.ok === true && /^[0-9a-f]{32}$/.test(req?.secret ?? "") && /^\d{4}$/.test(req?.code ?? ""), JSON.stringify(req))

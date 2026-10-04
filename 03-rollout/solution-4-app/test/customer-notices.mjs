@@ -91,8 +91,11 @@ try {
   ok("…והשורה בשליחה", (await noticeOf(a.id))?.status === "pending")
 
   // ---------- פעם אחת בלבד ----------
+  r = await rpc("claim_ready_notice", { p_job_id: a.id }, manager)
+  ok("לחיצה שנייה: לא נשלח שוב", r.status === 200 && r.body === null)
+  // 043: "הרכב מוכן" יוצא רק מדניאל או מאבי, אחרי הבדיקה שלהם.
   r = await rpc("claim_ready_notice", { p_job_id: a.id }, mechanic)
-  ok("לחיצה שנייה, גם של אדם אחר: לא נשלח שוב", r.status === 200 && r.body === null)
+  ok("מכונאי לא שולח 'הרכב מוכן'", r.status !== 200)
 
   r = await rpc("finish_notice", { p_id: (await noticeOf(a.id)).id, p_status: "sent" }, manager)
   let n = await noticeOf(a.id)
@@ -118,9 +121,9 @@ try {
 
   // ---------- כישלון מאפשר ניסיון חוזר ----------
   const d = await job({ status: "ready", whatsapp_consent: true, customer_phone: PHONE })
-  r = await rpc("claim_ready_notice", { p_job_id: d.id }, mechanic)
-  ok("מכונאי יכול לסמן מוכן ולשלוח", r.body?.send === true)
-  await rpc("finish_notice", { p_id: r.body.id, p_status: "failed", p_reason: "unreachable" }, mechanic)
+  r = await rpc("claim_ready_notice", { p_job_id: d.id }, manager)
+  ok("מנהל מסמן מוכן ושולח", r.body?.send === true)
+  await rpc("finish_notice", { p_id: r.body.id, p_status: "failed", p_reason: "unreachable" }, manager)
   ok("כישלון נרשם עם הסיבה", (await noticeOf(d.id))?.reason === "unreachable")
   r = await rpc("claim_ready_notice", { p_job_id: d.id }, manager)
   ok("הודעה שנכשלה נתפסת שוב", r.body?.send === true && (await noticeOf(d.id))?.status === "pending")

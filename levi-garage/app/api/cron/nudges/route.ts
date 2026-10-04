@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto"
+
 import { NextResponse } from "next/server"
 
 import { sendDueNudges } from "@/lib/staff/notify"
@@ -7,7 +9,9 @@ import { sendDueNudges } from "@/lib/staff/notify"
 // יושב במסד. הדלת: אותו טוקן משותף שהמסד והבוט כבר מחזיקים.
 export async function POST(req: Request) {
   const secret = process.env.GARAGE_BOT_TOKEN
-  if (!secret || req.headers.get("x-garage-secret") !== secret) {
+  const sent = req.headers.get("x-garage-secret") ?? ""
+  // השוואה בזמן קבוע (043).
+  if (!secret || sent.length !== secret.length || !timingSafeEqual(Buffer.from(sent), Buffer.from(secret))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
   return NextResponse.json(await sendDueNudges())
