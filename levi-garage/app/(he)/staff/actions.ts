@@ -486,6 +486,10 @@ const LAW_ERRORS: Record<string, string> = {
   "discount-owner": "מעל 10% רק אבי. לבקש ממנו, או להוריד ל-10%.",
   "discount-role": "הנחה נותנים רק מנהל העבודה או הבעלים.",
   "discount-sent": "ההצעה כבר נשלחה ללקוח. אי אפשר לשנות לה את המחיר.",
+  // בקשת הנחה מאבי (042).
+  "discount-request-pct": "בקשה מאבי היא ל-15% עד 30%. עד 10% אפשר לתת לבד.",
+  "discount-no-request": "הבקשה כבר טופלה, או שדניאל ביטל אותה. לרענן.",
+  "discount-pending": "מחכה לאבי על ההנחה. כשהוא יענה, אפשר לשלוח.",
   message: "חסר נוסח ללקוח: מה נמצא, במילים שלו.",
   stale: "אחד הממצאים כבר נשלח או בוטל. לרענן ולנסות שוב.",
   empty: "צריך לסמן לפחות ממצא אחד.",
@@ -539,6 +543,49 @@ export async function saveFinding(formData: FormData): Promise<SendResult> {
   return { ok: true }
 }
 
+/**
+ * 042: הנחה מעל 10%. דניאל מבקש מתוך הממצא, ואבי מאשר או דוחה מהלוח שלו.
+ * הבקשה, הסיבה ומי ביקש נבדקים ונרשמים במסד (request_discount, decide_discount).
+ */
+export async function requestDiscount(formData: FormData): Promise<SendResult> {
+  await requireManager()
+  const findingId = Number(formData.get("finding_id"))
+  const jobId = Number(formData.get("job_id"))
+  if (!findingId) return { ok: false, error: "חסר ממצא." }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("request_discount", {
+    p_finding_id: findingId,
+    p_pct: num(formData.get("pct")),
+    p_reason: txt(formData.get("reason")),
+  })
+  if (error) return { ok: false, error: LAW_ERRORS[error.hint ?? ""] ?? "הבקשה לא נשלחה. לנסות שוב." }
+  revalidatePath("/staff")
+  revalidatePath(`/staff/job/${jobId}`)
+  return { ok: true }
+}
+
+export async function cancelDiscountRequest(formData: FormData): Promise<SendResult> {
+  await requireManager()
+  const findingId = Number(formData.get("finding_id"))
+  const jobId = Number(formData.get("job_id"))
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("cancel_discount_request", { p_finding_id: findingId })
+  if (error) return { ok: false, error: "לא בוטל. לנסות שוב." }
+  revalidatePath("/staff")
+  revalidatePath(`/staff/job/${jobId}`)
+  return { ok: true }
+}
+
+export async function decideDiscount(formData: FormData) {
+  await requireManager()
+  const findingId = Number(formData.get("finding_id"))
+  const jobId = Number(formData.get("job_id"))
+  const supabase = await createClient()
+  await supabase.rpc("decide_discount", { p_finding_id: findingId, p_approve: formData.get("approve") === "1" })
+  revalidatePath("/staff")
+  if (jobId) revalidatePath(`/staff/job/${jobId}`)
+}
+
 export type RequestState = { ok: true; count: number } | { ok: false; error: string } | null
 
 /**
@@ -553,6 +600,9 @@ export async function sendQuoteRequest(_prev: RequestState, formData: FormData):
   if (!jobId || ids.length === 0) return { ok: false, error: LAW_ERRORS.empty }
 
   const supabase = await createClient()
+  // 042: ממצא שמחכה לאבי על הנחה לא יוצא ללקוח, כדי שהלקוח לא יקבל מחיר שעוד ישתנה.
+  const { data: waiting } = await supabase.from("findings").select("title").in("id", ids).not("discount_request_at", "is", null).limit(1)
+  if (waiting?.length) return { ok: false, error: `${waiting[0].title}: ${LAW_ERRORS["discount-pending"]}` }
   const { data: token, error } = await supabase.rpc("send_quote_request", { p_job_id: jobId, p_finding_ids: ids })
   if (error || !token) {
     const which = Number(error?.details)

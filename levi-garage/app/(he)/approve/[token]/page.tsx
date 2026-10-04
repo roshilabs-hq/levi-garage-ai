@@ -65,6 +65,11 @@ type RequestRow = Omit<RequestItem, "photos"> & {
  */
 type AgreedLine = { title: string; price: number | null }
 
+// מה שאושר קודם, ועוד מה שאושר עכשיו בקישור הזה.
+const agreedTotal = (agreed: AgreedLine[], rows: RequestRow[]) =>
+  agreed.reduce((sum, l) => sum + Number(l.price ?? 0), 0) +
+  rows.reduce((sum, r) => sum + (r.decision === "approved" ? Number(r.price_chosen ?? 0) : 0), 0)
+
 function RequestPage({ token, rows, agreed }: { token: string; rows: RequestRow[]; agreed: AgreedLine[] }) {
   const first = rows[0]
   const open = rows.filter((r) => !r.decision)
@@ -94,6 +99,23 @@ function RequestPage({ token, rows, agreed }: { token: string; rows: RequestRow[
                 </li>
               ))}
             </ul>
+            {/* 4.10 (רועי): אחרי האישור, התמונה המלאה. מה אושר קודם (הקבלה וממצאים
+                אחרים), ומה כל זה יחד. אותו סכום כמו בהצעה המעודכנת במייל. */}
+            {agreed.length > 0 && (
+              <div className="req-agreed">
+                <p className="req-agreed-title">ואושר קודם:</p>
+                <ul>
+                  {agreed.map((l, i) => (
+                    <li key={i}>
+                      {l.title} · <span className="num">{shekel(Number(l.price))}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="req-total">
+              סה"כ לתשלום לפי מה שאישרת: <b className="num">{shekel(agreedTotal(agreed, rows))}</b> (כולל מע"מ)
+            </p>
             <p className="approve-stamp">
               נרשם אצלנו בכתב, {fmtStamp(rows.find((r) => r.decided_at)?.decided_at ?? null)}. אם השארת לנו מייל, הצעת המחיר המעודכנת נשלחת אליך לשם.
             </p>

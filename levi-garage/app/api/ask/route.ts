@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 
 import { generateJson } from "@/lib/site/gemini"
 import { knowledge } from "@/lib/site/knowledge"
-import { asksForUpdates } from "@/lib/site/consent"
-import { customerCars, describeCars, firstName, grantConsent } from "@/lib/site/customer"
+import { asksForUpdates, REMOVED_REPLY, wantsRemoval } from "@/lib/site/consent"
+import { customerCars, describeCars, firstName, grantConsent, revokeConsent } from "@/lib/site/customer"
 
 // "תשאלו אותנו": עוזר מידע שעונה רק מתוך בסיס הידע של המוסך.
 // לא שומרים את השאלות. הגבלת קצב פשוטה לפי IP (בזיכרון של השרת; מספיק לדמו, לא לייצור בהיקף).
@@ -113,6 +113,12 @@ export async function POST(req: Request) {
         .slice(-6)
         .map((t) => ({ role: t.role, text: t.text.slice(0, 600) }))
     : []
+
+  // 4.10: "הסר" מהבוט מבטל את ההסכמה לוואטסאפ, ועונים בנוסח קבוע (041).
+  if (fromBot(req) && typeof body.client === "string" && wantsRemoval(question)) {
+    await revokeConsent(body.client)
+    return NextResponse.json({ answer: REMOVED_REPLY[lang], action: "none" })
+  }
 
   try {
     const customer = await customerSection(req, body.client, question)

@@ -8,7 +8,7 @@ import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { StationRequests } from "@/components/staff/station-requests"
 import { Since } from "@/components/staff/since"
-import { markIntakeSigned, markSafetyReported, requeueCar, resendIntakeRequest, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
+import { decideDiscount, markIntakeSigned, markSafetyReported, requeueCar, resendIntakeRequest, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
 import { approvedWaitingForUs, awaitingIntake, placeLabel } from "@/lib/staff/queue"
 import { clockOf, heat } from "@/lib/staff/stages"
 
@@ -214,6 +214,21 @@ export default async function StaffBoard({
     .filter((x) => x.level !== "ok")
     .sort((a, b) => b.minutes / b.clock.limit - a.minutes / a.clock.limit)
 
+  // 042: בקשות הנחה מעל 10% מדניאל. רק אבי רואה אותן, ורק הוא מחליט.
+  const { data: discountAsks } =
+    staff.role === "owner"
+      ? await supabase
+          .from("findings")
+          .select(
+            "id, title, summary, job_card_id, list_price_original, list_price_aftermarket, discount_request_pct, discount_request_reason, discount_request_at, job_cards(plate, vehicle_make, vehicle_model), requester:discount_request_by(full_name)",
+          )
+          .not("discount_request_at", "is", null)
+          .eq("status", "draft")
+          .order("discount_request_at", { ascending: true })
+      : { data: [] }
+  const shekel = (n: number | null) => (n === null ? "" : `${Math.round(Number(n)).toLocaleString("he-IL")} ש"ח`)
+  const off = (n: number | null, pct: number | null) => (n === null ? null : Math.round((Number(n) * (100 - Number(pct ?? 0))) / 100))
+
   return (
     <main className="staff-wrap">
       <TopBar staff={staff} current="board" />
@@ -244,6 +259,53 @@ export default async function StaffBoard({
       )}
 
       {canRemind && <StationRequests />}
+
+      {(discountAsks ?? []).length > 0 && (
+        <section className="board-group hot discounts" id="discounts" aria-labelledby="g-discounts">
+          <h2 id="g-discounts">דניאל מבקש הנחה: לאשר?</h2>
+          <p className="board-why">מעל 10% זו ההחלטה שלך. עד שתענה, הממצא לא נשלח ללקוח. הסיבה נרשמת ונשארת פנימית.</p>
+          <ul className="board-rows">
+            {(discountAsks ?? []).map((f) => {
+              const job = one(f.job_cards)
+              const who = one(f.requester)
+              const pct = Number(f.discount_request_pct)
+              return (
+                <li key={f.id}>
+                  {job && <Plate value={job.plate} />}
+                  <div>
+                    <b>
+                      {f.title || f.summary || "ממצא"} · הנחה {pct}%
+                    </b>
+                    <span className="staff-meta">
+                      מקורי {shekel(f.list_price_original)} ← {shekel(off(f.list_price_original, pct))}
+                      {f.list_price_aftermarket !== null ? ` · חלופי ${shekel(f.list_price_aftermarket)} ← ${shekel(off(f.list_price_aftermarket, pct))}` : ""}
+                    </span>
+                    <span className="staff-meta">
+                      {who?.full_name ?? "דניאל"}: &quot;{f.discount_request_reason}&quot; · לפני{" "}
+                      <Since iso={f.discount_request_at as string} initial={elapsed(f.discount_request_at as string)} />
+                    </span>
+                  </div>
+                  <div className="board-actions">
+                    <form action={decideDiscount}>
+                      <input type="hidden" name="finding_id" value={f.id} />
+                      <input type="hidden" name="job_id" value={f.job_card_id} />
+                      <input type="hidden" name="approve" value="1" />
+                      <button className="btn" type="submit">לאשר {pct}%</button>
+                    </form>
+                    <form action={decideDiscount}>
+                      <input type="hidden" name="finding_id" value={f.id} />
+                      <input type="hidden" name="job_id" value={f.job_card_id} />
+                      <input type="hidden" name="approve" value="0" />
+                      <button className="btn quiet" type="submit">לא</button>
+                    </form>
+                    <Link className="btn quiet" href={`/staff/job/${f.job_card_id}`}>הכרטיס</Link>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       {overdue.length > 0 && (
         <section className="board-group hot late" aria-labelledby="g-late">

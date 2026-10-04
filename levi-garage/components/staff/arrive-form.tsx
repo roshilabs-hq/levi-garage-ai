@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { receiveCar } from "@/app/(he)/staff/actions"
 
@@ -44,6 +44,12 @@ export function ArriveForm({
   const first = items.find((i) => i.code === defaultCode)?.id ?? items[0]?.id
   const [lines, setLines] = useState<Line[]>(() => (first ? [{ id: first, choice: "original" }] : []))
   const [busy, setBusy] = useState(false)
+  // 4.10: כשהלקוח שולח את ההודעה מה-QR, הדף מתרענן לבד (ConsentWatch), והתיבה
+  // מסתמנת בלי לאבד את מה שדניאל כבר מילא בטופס.
+  const [agreed, setAgreed] = useState(consent)
+  useEffect(() => {
+    if (consent) setAgreed(true)
+  }, [consent])
   const byId = (id: number) => items.find((i) => i.id === id)
 
   const picked = lines.map((l) => ({ ...l, item: byId(l.id)! })).filter((l) => l.item)
@@ -139,7 +145,7 @@ export function ArriveForm({
       </label>
 
       <label className="arrive-check">
-        <input type="checkbox" name="consent" defaultChecked={consent} />
+        <input type="checkbox" name="consent" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
         <span>הלקוח מסכים לקבל עדכונים להצעה בוואטסאפ ובמייל (אם יימצא משהו נוסף ברכב)</span>
       </label>
 

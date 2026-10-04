@@ -4,11 +4,12 @@ import { signOut } from "@/app/(he)/staff/actions"
 import { stationSwitch } from "@/app/(he)/station/actions"
 import { roleLabel, type StaffMember } from "@/lib/staff/session"
 import { ThemeToggle } from "@/components/site/theme-toggle"
+import { createClient } from "@/lib/supabase/server"
 
 // פס עליון אחד לכל מסכי הצוות, כדי שתמיד יהיה ברור מי מחובר ואיך חוזרים.
 // המכונאי לא צריך ציים ומדדים, ולכן הוא לא רואה אותם.
 
-export function TopBar({
+export async function TopBar({
   staff,
   current,
 }: {
@@ -30,6 +31,18 @@ export function TopBar({
     // ומשאירים, ולשם כך יש את דף המסכים. פס ניווט בטלפון צריך להישאר קצר.
   ]
 
+  // 042: לאבי, בכל מסך: כמה בקשות הנחה מדניאל מחכות לו. ההתראה רק אצל הבעלים.
+  let asks = 0
+  if (staff.role === "owner") {
+    const supabase = await createClient()
+    const { count } = await supabase
+      .from("findings")
+      .select("id", { count: "exact", head: true })
+      .not("discount_request_at", "is", null)
+      .eq("status", "draft")
+    asks = count ?? 0
+  }
+
   return (
     <div className="topbar">
       <nav className="topbar-links" aria-label="ניווט אזור הצוות">
@@ -39,6 +52,12 @@ export function TopBar({
           </Link>
         ))}
       </nav>
+
+      {asks > 0 && (
+        <Link className="topbar-ask" href="/staff#discounts">
+          הנחה לאישור <b className="num">{asks}</b>
+        </Link>
+      )}
 
       <div className="topbar-me">
         <span>

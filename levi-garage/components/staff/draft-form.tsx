@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { saveFinding } from "@/app/(he)/staff/actions"
+import { DiscountAsk } from "@/components/staff/discount-ask"
 import type { PriceItem } from "@/components/staff/arrive-form"
 
 // ממצא אחד במסך התמחור של דניאל (027). זה הרגע היחיד שבו אדם עומד בין המודל לבין הלקוח.
@@ -24,6 +25,10 @@ export type Draft = {
   list_price_aftermarket: number | null
   discount_pct: number | null
   discount_reason: string | null
+  /** 042: בקשה פתוחה לאבי, אם יש. */
+  discount_request_pct?: number | null
+  discount_request_reason?: string | null
+  discount_request_at?: string | null
   labor_hours: number | null
   warranty_original: string | null
   warranty_aftermarket: string | null
@@ -145,6 +150,18 @@ export function DraftForm({
   const [open, setOpen] = useState(false)
   const autoSaved = useRef(false)
 
+  // 042: כשאבי מאשר הנחה, היא נכתבת במסד והדף מתרענן. ההנחה החדשה נכנסת לטופס
+  // ולמצב השמור, כדי ששמירה הבאה של דניאל לא תחזיר את האחוז הישן.
+  useEffect(() => {
+    const pct = str(draft.discount_pct ?? 0)
+    const reason = draft.discount_reason ?? ""
+    setF((p) => (p.discount_pct === pct && p.discount_reason === reason ? p : { ...p, discount_pct: pct, discount_reason: reason }))
+    setSaved((prev) => {
+      const o = JSON.parse(prev) as Fields
+      return o.discount_pct === pct && o.discount_reason === reason ? prev : JSON.stringify({ ...o, discount_pct: pct, discount_reason: reason })
+    })
+  }, [draft.discount_pct, draft.discount_reason])
+
   const dirty = JSON.stringify(f) !== saved
   const missing = missingOf(f)
   const ready = missing.length === 0 && !dirty
@@ -215,7 +232,16 @@ export function DraftForm({
   const after = (v: string) =>
     v.trim() === "" ? "" : money(String(Math.round((Number(v) * qty * (100 - pct)) / 100)))
   const times = qty > 1 ? `${qty} × · ` : ""
-  const steps = [0, 5, 10, 15, 20, 25, 30].filter((n) => n <= maxDiscount)
+  // 4.10 (רועי: "המחירים לא מתעדכנים"): השדות שומרים את מחיר המחירון, וההנחה
+  // מחושבת ממנו במסד (020). כשיש הנחה, השם של השדה אומר את זה, ומתחתיו המחיר
+  // שהלקוח יראה, ליחידה.
+  const listNote = pct > 0 ? " (מחירון, לפני הנחה)" : ""
+  const unitAfter = (v: string) =>
+    pct > 0 && v.trim() !== "" ? (
+      <small className="draft-after" aria-live="polite">אחרי הנחה {pct}%: {money(String(Math.round((Number(v) * (100 - pct)) / 100)))}</small>
+    ) : null
+  // ההנחה הנוכחית תמיד ברשימה, גם כשאבי אישר יותר ממה שדניאל יכול לתת לבד.
+  const steps = [0, 5, 10, 15, 20, 25, 30].filter((n) => n <= maxDiscount || n === pct)
 
   return (
     <div className="draft">
@@ -267,16 +293,18 @@ export function DraftForm({
             <input value={f.labor_hours} onChange={set("labor_hours")} inputMode="decimal" dir="ltr" />
           </label>
           <label>
-            <span>{two ? "חלק מקורי, כולל מע\"מ" : "מחיר, כולל מע\"מ"}{qty > 1 ? ", ליחידה" : ""}</span>
+            <span>{two ? "חלק מקורי, כולל מע\"מ" : "מחיר, כולל מע\"מ"}{qty > 1 ? ", ליחידה" : ""}{listNote}</span>
             <input value={f.price_original} onChange={set("price_original")} inputMode="decimal" dir="ltr" />
+            {unitAfter(f.price_original)}
           </label>
           <label>
             <span>אחריות{two ? " (מקורי)" : ""}</span>
             <input value={f.warranty_original} onChange={set("warranty_original")} />
           </label>
           <label>
-            <span>חלק חלופי, כולל מע"מ{qty > 1 ? ", ליחידה" : ""}</span>
+            <span>חלק חלופי, כולל מע"מ{qty > 1 ? ", ליחידה" : ""}{listNote}</span>
             <input value={f.price_aftermarket} onChange={set("price_aftermarket")} inputMode="decimal" dir="ltr" placeholder="ריק = אין חלופה" />
+            {unitAfter(f.price_aftermarket)}
           </label>
           <label>
             <span>אחריות (חלופי)</span>
@@ -311,7 +339,13 @@ export function DraftForm({
             </label>
           )}
         </div>
-        {maxDiscount <= 10 && <p className="staff-meta">הנחה מעל 10%: רק אבי.</p>}
+        {maxDiscount <= 10 && (
+          <DiscountAsk
+            jobId={jobId}
+            findingId={draft.id}
+            pending={draft.discount_request_at ? { pct: Number(draft.discount_request_pct), reason: draft.discount_request_reason ?? null } : null}
+          />
+        )}
       </details>
 
       <div className="draft-foot">

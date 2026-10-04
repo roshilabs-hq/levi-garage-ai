@@ -913,7 +913,7 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .quote-actions .btn { min-height: 44px; }
 
 /* ---------- לוח היום: קריאות ותור ---------- */
-.board-actions { display: flex; gap: 8px; }
+.board-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .board-rows li.urgency-red { box-shadow: inset 4px 0 0 #b3261e; padding-inline-start: 10px; }
 
 /* ---------- דף הלקוח ---------- */
@@ -1278,6 +1278,8 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .req-agreed-title { margin: 0 0 6px; font-weight: 700; }
 .req-agreed ul { margin: 0; padding-inline-start: 18px; }
 .req-agreed li { line-height: 1.6; }
+/* הסכום הכולל אחרי שהלקוח ענה (4.10). */
+.req-total { margin: 14px 0 0; font-size: 16px; }
 
 /* כמות בממצא (030). */
 .draft-qty { display: inline-flex; align-items: center; gap: 6px; }
@@ -1355,5 +1357,21 @@ button.gem-link { font: inherit; text-align: inherit; cursor: pointer; width: 10
 .counter-qr h2 { margin: 0 0 6px; font-size: 18px; }
 @media (max-width: 560px) { .counter-qr { grid-template-columns: 1fr; } .counter-qr-code { max-width: 200px; } }
 
-/* מספר הגרסה בתחתית מסכי הצוות (4.10). שקט: רק מי שמחפש אותו רואה. */
-.staff-version { margin: 32px auto 16px; text-align: center; color: var(--muted); font-size: 12.5px; direction: ltr; unicode-bidi: plaintext; }
+/* מספר הגרסה ודיווח על תקלה, בתחתית מסכי הצוות (4.10). שקט: רק מי שמחפש אותו רואה. */
+.staff-version { margin: 32px auto 16px; padding: 0 16px; text-align: center; color: var(--muted); font-size: 12.5px; }
+.staff-version a { color: inherit; text-decoration: underline; }
+
+/* המחיר אחרי ההנחה, מתחת לשדה של מחיר המחירון (4.10). */
+.draft-after { display: block; margin-top: 4px; color: var(--ink); font-weight: 700; font-size: 14px; }
+
+/* בקשת הנחה מעל 10%, מדניאל לאבי (042). */
+.discount-ask { margin-top: 12px; padding: 4px 12px; border-radius: var(--radius); background: var(--sunk); }
+.discount-ask summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+.discount-ask-row { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: end; padding-bottom: 8px; }
+.discount-ask-row label { display: grid; gap: 4px; }
+.discount-ask.waiting { padding: 10px 12px; border-inline-start: 4px solid var(--amber); }
+.discount-ask.waiting p { margin: 0 0 8px; }
+@media (max-width: 560px) { .discount-ask-row { grid-template-columns: 1fr; } }
+/* תג בסרגל העליון של אבי: בקשות הנחה שמחכות לו (042). */
+.topbar-ask { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--amber) 24%, var(--surface)); color: var(--ink); font-weight: 700; text-decoration: none; }
+.topbar-ask b { background: var(--amber); color: #1b2620; border-radius: 999px; padding: 0 8px; }

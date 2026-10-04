@@ -3,6 +3,7 @@ import QRCode from "qrcode"
 
 import { whatsappLink } from "@/lib/site/dict"
 import { COUNTER_MESSAGE } from "@/lib/site/consent"
+import { ConsentWatch } from "@/components/staff/consent-watch"
 
 // 3.10: לקוח בלי הסכמה לוואטסאפ (הגיע בלי תור, או לא סימן בטופס). הוא סורק את
 // ה-QR מהטלפון של דניאל או מהמדבקה בדלפק, ושולח הודעה שכבר כתובה. ההודעה היא
@@ -15,6 +16,7 @@ export async function CounterQr({ bookingId, walkin }: { bookingId: number; walk
   const svg = await QRCode.toString(link, { type: "svg", margin: 1, errorCorrectionLevel: "M" })
   return (
     <section className="counter-qr" aria-labelledby="counter-qr-h">
+      <ConsentWatch bookingId={bookingId} />
       <div className="counter-qr-code" dangerouslySetInnerHTML={{ __html: svg }} aria-hidden />
       <div>
         <h2 id="counter-qr-h">{walkin ? "קודם: שהלקוח יסרוק וישלח הודעה" : "הלקוח לא סימן עדכונים בוואטסאפ"}</h2>
@@ -23,8 +25,8 @@ export async function CounterQr({ bookingId, walkin }: { bookingId: number; walk
           הרכב&quot;. <b>ההודעה ששלח היא ההסכמה שלו</b>, ואז הקישור לאישור ההצעה יגיע אליו לטלפון.
         </p>
         <p className="staff-meta">
-          אחרי שהבוט ענה לו: <Link href={`/staff/arrive/${bookingId}`}>לרענן</Link>, וכאן יופיע שהלקוח הסכים. בלי סמארטפון: לסמן למטה שיחתום על
-          עותק מודפס.
+          כשההודעה שלו מגיעה, הקוד נעלם לבד, והתיבה &quot;הלקוח מסכים&quot; למטה מסתמנת. לא נעלם? <Link href={`/staff/arrive/${bookingId}`}>לרענן</Link>. בלי
+          סמארטפון: לסמן למטה שיחתום על עותק מודפס.
         </p>
       </div>
     </section>

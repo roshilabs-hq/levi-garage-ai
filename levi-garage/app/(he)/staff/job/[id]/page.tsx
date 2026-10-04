@@ -8,6 +8,7 @@ import { markIntakeSigned, reissueQuote, resendIntakeRequest, resendReadyNotice,
 import { noticeLabel } from "@/lib/staff/notify"
 import { QuoteBuilder, type BuilderDraft } from "@/components/staff/quote-builder"
 import { AddPhoto } from "@/components/staff/add-photo"
+import { PricePick, type PickItem } from "@/components/staff/price-pick"
 import type { PriceItem } from "@/components/staff/arrive-form"
 import { INSPECTION_ITEMS, type InspectionState } from "@/lib/staff/inspection"
 import { choiceAndPrice } from "@/lib/staff/quote"
@@ -30,6 +31,9 @@ const INTAKE_NOTE: Record<string, string> = {
   consent: "הלקוח לא הסכים לעדכונים בוואטסאפ ובמייל: להדפיס את ההצעה ולהחתים אותו.",
   failed: "השליחה נכשלה. לנסות שוב, או להדפיס ולהחתים.",
 }
+
+// באילו מצבים אפשר להוסיף ממצא: כמו ב-add_price_list_finding במסד.
+const ADDABLE = ["open", "in_progress", "waiting_quote", "waiting_approval"]
 
 const QUOTE_NOTE: Record<string, string> = {
   sent: "הצעת המחיר נשלחה ללקוח במייל.",
@@ -278,6 +282,14 @@ export default async function JobCardPage({
         </p>
       )}
 
+      {/* 4.10: דניאל ואבי מוסיפים ממצא בעצמם (הלקוח נזכר בדלפק, מכונאי אמר בעל פה).
+          נכנס ל"לשלוח ללקוח" שכאן למטה, ונשלח יחד עם השאר. */}
+      {canSend && ADDABLE.includes(job.status as string) && (
+        <section className="staff-section job-add-finding">
+          <PricePick jobId={job.id} items={(priceItems ?? []) as PickItem[]} who="office" />
+        </section>
+      )}
+
       {drafts.length > 0 && (
         <section className="staff-section" aria-labelledby="send-title">
           <h2 id="send-title">
@@ -302,6 +314,9 @@ export default async function JobCardPage({
                     list_price_aftermarket: f.list_price_aftermarket,
                     discount_pct: f.discount_pct,
                     discount_reason: f.discount_reason,
+                    discount_request_pct: f.discount_request_pct,
+                    discount_request_reason: f.discount_request_reason,
+                    discount_request_at: f.discount_request_at,
                     labor_hours: f.labor_hours,
                     warranty_original: f.warranty_original,
                     warranty_aftermarket: f.warranty_aftermarket,

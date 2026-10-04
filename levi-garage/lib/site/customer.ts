@@ -42,16 +42,17 @@ export async function customerCars(client: string): Promise<CustomerCar[]> {
 }
 
 /**
- * 3.10: הלקוח כתב "אשמח לקבל עדכונים" (lib/site/consent.ts). מסמן הסכמה בתור
- * ובכרטיס שלו. מחזיר כמה שורות השתנו; לעולם לא זורק.
+ * 3.10: הלקוח כתב "אשמח לקבל עדכונים" (lib/site/consent.ts), ומסמנים הסכמה
+ * בתור ובכרטיס שלו. 4.10: או כתב "הסר", ומבטלים אותה. מחזיר כמה שורות
+ * השתנו; לעולם לא זורק.
  */
-export async function grantConsent(client: string): Promise<number> {
+async function consentRpc(rpc: "grant_whatsapp_consent" | "revoke_whatsapp_consent", client: string): Promise<number> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   const token = process.env.GARAGE_BOT_TOKEN
   if (!url || !key || !token || !/^wa-[0-9a-f]{16}$/.test(client)) return 0
   try {
-    const res = await fetch(`${url}/rest/v1/rpc/grant_whatsapp_consent`, {
+    const res = await fetch(`${url}/rest/v1/rpc/${rpc}`, {
       method: "POST",
       headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
       body: JSON.stringify({ p_secret: token, p_client: client }),
@@ -65,6 +66,10 @@ export async function grantConsent(client: string): Promise<number> {
     return 0
   }
 }
+
+export const grantConsent = (client: string) => consentRpc("grant_whatsapp_consent", client)
+// 4.10: "הסר" (041). מחזיר כמה תורים וכרטיסים בוטלו.
+export const revokeConsent = (client: string) => consentRpc("revoke_whatsapp_consent", client)
 
 const when = new Intl.DateTimeFormat("he-IL", {
   timeZone: "Asia/Jerusalem",
