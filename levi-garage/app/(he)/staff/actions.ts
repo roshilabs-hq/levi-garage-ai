@@ -155,7 +155,9 @@ export async function receiveCar(formData: FormData) {
   revalidatePath("/staff/floor")
   revalidatePath("/staff/lift")
   // בלי מייל, חתימה על נייר, או כשהלקוח רוצה גם דף ביד: דף ההדפסה, ומשם חזרה ללוח.
-  if (outcome === "print" || printCopy || onPaper) redirect(`/staff/job/${job.id}/quote?print=1&then=board`)
+  // 1.2.0: הלוח צריך לדעת אם יצא קישור או שהלקוח חותם על נייר, גם אחרי ההדפסה.
+  const intakeWay = onPaper ? "paper" : approveToken ? "link" : "failed"
+  if (outcome === "print" || printCopy || onPaper) redirect(`/staff/job/${job.id}/quote?print=1&then=board&intake=${intakeWay}`)
   // דניאל בדלפק ממשיך ללקוח הבא (רועי, 30.9), ולא נשאר בכרטיס.
   redirect(`/staff?received=${encodeURIComponent(booking.plate)}&quote=${outcome}&intake=${approveToken ? "link" : "failed"}`)
 }
@@ -212,10 +214,13 @@ export async function resendIntakeRequest(formData: FormData) {
   await requireManager()
   const jobId = Number(formData.get("job_id"))
   if (!jobId) return
+  // 1.2.0: מהלוח חוזרים ללוח (דניאל בדלפק ממשיך), מהכרטיס חוזרים לכרטיס.
+  const back = (result: string) =>
+    formData.get("from") === "board" ? `/staff?intake_resent=${result}` : `/staff/job/${jobId}?intake=${result}`
   const supabase = await createClient()
   const { data: token, error } = await supabase.rpc("send_intake_request", { p_job_id: jobId })
   if (error || !token) {
-    redirect(`/staff/job/${jobId}?intake=${error?.hint === "law-132b" ? "consent" : "failed"}`)
+    redirect(back(error?.hint === "law-132b" ? "consent" : "failed"))
   }
   const { data: rid } = await supabase.rpc("request_id_by_token", { p_token: String(token) })
   const req = rid ? { id: Number(rid) } : null
@@ -224,7 +229,7 @@ export async function resendIntakeRequest(formData: FormData) {
   if (req) await notifyRequest(supabase, req.id, "intake")
   revalidatePath("/staff")
   revalidatePath(`/staff/job/${jobId}`)
-  redirect(`/staff/job/${jobId}?intake=sent`)
+  redirect(back("sent"))
 }
 
 /** שולח שוב את ההצעה במייל (גרסה חדשה), או רושם גרסה מודפסת. */

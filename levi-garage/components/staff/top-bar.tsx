@@ -5,6 +5,7 @@ import { stationSwitch } from "@/app/(he)/station/actions"
 import { roleLabel, type StaffMember } from "@/lib/staff/session"
 import { ThemeToggle } from "@/components/site/theme-toggle"
 import { createClient } from "@/lib/supabase/server"
+import { StationIdle } from "@/components/staff/station-idle"
 
 // פס עליון אחד לכל מסכי הצוות, כדי שתמיד יהיה ברור מי מחובר ואיך חוזרים.
 // המכונאי לא צריך ציים ומדדים, ולכן הוא לא רואה אותם.
@@ -45,6 +46,8 @@ export async function TopBar({
 
   return (
     <div className="topbar">
+      {/* 1.2.0: אחרי 15 דקות בלי מגע, עמדה חוזרת לרשימת השמות, בכל מסך ולא רק בליפט ובאבחון. */}
+      {staff.role === "mechanic" && <StationIdle />}
       <nav className="topbar-links" aria-label="ניווט אזור הצוות">
         {links.map((l) => (
           <Link key={l.key} href={l.href} aria-current={current === l.key ? "page" : undefined}>

@@ -43,6 +43,13 @@ function reminderRunNote(raw: string | undefined) {
   return `תזכורות למחר: ${parts.join(" · ")}.`
 }
 
+// "לשלוח שוב" מקבוצת "מחכים לאישור הלקוח" (1.2.0): נשארים בלוח, והתוצאה כאן.
+const INTAKE_RESENT: Record<string, string> = {
+  sent: "הקישור לאישור ההצעה נשלח שוב ללקוח: במייל אם יש, ובוואטסאפ (אם עברו 10 דקות מהשליחה הקודמת).",
+  consent: "הלקוח לא הסכים לעדכונים בוואטסאפ ובמייל: להדפיס את ההצעה ולהחתים אותו.",
+  failed: "השליחה נכשלה. לנסות שוב, או להדפיס ולהחתים.",
+}
+
 const QUOTE_OUTCOME: Record<string, string> = {
   sent: "הצעת המחיר נשלחה ללקוח במייל",
   noemail: "המייל עוד לא מחובר: להדפיס את ההצעה",
@@ -53,11 +60,11 @@ const QUOTE_OUTCOME: Record<string, string> = {
 export default async function StaffBoard({
   searchParams,
 }: {
-  searchParams: Promise<{ reminders?: string; received?: string; quote?: string; intake?: string }>
+  searchParams: Promise<{ reminders?: string; received?: string; quote?: string; intake?: string; intake_resent?: string }>
 }) {
   const staff = await requireStaff()
   const supabase = await createClient()
-  const { reminders, received, quote, intake: intakeSent } = await searchParams
+  const { reminders, received, quote, intake: intakeSent, intake_resent: intakeResent } = await searchParams
   const runNote = reminderRunNote(reminders)
 
   const today = new Date()
@@ -205,7 +212,7 @@ export default async function StaffBoard({
   // חריגות (רועי, 30.9: רכב חיכה 7 שעות לליפט, ובלוח לא הופיע כלום). אותם ספים כמו
   // בצבעים של מסך הסדנה. רכב שמחכה ללקוח כבר מופיע ב"להתקשר", ומחכה לדניאל ב"ממצאים".
   const overdue = all
-    .filter((c) => c.status !== "waiting_approval" && c.status !== "waiting_quote" && !c.parked_at)
+    .filter((c) => c.status !== "waiting_approval" && c.status !== "waiting_quote" && !c.parked_at && !awaitingIntake(c))
     .map((c) => {
       const clock = clockOf(c)
       const minutes = minutesSince(clock.iso)
@@ -253,8 +260,15 @@ export default async function StaffBoard({
             ? "הקישור לאישור ההצעה נשלח ללקוח. הרכב מחכה בחניה, ונכנס לתור כשהלקוח מאשר."
             : intakeSent === "failed"
               ? "הקישור לאישור לא נשלח: לשלוח שוב מהקבוצה \"מחכים לאישור הלקוח\"."
-              : "נכנס לתור לליפט."}
+              : // 1.2.0: מאז 036 כל רכב מחכה לאישור הקבלה. בלי קישור, הלקוח חותם על העותק המודפס.
+                "הרכב מחכה בחניה עד שהלקוח חותם על העותק המודפס. אחרי החתימה: \"חתם על העותק המודפס\" בקבוצה \"מחכים לאישור הלקוח\"."}
           {quote && QUOTE_OUTCOME[quote] ? ` ${QUOTE_OUTCOME[quote]}.` : ""}
+        </p>
+      )}
+
+      {intakeResent && INTAKE_RESENT[intakeResent] && (
+        <p className={`staff-note ${intakeResent === "sent" ? "notice-sent" : "notice-failed"}`} role="status">
+          {INTAKE_RESENT[intakeResent]}
         </p>
       )}
 
@@ -569,6 +583,7 @@ export default async function StaffBoard({
                   {canRemind && !declined && (
                     <form action={resendIntakeRequest}>
                       <input type="hidden" name="job_id" value={c.id} />
+                      <input type="hidden" name="from" value="board" />
                       <button className="btn quiet" type="submit">{r ? "לשלוח שוב" : "לשלוח קישור"}</button>
                     </form>
                   )}
@@ -583,7 +598,7 @@ export default async function StaffBoard({
       {waiting.length > 0 && (
         <section className="board-group hot" aria-labelledby="g-waiting">
           <h2 id="g-waiting">מחכים לתשובת הלקוח</h2>
-          <p className="board-why">הרכב בחניה, והליפט פנוי. אם עבר זמן, זה המקום להרים טלפון.</p>
+          <p className="board-why">הקישור אצל הלקוח, וממתינים לתשובה שלו. אם עבר זמן, זה המקום להרים טלפון.</p>
           <ul className="board-rows">
             {waiting.map((c) => (
               <li key={c.id}>

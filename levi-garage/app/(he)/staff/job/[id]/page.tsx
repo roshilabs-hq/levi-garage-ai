@@ -89,7 +89,7 @@ export default async function JobCardPage({
   ] = await Promise.all([
     supabase
       .from("findings")
-      .select("*, reporter:safety_reported_by(full_name), approvals(request_id, decision, decided_at, part_choice, price_chosen, message_text, sent_at)")
+      .select("*, reporter:safety_reported_by(full_name), creator:created_by(role), approvals(request_id, decision, decided_at, part_choice, price_chosen, message_text, sent_at)")
       .eq("job_card_id", jobId)
       .order("created_at", { ascending: true }),
     supabase.from("quote_items").select("title, part_choice, price_original, price_aftermarket, labor_hours").eq("job_card_id", jobId),
@@ -191,6 +191,9 @@ export default async function JobCardPage({
             {job.lift ? ` · ליפט ${job.lift}` : ""}
             {job.engine_code ? ` · מנוע ${job.engine_code}` : ""}
             {job.whatsapp_consent ? " · אישר קבלת וואטסאפ" : " · בלי אישור וואטסאפ"}
+            {" · "}
+            {/* 1.2.0: כל הביקורים של הרכב הזה. עד היום אף מסך לא קישר לשם. */}
+            <Link href={`/staff/vehicle/${encodeURIComponent(job.plate)}`}>היסטוריית הרכב</Link>
           </p>
         </div>
         {canSend && (
@@ -346,7 +349,8 @@ export default async function JobCardPage({
                     transcript: f.transcript,
                     summary: f.summary,
                     created_at: f.created_at,
-                    stamp: `${fmtStamp(f.created_at)}${f.source === "pricelist" ? " · מהמחירון, מהעמדה" : ""}`,
+                    // 1.2.0: ממצא שדניאל או אבי הוסיפו בכרטיס לא מגיע "מהעמדה".
+                    stamp: `${fmtStamp(f.created_at)}${f.source === "pricelist" ? ((Array.isArray(f.creator) ? f.creator[0] : f.creator)?.role === "mechanic" ? " · מהמחירון, מהעמדה" : " · מהמחירון, נוסף בכרטיס") : ""}`,
                   }),
                 )}
                 items={(priceItems ?? []) as PriceItem[]}

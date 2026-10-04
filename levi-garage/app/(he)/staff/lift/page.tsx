@@ -11,7 +11,6 @@ import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { elapsed } from "@/lib/staff/format"
 import { ACTIVE, queueOf } from "@/lib/staff/queue"
-import { StationIdle } from "@/components/staff/station-idle"
 import { AnswerCall } from "@/components/staff/answer-call"
 import { Mentor } from "@/components/staff/mentor"
 
@@ -267,7 +266,6 @@ export default async function LiftPage({ searchParams }: { searchParams: Promise
 
   return (
     <main className="staff-wrap lift-page">
-      {staff.role === "mechanic" && <StationIdle />}
       <TopBar staff={staff} current="lift" />
       <AutoRefresh seconds={30} live />
 

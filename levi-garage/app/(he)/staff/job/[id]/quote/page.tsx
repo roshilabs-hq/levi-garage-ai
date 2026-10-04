@@ -58,11 +58,11 @@ export default async function QuotePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ print?: string; first?: string; then?: string }>
+  searchParams: Promise<{ print?: string; first?: string; then?: string; intake?: string }>
 }) {
   const staff = await requireStaff()
   const { id } = await params
-  const { print, first, then } = await searchParams
+  const { print, first, then, intake } = await searchParams
   const jobId = Number(id)
   if (!Number.isFinite(jobId)) notFound()
 
@@ -80,7 +80,7 @@ export default async function QuotePage({
       <div className="pq-tools no-print">
         {/* מהקבלה: אחרי ההדפסה דניאל חוזר ללוח, ללקוח הבא (30.9). */}
         {then === "board" ? (
-          <Link className="btn" href={`/staff?received=${encodeURIComponent(s.job.plate)}&quote=print`}>סיימתי להדפיס · חזרה ללוח</Link>
+          <Link className="btn" href={`/staff?received=${encodeURIComponent(s.job.plate)}&quote=print&intake=${["link", "paper", "failed"].includes(intake ?? "") ? intake : "paper"}`}>סיימתי להדפיס · חזרה ללוח</Link>
         ) : (
           <Link className="staff-back" href={`/staff/job/${jobId}`}>חזרה לכרטיס</Link>
         )}

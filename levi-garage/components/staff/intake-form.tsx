@@ -50,8 +50,9 @@ export function IntakeForm({ token, needsTerms = false }: { token: string; needs
       <button className="btn big" type="button" disabled={busy !== null || !terms} onClick={() => decide("approved")}>
         {busy === "approved" ? "שומרים…" : "אישור ההצעה, אפשר להתחיל"}
       </button>
+      {/* 1.2.0: לסרב אפשר גם בלי לאשר את התקנון. התקנון נדרש רק כדי להתחיל לעבוד. */}
       {!sure ? (
-        <button className="btn quiet" type="button" disabled={busy !== null || !terms} onClick={() => setSure(true)}>
+        <button className="btn quiet" type="button" disabled={busy !== null} onClick={() => setSure(true)}>
           לא לאשר
         </button>
       ) : (

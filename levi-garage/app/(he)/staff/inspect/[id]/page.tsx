@@ -10,7 +10,6 @@ import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { CaptureButton } from "@/components/staff/capture-button"
 import { AddPhoto } from "@/components/staff/add-photo"
 import { Mentor } from "@/components/staff/mentor"
-import { StationIdle } from "@/components/staff/station-idle"
 import { completeInspection, setInspectionItem } from "../../actions"
 
 export const metadata: Metadata = { title: "אבחון | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -56,7 +55,6 @@ export default async function InspectPage({
 
   return (
     <main className="staff-wrap inspect-page">
-      {staff.role === "mechanic" && <StationIdle />}
       <TopBar staff={staff} current="lift" />
       <AutoRefresh seconds={30} live />
 

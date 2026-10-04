@@ -31,6 +31,9 @@ export type ClockCard = {
   lift: number | null
   lift_since: string | null
   status_since: string
+  /** 1.2.0: כשהמסך שולף אותם, השעון יודע על "מחכה לאישור הקבלה" ועל "גמור, מחכה לבדיקה". */
+  work_approved_at?: string | null
+  work_done_at?: string | null
 }
 
 /**
@@ -50,6 +53,15 @@ export function clockOf(c: ClockCard): { iso: string; label: string; limit: numb
   }
   if (c.lift !== null) {
     return { iso: c.lift_since ?? c.status_since, label: "בעבודה", limit: TOO_LONG.lift, stage: "working" }
+  }
+  // 1.2.0 (מיפוי המסכים, 4.10): רכב שמחכה שהלקוח יאשר את הצעת הקבלה הוא "אצל הלקוח",
+  // לא "ממתין לליפט". עד היום הוא נצבע כתום אחרי 30 דקות, כאילו הוא בתור.
+  if (c.work_approved_at === null && (c.status === "open" || c.status === "in_progress")) {
+    return { iso: c.status_since, label: "מחכה לאישור הלקוח", limit: TOO_LONG.customer, stage: "waiting" }
+  }
+  // "סיימתי" של המכונאי: גמור, מחכה לבדיקה של דניאל.
+  if (c.work_done_at && (c.status === "open" || c.status === "in_progress")) {
+    return { iso: c.work_done_at, label: "גמור, מחכה לבדיקה", limit: TOO_LONG.quote, stage: "done" }
   }
   return { iso: c.status_since, label: "ממתין לליפט", limit: TOO_LONG.noLift, stage: "working" }
 }
