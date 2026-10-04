@@ -38,12 +38,12 @@ const nowIso = now.toISOString()
 const cutoffIso = cutoff.toISOString()
 
 // ---------------------------------------------------------------- 1. תמונות של קישורים שפגו
-const expired = (await rest(`approvals?expires_at=lt.${nowIso}&photo_paths=not.is.null&select=id,photo_paths`)) ?? []
+const expired = (await rest(`approvals?expires_at=lt.${nowIso}&photo_paths=neq.{}&select=id,photo_paths`)) ?? []
 const expiredPhotos = expired.flatMap((a) => a.photo_paths ?? [])
 console.log(`תמונות של קישורים שפגו: ${expiredPhotos.length} (ב-${expired.length} אישורים)`)
 if (apply && expiredPhotos.length) {
   await removeFiles("shared-quotes", expiredPhotos)
-  await rest(`approvals?id=${inList(expired.map((a) => a.id))}`, { method: "PATCH", body: JSON.stringify({ photo_paths: null }) })
+  await rest(`approvals?id=${inList(expired.map((a) => a.id))}`, { method: "PATCH", body: JSON.stringify({ photo_paths: [] }) })
 }
 
 // ---------------------------------------------------------------- 2. ביקורים בני יותר מ-3 שנים
