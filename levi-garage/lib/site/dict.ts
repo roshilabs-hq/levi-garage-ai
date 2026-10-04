@@ -560,7 +560,7 @@ export const siteConfig = {
   bookingUrl: "https://cal.com/levi-garage/drop-off",
   // Cal.com: שדות הטופס ממולאים מה-URL. ערכי service הם התוויות בטופס (אומת בבדיקת ה-webhook).
   serviceValues: { periodic: "טיפול תקופתי", test: "הכנה וליווי לטסט" },
-  // מספר בדוי, מסומן בפוטר ובהצהרה. לא לשים כאן מספר אמיתי של אדם.
+  // הקו העסקי של מי שבנה את המערכת (Green API), ככה כתוב במדיניות ובהצהרת הנגישות. לא לשים כאן מספר פרטי של אדם.
   phone: "055-3048489",
   // מוצג רק אחרי שהניתוב בעוזר האישי יתוקן (ראו design/brief.md). ריק = הכפתור מפנה ל"תשאלו אותנו".
   whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "",
