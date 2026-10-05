@@ -26,4 +26,22 @@ export const VIDEOS: TrainingVideo[] = [
       { t: 305.3, title: "כשמשהו לא עובד" },
     ],
   },
+  {
+    id: "exam",
+    title: "המסמך, ואיך בוחנים בעצמכם",
+    who: "לבוחני הפרויקט: מה כתוב במסמך ההגשה, ואיך בודקים את המוסך בעצמכם",
+    length: "3:36",
+    src: "/training/video/exam.mp4",
+    poster: "/training/video/exam.jpg",
+    chapters: [
+      { t: 0, title: "המסמך" },
+      { t: 20, title: "C: בירור" },
+      { t: 47.6, title: "O: תכנון" },
+      { t: 72, title: "R: ארבעת הפתרונות, חיים" },
+      { t: 126.4, title: "R: אבטחה, בדיקות וגרסאות" },
+      { t: 147.1, title: "E: המסירה" },
+      { t: 166.7, title: "איך בוחנים בעצמכם" },
+      { t: 205, title: "מוסך לוי ובניו" },
+    ],
+  },
 ]
