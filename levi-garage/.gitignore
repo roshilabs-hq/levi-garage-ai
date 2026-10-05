@@ -44,3 +44,6 @@ context-practice-files/
 
 # סרטוני /brag: מקומיים, לא לריפו
 brag-output*/
+
+# גיבוי מקומי של הנתונים: יש בו פרטים אישיים של לקוחות
+/backups/
