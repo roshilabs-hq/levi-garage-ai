@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { ResolvedRole, ResolvedScreen } from "@/lib/training/resolve"
+import { AskPanel } from "./ask"
 
 type Active = { screen: string; n: number } | null
 type Step = { role: string; screen: ResolvedScreen; n: number; t: string; b: string }
@@ -49,6 +50,17 @@ export function TrainingGuide({ roles }: { roles: ResolvedRole[] }) {
       document.getElementById(`dot-${screen}-${n}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
     })
   }, [])
+
+  // קפיצה לכפתור מכל מקום בעמוד (חיפוש, תשובה של הבוט): הלשונית, ואז הנקודה.
+  const jump = useCallback(
+    (roleTo: string, screen: string, n: number) => {
+      setRoleId(roleTo)
+      history.replaceState(null, "", `#${roleTo}`)
+      setTour(null)
+      setTimeout(() => focusSpot(screen, n), 60)
+    },
+    [focusSpot],
+  )
 
   const go = useCallback(
     (i: number) => {
@@ -125,10 +137,7 @@ export function TrainingGuide({ roles }: { roles: ResolvedRole[] }) {
                   <button
                     onClick={() => {
                       setQuery("")
-                      setRoleId(r.id)
-                      history.replaceState(null, "", `#${r.id}`)
-                      setTour(null)
-                      setTimeout(() => focusSpot(s.id, p.n), 50)
+                      jump(r.id, s.id, p.n)
                     }}
                   >
                     <b>{p.t}</b>
@@ -166,6 +175,8 @@ export function TrainingGuide({ roles }: { roles: ResolvedRole[] }) {
       {role.screens.map((s, i) => (
         <ScreenView key={s.id} index={i + 1} screen={s} active={active} onPick={(n) => { setTour(null); focusSpot(s.id, n, false) }} />
       ))}
+
+      {tour === null && <AskPanel onRef={jump} />}
 
       {step && tour !== null && (
         <div className="tg-tour" role="dialog" aria-label="סיור מודרך" aria-live="polite">
