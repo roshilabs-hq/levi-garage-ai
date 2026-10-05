@@ -15,7 +15,11 @@ export function ReportBug({ version }: { version: string }) {
 
   return (
     <p className="staff-version">
-      גרסה {version} · <a href={href}>נתקלתם בתקלה? צלמו את המסך ושלחו לנו</a>
+      גרסה {version} · <a href={href}>נתקלתם בתקלה? צלמו את המסך ושלחו לנו</a> ·{" "}
+      {/* בכרטיסייה חדשה: במכשיר של העמדה, המסך של הליפט נשאר פתוח מאחור. */}
+      <a href={`/training#${path.startsWith("/station") || path.startsWith("/staff/lift") || path.startsWith("/staff/inspect") ? "mechanic" : "office"}`} target="_blank" rel="noopener">
+        מרכז ההדרכה
+      </a>
     </p>
   )
 }

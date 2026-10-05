@@ -13,7 +13,7 @@
 // דפדפן: Chrome שמותקן במחשב (channel: "chrome").
 
 import { createHmac } from "node:crypto"
-import { mkdirSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { chromium } from "playwright"
@@ -263,6 +263,37 @@ async function settle(page) {
   await page.waitForTimeout(400)
 }
 const shots = []
+// 5.10: המדריך האינטראקטיבי (/training). לכל צילום נרשמים המיקום והטקסט של כל
+// כפתור, קישור ושדה שנראים בו, ביחס לתמונה. ככה הנקודות הממוספרות על הצילום
+// זזות יחד עם המסך, בכל פעם שמצלמים מחדש.
+const hotspots = {}
+async function recordHotspots(page, name, origin, size) {
+  const items = await page.evaluate(({ ox, oy, w, h }) => {
+    const SEL = 'button, a[href], select, textarea, summary, [role="button"], [role="tab"], input:not([type="hidden"])'
+    const seen = new Set()
+    const out = []
+    for (const raw of document.querySelectorAll(SEL)) {
+      // תיבת סימון או בחירה בתוך תווית: הנקודה על התווית, עם הטקסט שלה.
+      const n = raw.matches('input[type="checkbox"], input[type="radio"]') ? raw.closest("label") || raw : raw
+      if (seen.has(n)) continue
+      seen.add(n)
+      // כפתור בתוך תפריט סגור (<details>) מקבל מידות, אבל לא נראה בצילום.
+      if (n.checkVisibility && !n.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true })) continue
+      const st = getComputedStyle(n)
+      if (st.visibility === "hidden" || st.display === "none" || Number(st.opacity) === 0) continue
+      const r = n.getBoundingClientRect()
+      if (r.width < 8 || r.height < 8) continue
+      const x = r.x + window.scrollX - ox
+      const y = r.y + window.scrollY - oy
+      if (x + r.width <= 0 || y + r.height <= 0 || x >= w || y >= h) continue
+      const text = (n.getAttribute("aria-label") || n.innerText || n.getAttribute("placeholder") || n.getAttribute("title") || n.value || n.querySelector("img")?.getAttribute("alt") || "")
+        .replace(/\s+/g, " ").trim().slice(0, 80)
+      out.push({ text, tag: n.tagName.toLowerCase(), x: Math.round(x), y: Math.round(y), w: Math.round(r.width), h: Math.round(r.height) })
+    }
+    return out
+  }, { ox: origin.x, oy: origin.y, w: size.width, h: size.height })
+  hotspots[name] = { width: Math.round(size.width), height: Math.round(size.height), items }
+}
 async function shot(page, name, target = null, opts = {}) {
   if (!want(name)) return
   await settle(page)
@@ -286,8 +317,17 @@ async function shot(page, name, target = null, opts = {}) {
       fullPage: true,
       clip: { x, y: Math.max(0, box.y - pad), width: Math.min(vw - x, box.width + pad * 2), height: box.height + pad * 2 },
     })
+    await recordHotspots(page, name, { x, y: Math.max(0, box.y - pad) }, { width: Math.min(vw - x, box.width + pad * 2), height: box.height + pad * 2 })
   } else {
     await page.screenshot({ path, fullPage: opts.fullPage ?? false, animations: "disabled" })
+    const vp = page.viewportSize()
+    if (opts.fullPage) {
+      const full = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }))
+      await recordHotspots(page, name, { x: 0, y: 0 }, { width: vp.width, height: full.height })
+    } else {
+      const sc = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))
+      await recordHotspots(page, name, sc, vp)
+    }
   }
   shots.push(name)
   console.log(`✓ ${name}`)
@@ -429,6 +469,13 @@ try {
   failed = e
   console.error("✗", e.message)
 } finally {
+  // רק כשכל הצילומים רצו: רשימה חלקית הייתה מוחקת נקודות של מסכים שלא צולמו הפעם.
+  if (!failed && Object.keys(hotspots).length) {
+    const file = resolve(OUT, "..", "hotspots.json")
+    const prev = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}
+    writeFileSync(file, JSON.stringify({ ...prev, ...hotspots }, null, 1))
+    console.log(`נקודות: ${Object.keys(hotspots).length} מסכים`)
+  }
   await browser.close()
   await cleanup()
   if (STAFF["מוטי"]) await patch("staff", `id=eq.${STAFF["מוטי"].id}`, { lift: motiLift }).catch(() => {})

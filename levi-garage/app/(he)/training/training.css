@@ -1,0 +1,115 @@
+/* מרכז ההדרכה (/training). אותם טוקנים כמו באתר: הצבעים, הגופנים והכפתורים מ-site.css. */
+
+.training { padding-block: 48px 120px; }
+.training h1 { font-size: clamp(2.2rem, 4.2vw, 3.2rem); }
+.training-lead { color: var(--muted); max-width: 62ch; margin-top: 10px; font-size: 18px; }
+
+.tg-bar {
+  position: sticky; top: 76px; z-index: 30; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  margin-top: 28px; padding-block: 12px; background: var(--bg); box-shadow: 0 1px 0 var(--line);
+}
+.tg-roles { display: flex; flex-wrap: wrap; gap: 6px; }
+.tg-roles button {
+  min-height: 44px; padding-inline: 18px; border-radius: 999px; border: 0; cursor: pointer;
+  background: transparent; color: var(--ink); font: 600 16px var(--font-body), sans-serif;
+  box-shadow: inset 0 0 0 1.5px var(--line); transition: background-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+.tg-roles button:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.tg-roles button.on { background: var(--forest); color: var(--forest-ink); box-shadow: none; }
+.tg-search { flex: 1 1 260px; }
+.tg-search input {
+  width: 100%; min-height: 44px; padding-inline: 16px; border-radius: 999px; border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--ink); font: 16px var(--font-body), sans-serif;
+}
+.tg-search input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.tg-results { margin-top: 12px; padding: 12px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.tg-results ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.tg-results button {
+  width: 100%; text-align: start; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline;
+  padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; font: inherit;
+}
+.tg-results button:hover { background: var(--sunk); }
+.tg-results span, .tg-muted { color: var(--muted); font-size: 15px; }
+
+.tg-role { margin-top: 28px; display: grid; gap: 12px; justify-items: start; }
+.tg-who { color: var(--muted); font-weight: 600; }
+.tg-why { font-size: 20px; max-width: 62ch; }
+.tg-toc { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 6px; }
+.tg-toc a { color: var(--ink); text-decoration: none; font-size: 15px; }
+.tg-toc a:hover { text-decoration: underline; }
+.tg-toc .num { color: var(--muted); }
+
+.tg-screen { margin-top: 56px; scroll-margin-top: 150px; }
+.tg-screen h2 { font-size: 26px; }
+.tg-screen h2 .num { color: var(--amber); }
+.tg-intro { color: var(--muted); max-width: 70ch; margin-top: 6px; }
+.tg-body { display: grid; gap: 24px; margin-top: 18px; align-items: start; }
+.tg-screen.tg-desk .tg-body { grid-template-columns: minmax(0, 1fr) 340px; }
+.tg-screen.tg-phone .tg-body { grid-template-columns: 360px minmax(0, 1fr); }
+
+/* הצילום מימין (תחילת השורה), הרשימה משמאל. */
+.tg-shot {
+  position: relative; width: 100%; border-radius: 12px; overflow: hidden;
+  box-shadow: var(--shadow), 0 0 0 1px var(--line); background: var(--surface); direction: ltr;
+}
+.tg-shot img { display: block; width: 100%; height: 100%; }
+.tg-spot {
+  position: absolute; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 8px;
+  transition: box-shadow 160ms ease-out, background-color 160ms ease-out;
+}
+.tg-spot:hover, .tg-spot.on { box-shadow: 0 0 0 3px var(--amber); background: rgb(214 147 42 / .12); }
+.tg-spot:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.tg-dot {
+  display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding-inline: 6px; border-radius: 999px;
+  background: var(--forest); color: var(--forest-ink); font: 700 14px/1 var(--font-body), sans-serif;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.tg-spot .tg-dot { position: absolute; top: -10px; right: -10px; }
+.tg-spot.on .tg-dot, .tg-list li.on .tg-dot { background: var(--amber); color: var(--amber-ink); }
+
+.tg-list {
+  list-style: none; padding: 0; margin: 0; display: grid; gap: 4px;
+  position: sticky; top: 160px; max-height: calc(100dvh - 180px); overflow-y: auto; overscroll-behavior: contain;
+}
+.tg-list li { border-radius: 12px; padding: 10px 12px; transition: background-color 160ms ease-out; }
+.tg-list li.on { background: var(--surface); box-shadow: 0 0 0 1.5px var(--amber); }
+.tg-list button {
+  display: flex; gap: 10px; align-items: center; width: 100%; padding: 0; border: 0; background: none;
+  color: var(--ink); font: inherit; text-align: start; cursor: pointer;
+}
+.tg-list b { font-size: 17px; }
+.tg-list p { color: var(--muted); margin: 4px 36px 0 0; font-size: 15.5px; line-height: 1.55; }
+
+.tg-tour {
+  position: fixed; z-index: 60; inset-inline: 16px; bottom: 16px; margin-inline: auto; max-width: 560px;
+  padding: 16px 18px; border-radius: 16px; background: var(--surface); color: var(--ink);
+  box-shadow: var(--shadow), 0 0 0 1.5px var(--amber);
+}
+.tg-tour-where { color: var(--muted); font-size: 14px; }
+.tg-tour-t { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.tg-tour-t .num { color: var(--amber); }
+.tg-tour-b { color: var(--muted); margin-top: 4px; }
+.tg-tour-do { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.tg-tour-do .btn { min-height: 44px; padding-inline: 20px; }
+.tg-tour-x { margin-inline-start: auto; border: 0; background: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+@media (max-width: 980px) {
+  .tg-screen.tg-desk .tg-body, .tg-screen.tg-phone .tg-body { grid-template-columns: minmax(0, 1fr); }
+  .tg-screen.tg-phone .tg-shot { max-width: 360px; justify-self: center; }
+  .tg-list { position: static; max-height: none; overflow: visible; }
+}
+@media (max-width: 1200px) { .tg-bar { top: 66px; } }
+@media (max-width: 640px) {
+  .training { padding-block: 28px 140px; }
+  /* בטלפון הסרגל לא נצמד: שתי שורות של תפקידים וחיפוש היו מכסות רבע מסך. */
+  .tg-bar { position: static; }
+  .tg-screen { scroll-margin-top: 80px; }
+  .tg-list { top: auto; }
+  .tg-dot { min-width: 22px; height: 22px; font-size: 12px; }
+  .tg-spot .tg-dot { top: -8px; right: -8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tg-spot, .tg-list li, .tg-roles button { transition: none; }
+}
