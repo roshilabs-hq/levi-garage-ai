@@ -13,7 +13,7 @@
 
 | | מה |
 |---|---|
-| 1 | **GitHub:** להעביר בעלות על `roshinovic2/levi-garage-ai` לחשבון העסקי, ואז מקומית: `git remote set-url origin <הכתובת החדשה>` |
+| 1 | ✅ **5.10:** המאגר עבר ל-`roshilabs-hq/levi-garage-ai`, והאתר לפרויקט ב-Vercel העסקי, מחובר למאגר. כל דחיפה פורסת. |
 | 2 | **Vercel:** ליצור פרויקט חדש בחשבון העסקי **עם קישור לגיט** (בניגוד להיום, שכל פריסה ידנית) |
 | 3 | להגדיר שלושה משתנים ב-production: `GEMINI_SA_JSON`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
 | 4 | לעדכן את הכתובת החדשה ב-`03-rollout/website/README.md` וב-`STATUS.md` |
