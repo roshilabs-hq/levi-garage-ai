@@ -4,8 +4,10 @@ import "./training.css"
 import { SiteFooter } from "@/components/site/footer"
 import { SiteHeader } from "@/components/site/header"
 import { TrainingGuide } from "@/components/training/guide"
+import { VideoPlayer } from "@/components/training/video"
 import { dicts } from "@/lib/site/dict"
 import { resolveGuide } from "@/lib/training/resolve"
+import { VIDEOS } from "@/lib/training/videos"
 
 export const metadata: Metadata = {
   title: "מרכז ההדרכה | מוסך לוי ובניו",
@@ -27,6 +29,10 @@ export default function TrainingPage() {
           כל מסך במערכת, וכל כפתור בו: מה הוא עושה, ומה קורה אחרי שלוחצים. {screens} מסכים, מצולמים מהמערכת החיה. בוחרים תפקיד, ולוחצים על
           מספר בתמונה או ברשימה.
         </p>
+        {VIDEOS.map((v) => (
+          <VideoPlayer key={v.id} video={v} />
+        ))}
+        <h2 className="training-guide-title">כל כפתור, בכל מסך</h2>
         <TrainingGuide roles={roles} />
       </main>
       <SiteFooter t={t} />
