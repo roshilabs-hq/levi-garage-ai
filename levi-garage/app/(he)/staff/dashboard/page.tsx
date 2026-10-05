@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireManager } from "@/lib/staff/session"
@@ -45,10 +44,11 @@ export default async function DashboardPage() {
   const supabase = await createClient()
 
   const now = new Date().toISOString()
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const nowMs = new Date(now).getTime()
+  const since = new Date(nowMs - 30 * 24 * 60 * 60 * 1000).toISOString()
   // יומיים לפני החלון: כדי לדעת איפה עמד רכב שזז לפני תחילת החלון.
-  const before = new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString()
-  const twoMonths = new Date(Date.now() - 62 * 24 * 60 * 60 * 1000).toISOString()
+  const before = new Date(nowMs - 32 * 24 * 60 * 60 * 1000).toISOString()
+  const twoMonths = new Date(nowMs - 62 * 24 * 60 * 60 * 1000).toISOString()
 
   type ApprovalRow = Approval & { decision: string | null; price_chosen: number | null; findings: { job_card_id: number } | { job_card_id: number }[] | null }
   type DiscRow = { job_card_id: number; status: string; discount_reason: string | null; list_price_original: number | null; list_price_aftermarket: number | null; approvals: Discounted["approval"] | Discounted["approval"][] }
@@ -147,7 +147,7 @@ export default async function DashboardPage() {
       note:
         disc.count === 0
           ? "כל הנחה נרשמת: כמה, למה ומי נתן. דניאל עד 10%, מעל זה רק אבי."
-          : `${disc.count} הנחות שהלקוח קיבל.${disc.reasons.length ? ` הסיבות: ${disc.reasons.join(" · ")}.` : ""} מה שניתן בקופה מחוץ למערכת לא נראה כאן.`,
+          : `${disc.count === 1 ? "הנחה אחת שהלקוח קיבל" : `${disc.count} הנחות שהלקוחות קיבלו`}.${disc.reasons.length ? ` הסיבות: ${disc.reasons.join(" · ")}.` : ""} מה שניתן בקופה מחוץ למערכת לא נראה כאן.`,
     },
     {
       title: "תזכורות ללקוחות",

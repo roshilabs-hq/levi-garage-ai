@@ -65,8 +65,12 @@ export default async function InspectPage({
             אבחון · <span className="plate-chip num" dir="ltr">{job.plate}</span>
           </h1>
           <p>
-            {[job.vehicle_make, job.vehicle_model].filter(Boolean).join(" ") || "רכב"}
-            {job.vehicle_year ? `, ${job.vehicle_year}` : ""} · {p.done} מתוך {p.total} נבדקו
+            {/* bdi: בלי זה, "0 מתוך 9" נצמד לדגם הלועזי ("SPARK, 2015") ומספר קופץ למקום אחר בשורה */}
+            <bdi>
+              {[job.vehicle_make, job.vehicle_model].filter(Boolean).join(" ") || "רכב"}
+              {job.vehicle_year ? `, ${job.vehicle_year}` : ""}
+            </bdi>{" "}
+            · {p.done} מתוך {p.total} נבדקו
           </p>
         </div>
       </header>

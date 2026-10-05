@@ -177,29 +177,41 @@ async function seed() {
     const path = await upload("job-media", `job-${job.id}/guide-${f.id}.jpg`, file)
     await insert("media", { job_card_id: job.id, finding_id: f.id, kind: "photo", storage_path: path, mime: "image/jpeg", bytes: 1, created_by: STAFF["מוטי"]?.id })
   }
+  // 5.10: ממצאים שדניאל כבר בחר להם עבודה מהמחירון, ולכן עם המחירים שלו. בלי
+  // price_list_id, הבחירה בצילום נראתה ריקה, והמחירים לא תאמו את המחירון באתר.
+  const res = await admin(`/rest/v1/price_list?select=id,code,price_original,price_aftermarket,labor_hours`)
+  const PL = Object.fromEntries((await res.json()).map((r) => [r.code, r]))
+  const fromList = (code, qty = 1) => {
+    const r = PL[code]
+    if (!r) throw new Error(`price_list: אין ${code}`)
+    return {
+      price_list_id: r.id, quantity: qty, labor_hours: Number(r.labor_hours) * qty,
+      price_original: Number(r.price_original) * qty, price_aftermarket: r.price_aftermarket === null ? null : Number(r.price_aftermarket) * qty,
+    }
+  }
   const p1 = await finding(day.toPrice, {
-    title: "רפידות בלם קדמיות", summary: "רפידות קדמיות שחוקות, 2 מ\"מ.", urgency: "red", safety: true,
+    title: "החלפת רפידות בלם קדמיות", summary: "רפידות קדמיות שחוקות, 2 מ\"מ.", urgency: "red", safety: true,
     transcript: "הרפידות מקדימה גמורות, נשאר בערך שני מילימטר, צריך להחליף.",
     customer_text: "רפידות הבלם הקדמיות כמעט גמורות. זה עניין של בטיחות, ממליצים להחליף עכשיו.",
-    price_original: 780, price_aftermarket: 540, labor_hours: 1.5, eta: "היום עד 16:00",
+    ...fromList("brakes-front-pads"), eta: "היום עד 16:00",
   })
   const p2 = await finding(day.toPrice, {
-    title: "2 × מגבים", summary: "מגבים קדמיים סדוקים.", urgency: "yellow", quantity: 2,
+    title: "החלפת מגבים (זוג)", summary: "מגבים קדמיים סדוקים.", urgency: "yellow",
     transcript: "שני המגבים מקדימה סדוקים, משאירים פסים.",
     customer_text: "שני המגבים הקדמיים סדוקים ומשאירים פסים על השמשה.",
-    price_original: 140, price_aftermarket: 90, labor_hours: 0.25,
+    ...fromList("wipers"),
   })
   const w1 = await finding(day.waiting, {
-    title: "משאבת מים", summary: "נזילה ממשאבת המים.", urgency: "red",
+    title: "החלפת משאבת מים", summary: "נזילה ממשאבת המים.", urgency: "red",
     transcript: "יש נזילה מהמשאבת מים, רואים סימנים של נוזל קירור.",
     customer_text: "מצאנו נזילה ממשאבת המים. אם לא מטפלים, המנוע עלול להתחמם.",
-    price_original: 1250, price_aftermarket: 860, labor_hours: 3, eta: "מחר עד 12:00",
+    ...fromList("water-pump"), eta: "מחר עד 12:00",
   })
   const w2 = await finding(day.waiting, {
-    title: "2 × צמיגים קדמיים", summary: "שני צמיגים קדמיים שחוקים.", urgency: "yellow", quantity: 2,
+    title: "2 × החלפת צמיג", summary: "שני צמיגים קדמיים שחוקים.", urgency: "yellow",
     transcript: "הצמיגים מקדימה כבר על הסף.",
     customer_text: "שני הצמיגים הקדמיים שחוקים, קרוב לגבול המותר.",
-    price_original: 980, price_aftermarket: 720, labor_hours: 0.5,
+    ...fromList("tire-one", 2),
   })
   await photo(day.toPrice, p1, "brakes.jpg")
   await photo(day.toPrice, p2, "wiper.jpg")
