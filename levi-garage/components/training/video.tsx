@@ -18,6 +18,7 @@ const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).
 
 export function VideoPlayer({ video }: { video: TrainingVideo }) {
   const ref = useRef<HTMLVideoElement>(null)
+  const list = useRef<HTMLOListElement>(null)
   const [now, setNow] = useState(0)
   const [lang, setLang] = useState("")
 
@@ -28,6 +29,16 @@ export function VideoPlayer({ video }: { video: TrainingVideo }) {
   }, [lang])
 
   const current = video.chapters.reduce((acc, c, i) => (now >= c.t - 0.2 ? i : acc), 0)
+
+  // ההדרכה המלאה (6.10) עם 36 פרקים: הרשימה גוללת בתוך עצמה, והפרק הנוכחי נשאר בתוכה בתצוגה.
+  // גלילה של הרשימה בלבד, לא של הדף, כדי שהסרטון לא יזוז.
+  useEffect(() => {
+    const ol = list.current
+    const li = ol?.children[current] as HTMLElement | undefined
+    if (!ol || !li || ol.scrollHeight <= ol.clientHeight) return
+    const top = li.offsetTop // ה-ol הוא position: relative, אז המיקום כבר יחסית אליו
+    if (top < ol.scrollTop || top + li.offsetHeight > ol.scrollTop + ol.clientHeight) ol.scrollTo({ top: top - ol.clientHeight / 3, behavior: "smooth" })
+  }, [current])
 
   return (
     <section className="tv" aria-labelledby={`v-${video.id}`}>
@@ -60,7 +71,7 @@ export function VideoPlayer({ video }: { video: TrainingVideo }) {
             ))}
           </div>
         </div>
-        <ol className="tv-chapters" aria-label="פרקים">
+        <ol ref={list} className="tv-chapters" aria-label="פרקים">
           {video.chapters.map((c, i) => (
             <li key={c.t}>
               <button
