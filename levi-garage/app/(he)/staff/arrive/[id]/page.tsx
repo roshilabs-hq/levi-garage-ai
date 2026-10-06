@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireManager } from "@/lib/staff/session"
 import { serviceToCode } from "@/lib/staff/inspection"
 import { fmtStamp } from "@/lib/staff/format"
+import { realEmail } from "@/lib/staff/cal"
 import { TopBar } from "@/components/staff/top-bar"
 import { ArriveForm, type PriceItem } from "@/components/staff/arrive-form"
 import { CounterQr } from "@/components/staff/counter-qr"
@@ -81,7 +82,7 @@ export default async function ArrivePage({
         bookingId={booking.id}
         items={(items ?? []) as PriceItem[]}
         defaultCode={serviceToCode(booking.service)}
-        email={booking.customer_email}
+        email={realEmail(booking.customer_email)}
         consent={Boolean(booking.whatsapp_consent)}
       />
     </main>

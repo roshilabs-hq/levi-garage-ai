@@ -10,7 +10,7 @@ import { INSPECTION_ITEMS, progress, type InspectionState, type Light } from "@/
 import { quoteEmail, requestEmail, type QuoteReason, type QuoteSnapshot } from "@/lib/staff/quote"
 import { sendEmail } from "@/lib/staff/email"
 import { ACTIVE } from "@/lib/staff/queue"
-import { isUpcoming, releaseCalSlot } from "@/lib/staff/cal"
+import { isUpcoming, realEmail, releaseCalSlot } from "@/lib/staff/cal"
 
 // כל הפעולות של אזור הצוות עוברות כאן. הן רצות בשרת בזהות של המשתמש המחובר,
 // ולכן ה-RLS והפונקציות במסד אוכפים אותן שוב, גם אם מישהו יקרא להן ישירות.
@@ -64,7 +64,7 @@ export async function receiveCar(formData: FormData) {
     .filter((l, i, all) => l.id > 0 && all.findIndex((x) => x.id === l.id) === i)
   const printCopy = formData.get("print_copy") === "on"
   const odometer = Number(String(formData.get("odometer") || "").replace(/\D/g, "")) || null
-  const email = String(formData.get("email") || "").trim().toLowerCase() || null
+  const email = realEmail(String(formData.get("email") || "").trim().toLowerCase())
   const consent = formData.get("consent") === "on"
   const explained = formData.get("explained") === "on"
   // לקוח בלי סמארטפון: חותם על עותק מודפס, ודניאל רושם את החתימה אחר כך.
