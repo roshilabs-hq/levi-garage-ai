@@ -181,6 +181,9 @@
 .th-tile:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 .th-who { font-weight: 700; font-size: 16px; color: var(--amber); }
 .th-workers .th-who { color: var(--muted); }
+/* במצב כהה הירוק מתבהר, והענבר עליו יורד מתחת ל-4.5:1 */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .th-owners .th-who { color: var(--forest-ink); } }
+:root[data-theme="dark"] .th-owners .th-who { color: var(--forest-ink); }
 .th-title { font-family: var(--font-display), serif; font-weight: 700; font-size: clamp(1.9rem, 3.2vw, 2.6rem); line-height: 1.12; }
 .th-lead { font-size: 18px; line-height: 1.55; opacity: .92; max-width: 46ch; }
 .th-count { font-size: 15px; opacity: .8; margin-top: 4px; }
