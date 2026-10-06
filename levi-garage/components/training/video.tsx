@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react"
 
 export type Chapter = { t: number; title: string }
-export type TrainingVideo = { id: string; title: string; who: string; length: string; src: string; poster: string; chapters: Chapter[] }
+export type TrainingVideo = { id: string; title: string; who: string; length: string; src: string; poster: string; chapters: Chapter[]; note?: string }
 
 const LANGS = [
   { id: "", label: "בלי כתוביות" },
@@ -77,6 +77,8 @@ export function VideoPlayer({ video, start = 0, bare = false }: { video: Trainin
               </button>
             ))}
           </div>
+          {/* שינוי שנעשה אחרי שהסרטון צולם: כתוב מתחתיו, כדי שהסרטון והמדריך לא יסתרו (6.10). */}
+          {video.note && <p className="tv-note">{video.note}</p>}
         </div>
         <ol ref={list} className="tv-chapters" aria-label="פרקים">
           {video.chapters.map((c, i) => {

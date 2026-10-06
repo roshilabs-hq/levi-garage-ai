@@ -313,3 +313,6 @@
 .rd table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 16px; display: block; overflow-x: auto; }
 .rd th, .rd td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .rd th { background: var(--sunk); }
+
+/* עדכון שנעשה אחרי צילום הסרטון (6.10) */
+.tv-note { margin-top: 10px; padding: 8px 12px; border-radius: 10px; font-size: 15px; line-height: 1.5; background: var(--sunk); box-shadow: inset -3px 0 0 var(--amber); }
