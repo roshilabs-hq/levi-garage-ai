@@ -129,6 +129,7 @@ export function BookFlow({ t, plate, service }: { t: Dict; plate?: string; servi
       <div hidden={done}>
         <h1>{t.book.title}</h1>
         <p>{t.book.lead}</p>
+        {t.book.formNote && <p className="cal-form-note">{t.book.formNote}</p>}
         <div className="cal-frame" ref={box} id={`cal-${NS}`}>
           <p className="cal-loading">{t.book.loading}</p>
         </div>

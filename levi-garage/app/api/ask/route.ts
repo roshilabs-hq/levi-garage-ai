@@ -112,6 +112,8 @@ export async function POST(req: Request) {
   // 047: גם מונה משותף לכל השרתים, במסד. כל פנייה כאן היא קריאה ל-Gemini.
   const shared = fromBot(req) ? `ask:bot:${typeof body.client === "string" ? body.client.slice(0, 40) : "unknown"}` : ipKey(req, "ask")
   if (!(await allowed(shared, 600, fromBot(req) ? 40 : 20))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  // 6.10 (M-2): תקרה יומית לכל מבקרי האתר יחד. הבוט בוואטסאפ לא נספר כאן, כדי שלקוחות אמיתיים לא ייחסמו.
+  if (!fromBot(req) && !(await allowed("ask:site:all", 86400, 1500))) return NextResponse.json({ error: "limit" }, { status: 429 })
 
   const question = typeof body.question === "string" ? body.question.trim().slice(0, 400) : ""
   const lang = body.lang === "ar" || body.lang === "ru" ? body.lang : "he"

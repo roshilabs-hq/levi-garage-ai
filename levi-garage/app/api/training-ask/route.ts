@@ -62,6 +62,8 @@ export async function POST(req: Request) {
   if (!question) return NextResponse.json({ error: "bad" }, { status: 400 })
   // כל פנייה היא קריאה ל-Gemini: 15 שאלות לעשר דקות לכל כתובת.
   if (!(await allowed(ipKey(req, "training"), 600, 15))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  // 6.10 (M-2): תקרה יומית לכל המבקרים יחד. כל שאלה שולחת ל-Gemini את כל המדריך (כ-35KB).
+  if (!(await allowed("training:all", 86400, 800))) return NextResponse.json({ error: "limit" }, { status: 429 })
 
   const history: Turn[] = Array.isArray(body.history)
     ? body.history

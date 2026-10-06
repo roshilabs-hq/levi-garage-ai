@@ -72,7 +72,7 @@ export function VideoPlayer({ video, start = 0, bare = false }: { video: Trainin
           </video>
           <div className="tv-langs" role="group" aria-label="כתוביות">
             {LANGS.map((l) => (
-              <button key={l.id} className={lang === l.id ? "on" : ""} onClick={() => setLang(l.id)} aria-pressed={lang === l.id}>
+              <button key={l.id} lang={l.id || undefined} className={lang === l.id ? "on" : ""} onClick={() => setLang(l.id)} aria-pressed={lang === l.id}>
                 {l.label}
               </button>
             ))}

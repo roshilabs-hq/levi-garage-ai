@@ -5,6 +5,7 @@ import QRCode from "qrcode"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 
+import { allowed, ipKeyFromHeaders } from "@/lib/site/rate"
 import { createClient } from "@/lib/supabase/server"
 import { requireManager } from "@/lib/staff/session"
 import { STATION_COOKIE, STATION_REQ_COOKIE, stationConfigured, stationPassword, stationRpcKey } from "@/lib/staff/station"
@@ -194,6 +195,8 @@ export async function pollStationRequest(): Promise<StationReqState> {
 export async function requestStation(): Promise<StationReqState> {
   const current = await pollStationRequest()
   if (current.status === "pending" || current.status === "approved") return current
+  // 6.10 (M-1): בלי זה אפשר היה למלא מבחוץ את תור 10 הבקשות ולחסום חיבור עמדות.
+  if (!(await allowed(await ipKeyFromHeaders("station-req"), 600, 6))) return { status: "busy" }
 
   const supabase = await createClient()
   const { data, error } = await supabase.rpc("request_station", { p_key: stationRpcKey() })
@@ -259,6 +262,9 @@ const HERE_ERRORS: Record<string, (left?: number) => string> = {
 export async function approveHere(_prev: HereResult, formData: FormData): Promise<HereResult> {
   const secret = (await cookies()).get(STATION_REQ_COOKIE)?.value
   if (!secret) return { ok: false, error: HERE_ERRORS.gone() }
+  // 6.10 (M-1): ה-PIN של דניאל ואבי. הנעילה במסד היא לפי איש צוות (5 ניסיונות, 15 דקות);
+  // כאן גם לפי מכשיר, כדי שאי אפשר יהיה לנחש או לנעול אותו שוב ושוב מאותו מקום.
+  if (!(await allowed(await ipKeyFromHeaders("station-pin"), 1800, 8))) return { ok: false, error: HERE_ERRORS.locked() }
   const raw = String(formData.get("lift") || "")
   if (!raw) return { ok: false, error: HERE_ERRORS.lift() }
   const lift = raw === "diag" ? null : Number(raw)

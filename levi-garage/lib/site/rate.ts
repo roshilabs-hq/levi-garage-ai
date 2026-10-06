@@ -1,6 +1,7 @@
 import "server-only"
 
 import { createHash } from "node:crypto"
+import { headers } from "next/headers"
 
 // 047: הגבלת קצב משותפת לכל שרתי Vercel (rate_hit במסד). עד היום כל שרת ספר
 // לחוד בזיכרון, והמונה התאפס בכל הפעלה קרה. כאן נספר במסד, לפי כתובת IP
@@ -8,9 +9,22 @@ import { createHash } from "node:crypto"
 //
 // אם המסד לא עונה, מאשרים: עדיף שאתר יעבוד משפגיעה קלה בהגנה מפני הצפה.
 
+// IPv6: כל ספק נותן ללקוח רשת /64 שלמה, ואפשר להחליף כתובת בכל בקשה. לכן סופרים לפי
+// 4 הקבוצות הראשונות (בדיקת האבטחה המסכמת, 6.10, M-2).
+function ipOf(forwarded: string | null | undefined): string {
+  const ip = forwarded?.split(",")[0]?.trim() || "local"
+  return ip.includes(":") ? ip.split(":").slice(0, 4).join(":") : ip
+}
+const hashed = (prefix: string, ip: string) => `${prefix}:${createHash("sha256").update(ip).digest("hex").slice(0, 24)}`
+
 export function ipKey(req: Request, prefix: string): string {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local"
-  return `${prefix}:${createHash("sha256").update(ip).digest("hex").slice(0, 24)}`
+  return hashed(prefix, ipOf(req.headers.get("x-forwarded-for")))
+}
+
+/** אותו מפתח, מתוך פעולת שרת (שם אין Request, רק headers()). */
+export async function ipKeyFromHeaders(prefix: string): Promise<string> {
+  const h = await headers()
+  return hashed(prefix, ipOf(h.get("x-forwarded-for")))
 }
 
 export async function allowed(key: string, windowSeconds: number, max: number): Promise<boolean> {

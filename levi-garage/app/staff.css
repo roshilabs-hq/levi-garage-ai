@@ -932,6 +932,9 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 
 /* ---------- הצעת מחיר להדפסה ---------- */
 .print-quote { max-width: 780px; margin: 0 auto; padding: 28px 24px 60px; background: #fff; color: #111; }
+/* 6.10 (נגישות): הדף לבן תמיד, כי הוא מסמך להדפסה. גם במצב כהה הכפתורים שמעליו מקבלים את הצבעים של המצב הבהיר,
+   אחרת "הדפסה" ו"חזרה לכרטיס" היו טקסט בהיר על לבן (ניגודיות 1.19:1). */
+.print-quote { color-scheme: light; --ink: #1b2620; --muted: #4f5b54; --line: #d3d8d1; }
 .pq-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 24px; }
 .pq-head { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 12px; }
 .pq-head > div { display: grid; gap: 4px; }

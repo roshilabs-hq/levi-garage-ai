@@ -17,13 +17,40 @@ export function AskPanel({ onRef }: { onRef: (role: string, screen: string, n: n
   const [busy, setBusy] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const openRef = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" })
   }, [msgs, busy])
+  // נגישות (6.10): בפתיחה הפוקוס עובר לשדה, ובסגירה הוא חוזר לכפתור שפתח את החלון.
   useEffect(() => {
     if (open) inputRef.current?.focus()
+    else if (wasOpen.current) openRef.current?.focus()
+    wasOpen.current = open
   }, [open])
+
+  // Esc סוגר, ו-Tab נשאר בתוך החלון (לא בורח לתחתית הדף).
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Escape") {
+      e.preventDefault()
+      setOpen(false)
+      return
+    }
+    if (e.key !== "Tab" || !dialogRef.current) return
+    const items = Array.from(dialogRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])"))
+    if (items.length === 0) return
+    const first = items[0]
+    const last = items[items.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
 
   async function ask(q: string) {
     const question = q.trim()
@@ -55,14 +82,14 @@ export function AskPanel({ onRef }: { onRef: (role: string, screen: string, n: n
 
   if (!open) {
     return (
-      <button className="tg-ask-open btn" onClick={() => setOpen(true)}>
+      <button ref={openRef} className="tg-ask-open btn" onClick={() => setOpen(true)}>
         שאלה על המערכת?
       </button>
     )
   }
 
   return (
-    <div className="tg-ask" role="dialog" aria-label="שאלה על המערכת">
+    <div ref={dialogRef} className="tg-ask" role="dialog" aria-modal="true" aria-label="שאלה על המערכת" onKeyDown={onKeyDown}>
       <div className="tg-ask-head">
         <b>שאלה על המערכת</b>
         <button onClick={() => setOpen(false)}>סגירה</button>
