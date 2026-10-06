@@ -106,7 +106,7 @@ export default async function DashboardPage() {
   const measured = [
     {
       title: "ליפט שעומד ומחכה",
-      target: "לפני: 2–3 שעות ביום · היעד: פחות מ-30 דקות",
+      target: "לפני: 2-3 שעות ביום · היעד: פחות מ-30 דקות",
       value: liftWaitPerDay === null ? "אין עדיין נתונים" : liftWaitPerDay < 1 ? "פחות מדקה ביום" : `${Math.round(liftWaitPerDay)} דקות ביום`,
       note:
         liftWaitPerDay === null
@@ -142,7 +142,7 @@ export default async function DashboardPage() {
     },
     {
       title: "הנחות ב-30 יום",
-      target: "לפני: 2,000–2,500 ש\"ח בחודש · היעד: חצי",
+      target: "לפני: 2,000-2,500 ש\"ח בחודש · היעד: חצי",
       value: disc.count === 0 ? "אין הנחות" : shekel(disc.sum),
       note:
         disc.count === 0
