@@ -40,9 +40,8 @@ export const TRACKS: Track[] = [
   },
 ]
 
-/** סרטונים לכולם, ולבוחני הפרויקט: שורה קטנה מתחת לקוביות. */
+/** סרטונים לכל הצוות: "להתחיל כאן", מתחת לקוביות. הסרטון לבוחנים בדף משלו, /training/exam. */
 export const GENERAL = ["day", "flow"]
-export const EXAM = ["exam"]
 
 export const trackOf = (id: string) => TRACKS.find((t) => t.id === id)
 export const trackOfRole = (role: string): TrackId => TRACKS.find((t) => t.roles.includes(role))?.id ?? "owners"

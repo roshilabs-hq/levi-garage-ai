@@ -200,7 +200,50 @@
 
 .th-more, .tp-group { font-size: 26px; margin-top: 48px; }
 .tp-why { color: var(--muted); max-width: 70ch; margin-top: 6px; }
-.th-videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+.th-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; max-width: 900px; }
+
+/* פרקים בהדרכה המלאה: הפרק של התפקיד ככותרת, והמסכים שלו מוזחים מתחתיו */
+.tv-head-ch button { font-weight: 700; margin-top: 6px; }
+.tv-sub-ch button { padding-inline-start: 26px; }
+
+/* הפס לבוחני הפרויקט, בסוף הכניסה: מחוץ להדרכת העובדים */
+.th-exam {
+  display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; gap: 22px; align-items: center;
+  margin-top: 64px; padding: 16px 16px 16px 24px; border-radius: 20px; text-decoration: none;
+  background: var(--sunk); color: var(--ink); box-shadow: 0 0 0 1px var(--line);
+}
+.th-exam:hover { box-shadow: 0 0 0 2px var(--amber); }
+.th-exam:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.th-exam img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; display: block; background: #0d120f; }
+.th-exam-text { display: grid; gap: 4px; }
+.th-exam .th-go { margin-top: 0; background: var(--forest); color: var(--forest-ink); white-space: nowrap; }
+
+/* דף הבוחנים: ההנחיות הכתובות */
+.ex { max-width: 860px; }
+.ex-lead { font-size: 19px; line-height: 1.6; margin-top: 40px; }
+.ex-need { margin: 12px 0 0; padding-inline-start: 22px; display: grid; gap: 8px; line-height: 1.6; }
+.ex-stages { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 16px; }
+.ex-stage { padding: 18px 20px; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.ex-stage h3 { font-size: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ex-n {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--forest); color: var(--forest-ink); font-size: 15px;
+}
+.ex-min { color: var(--muted); font-weight: 400; font-size: 15px; }
+.ex-steps { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 12px; counter-reset: ex; }
+.ex-steps li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 12px; line-height: 1.6; }
+.ex-who {
+  align-self: start; justify-self: start; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  background: var(--sunk); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line);
+}
+.ex-do { grid-column: 2; }
+.ex-ok {
+  grid-column: 2; padding: 8px 12px; border-radius: 10px; font-size: 15px;
+  background: color-mix(in srgb, var(--forest) 10%, var(--surface)); box-shadow: inset -3px 0 0 var(--forest);
+}
+.ex-code { unicode-bidi: isolate; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; font-size: .92em; padding: 1px 6px; border-radius: 6px; background: var(--sunk); }
+.ex-full { margin-top: 32px; color: var(--muted); }
+.ex-full a { color: var(--ink); }
 .tp-grid { list-style: none; padding: 0; margin: 16px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
 .tp-card {
   display: grid; gap: 6px; align-content: start; height: 100%; padding: 12px 12px 16px; border-radius: 16px;
@@ -237,6 +280,11 @@
   .th-tile { min-height: 0; padding: 24px 22px; }
   .ts-pager { grid-template-columns: 1fr; }
   .ts-next { text-align: start; }
+  .th-exam { grid-template-columns: minmax(0, 1fr); padding: 14px; gap: 14px; }
+  .th-exam .th-go { justify-self: start; }
+  .ex-steps li { grid-template-columns: minmax(0, 1fr); }
+  .ex-do, .ex-ok { grid-column: auto; }
+  .ex-code { white-space: normal; overflow-wrap: anywhere; }
 }
 @media (prefers-reduced-motion: reduce) {
   .th-tile, .tp-card { transition: none; }

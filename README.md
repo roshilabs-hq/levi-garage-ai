@@ -42,6 +42,7 @@
 - **ה-Gem:** https://gemini.google.com/gem/142Pgo1LZ82WqDoHnqjsG-RrsTLzmnWBG?usp=sharing
 - **קביעת תור:** "קביעת תור" באתר
 - **מרכז ההדרכה:** https://levi-garage.co.il/training · כל מסך וכל כפתור, לכל תפקיד, עם סיור מודרך
+- **לבוחנים:** https://levi-garage.co.il/training/exam · הסרטון, ותרחיש של 15 דקות בכתב, צעד אחרי צעד
 
 ## מבנה הריפו
 ```

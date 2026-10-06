@@ -36,6 +36,10 @@ const nextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }]
   },
+  // הסרטון לבוחנים עבר לדף שלהם, עם ההנחיות הכתובות (6.10).
+  async redirects() {
+    return [{ source: "/training/video/exam", destination: "/training/exam", permanent: true }]
+  },
 }
 
 export default nextConfig

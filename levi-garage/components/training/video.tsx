@@ -79,8 +79,14 @@ export function VideoPlayer({ video, start = 0, bare = false }: { video: Trainin
           </div>
         </div>
         <ol ref={list} className="tv-chapters" aria-label="פרקים">
-          {video.chapters.map((c, i) => (
-            <li key={c.t}>
+          {video.chapters.map((c, i) => {
+            // בהדרכה המלאה הפרקים נקראים "תפקיד · מסך". התפקיד כבר כתוב בפרק שפותח את הקבוצה,
+            // אז ברשימה מציגים רק את שם המסך, והפרק של התפקיד נראה ככותרת (רועי, 6.10).
+            const dot = c.title.indexOf(" · ")
+            const label = dot > 0 ? c.title.slice(dot + 3) : c.title
+            const head = dot < 0 && Boolean(video.chapters[i + 1]?.title.startsWith(`${c.title} · `))
+            return (
+            <li key={c.t} className={head ? "tv-head-ch" : dot > 0 ? "tv-sub-ch" : undefined}>
               <button
                 className={i === current && (now > 0 || start > 0) ? "on" : ""}
                 onClick={() => {
@@ -90,10 +96,11 @@ export function VideoPlayer({ video, start = 0, bare = false }: { video: Trainin
                   void v.play()
                 }}
               >
-                <span className="num">{mmss(c.t)}</span> {c.title}
+                <span className="num">{mmss(c.t)}</span> {label}
               </button>
             </li>
-          ))}
+            )
+          })}
         </ol>
       </div>
     </section>

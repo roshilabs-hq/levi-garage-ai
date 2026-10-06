@@ -42,7 +42,8 @@ export default async function TrackPage({ params }: Props) {
 
         <h2 className="tp-group">סרטונים</h2>
         <div className="th-videos">
-          {[tr.video, ...tr.extra].map((id) => {
+          {/* קודם הקצר ("למה"), אחר כך ההדרכה המלאה ("איך") */}
+          {[...tr.extra, tr.video].map((id) => {
             const v = videoOf(id)
             if (!v) return null
             return (
