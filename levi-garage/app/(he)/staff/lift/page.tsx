@@ -178,10 +178,20 @@ function Car({
         </form>
       ) : (
         !doneCall && (
-          <form action={lowerCar}>
-            <input type="hidden" name="job_id" value={card.id} />
-            <button className="lift-primary" type="submit">להוריד מהליפט לחניה</button>
-          </form>
+          // ההדרכה לבעל המוסך (6.10, 04-empower/training-session): "רכב מפורק לא זז". המכונאי
+          // מחליט, לא המסך: רכב פתוח נשאר על הליפט, ורכב סגור שנוסע יורד לחניה. שם הכפתור
+          // נשאר כמו שהוא, כי הוא כתוב בכרטיס העמדה, במדריכים ובסרטונים.
+          <div className="lift-choice">
+            <p>
+              <b>רכב פתוח</b> (מפורק, בלי שמן): נשאר על הליפט עד שהלקוח עונה. עובדים רק על מה שמסומן ✓.
+              <br />
+              <b>רכב סגור שנוסע:</b> להוריד לחניה, והליפט עובר לבא בתור.
+            </p>
+            <form action={lowerCar}>
+              <input type="hidden" name="job_id" value={card.id} />
+              <button className="lift-primary" type="submit">להוריד מהליפט לחניה</button>
+            </form>
+          </div>
         )
       )}
 
