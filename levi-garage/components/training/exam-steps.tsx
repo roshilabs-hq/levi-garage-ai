@@ -40,6 +40,9 @@ export function ExamSteps() {
     <div className="ex">
       <p className="ex-lead">{steps.lead}</p>
 
+      <h2 className="tp-group">מי זה מי</h2>
+      <Items items={steps.cast} className="ex-need" />
+
       <h2 className="tp-group">מה צריך</h2>
       <Items items={steps.need} className="ex-need" />
 
