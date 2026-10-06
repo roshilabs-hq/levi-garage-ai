@@ -5,8 +5,10 @@ import "./training.css"
 import { SiteFooter } from "@/components/site/footer"
 import { SiteHeader } from "@/components/site/header"
 import { OldHash } from "@/components/training/old-hash"
+import { ReadCards } from "@/components/training/reads"
 import { AskNav, TrainingSearch } from "@/components/training/search"
 import { dicts } from "@/lib/site/dict"
+import { READS, readsFor } from "@/lib/training/read"
 import { resolveGuide } from "@/lib/training/resolve"
 import { GENERAL, TRACKS, screensOf, videoOf } from "@/lib/training/tracks"
 
@@ -34,13 +36,14 @@ export default function TrainingPage() {
             const screens = groups.reduce((a, r) => a + r.screens.length, 0)
             const spots = groups.reduce((a, r) => a + r.screens.reduce((b, s) => b + s.spots.length, 0), 0)
             const videos = [tr.video, ...tr.extra].length
+            const reads = readsFor(tr.id).length
             return (
               <Link key={tr.id} href={`/training/${tr.id}`} className={`th-tile th-${tr.id}`}>
                 <span className="th-who">{tr.who}</span>
                 <span className="th-title">{tr.title}</span>
                 <span className="th-lead">{tr.lead}</span>
                 <span className="th-count">
-                  {screens} מסכים · {spots} כפתורים · {videos === 1 ? "סרטון" : `${videos} סרטונים`}
+                  {reads} מדריכים כתובים · {videos === 1 ? "סרטון" : `${videos} סרטונים`} · {screens} מסכים · {spots} כפתורים
                 </span>
                 <span className="th-go" aria-hidden="true">
                   להדרכות ←
@@ -50,9 +53,12 @@ export default function TrainingPage() {
           })}
         </div>
 
-        {/* לפי קהל (רועי, 6.10: "משהו בסדר קצת מבולגן"): קודם הסרטונים לכל הצוות, ואחריהם
-            החיפוש. הסרטון לבוחנים יצא מהדרכת העובדים, לפס נפרד בסוף, עם ההנחיות הכתובות. */}
-        <h2 className="th-more">להתחיל כאן, לכל הצוות</h2>
+        {/* לפי קהל (רועי, 6.10): קודם המדריכים הכתובים ("איפה ההדרכה הכתובה?"), אחריהם הסרטונים לכל
+            הצוות, ואז החיפוש. הסרטון לבוחנים בפס נפרד בסוף, עם ההנחיות הכתובות. */}
+        <h2 className="th-more">המדריכים הכתובים</h2>
+        <ReadCards reads={READS} />
+
+        <h2 className="th-more">סרטונים לכל הצוות</h2>
         <div className="th-videos">
           {GENERAL.map((id) => {
             const v = videoOf(id)

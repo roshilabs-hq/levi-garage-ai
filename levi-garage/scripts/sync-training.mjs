@@ -35,4 +35,23 @@ writeFileSync(
   join(root, "lib", "training", "docs.ts"),
   `// נוצר ב-scripts/sync-training.mjs מתוך 04-empower/guides. לא לערוך כאן.${NL}export const TRAINING_DOCS = ${JSON.stringify(docs)}${NL}`,
 )
-console.log(`הועתקו ${n} צילומים, מיקומי הכפתורים, ו-${DOCS.length} מדריכים.`)
+// 1.14.0: המדריכים הכתובים גם כדפים במרכז ההדרכה (/training/read/...), עם התמונות.
+// התמונות כבר הועתקו ל-public/training. קישור בין מדריכים עובר לדף שלו באתר, וקישור לקובץ
+// אחר בריפו עובר ל-GitHub.
+const REPO = "https://github.com/roshilabs-hq/levi-garage-ai/blob/main/04-empower"
+const READ = ["mechanic", "station-card", "daniel", "avi", "screens", "faq"]
+const guides = Object.fromEntries(
+  READ.map((id) => [
+    id,
+    readFileSync(join(src, `${id}.md`), "utf8")
+      .replace(/\r\n/g, NL)
+      .replace(/\]\(img\/([^)]+)\)/g, "](/training/$1)")
+      .replace(/\]\(\.\.\/([^)]+)\)/g, `](${REPO}/$1)`)
+      .replace(/\]\(([a-z-]+)\.md(#[^)]*)?\)/g, (_, f, h = "") => `](/training/read/${f}${h})`),
+  ]),
+)
+writeFileSync(
+  join(root, "lib", "training", "guides.ts"),
+  `// נוצר ב-scripts/sync-training.mjs מתוך 04-empower/guides. לא לערוך כאן.${NL}export const GUIDES: Record<string, string> = ${JSON.stringify(guides, null, 1)}${NL}`,
+)
+console.log(`הועתקו ${n} צילומים, מיקומי הכפתורים, ו-${DOCS.length} מדריכים (ו-${READ.length} דפי מדריך).`)

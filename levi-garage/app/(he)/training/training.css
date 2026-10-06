@@ -290,3 +290,26 @@
   .th-tile, .tp-card { transition: none; }
   .th-tile:hover, .tp-card:hover { transform: none; }
 }
+
+/* ---------- המדריכים הכתובים (6.10): כרטיסים, ודף קריאה ---------- */
+.rd-cards { list-style: none; padding: 0; margin: 16px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.rd-card { padding: 16px 18px 18px; }
+
+.rd { max-width: 760px; margin-top: 28px; font-size: 18px; line-height: 1.75; }
+.rd h2 { font-size: 26px; margin: 44px 0 10px; scroll-margin-top: 90px; }
+.rd h3 { font-size: 20px; margin: 28px 0 8px; scroll-margin-top: 90px; }
+.rd p, .rd ul, .rd ol { margin: 10px 0; }
+.rd ul, .rd ol { padding-inline-start: 26px; }
+.rd li { margin: 4px 0; }
+.rd a { color: var(--ink); }
+.rd hr { border: 0; border-top: 1px solid var(--line); margin: 36px 0; }
+.rd blockquote {
+  margin: 16px 0; padding: 12px 18px; border-radius: 12px; background: var(--sunk);
+  box-shadow: inset -4px 0 0 var(--amber);
+}
+.rd blockquote p { margin: 4px 0; }
+.rd img { display: block; max-width: 100%; height: auto; margin: 16px 0; border-radius: 12px; box-shadow: 0 0 0 1px var(--line), var(--shadow); }
+.rd code { unicode-bidi: isolate; direction: ltr; font-family: ui-monospace, Consolas, monospace; font-size: .9em; padding: 1px 6px; border-radius: 6px; background: var(--sunk); white-space: nowrap; }
+.rd table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 16px; display: block; overflow-x: auto; }
+.rd th, .rd td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rd th { background: var(--sunk); }

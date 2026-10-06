@@ -5,8 +5,10 @@ import { notFound } from "next/navigation"
 import "../training.css"
 import { SiteFooter } from "@/components/site/footer"
 import { SiteHeader } from "@/components/site/header"
+import { ReadCards } from "@/components/training/reads"
 import { AskNav, TrainingSearch } from "@/components/training/search"
 import { dicts } from "@/lib/site/dict"
+import { readsFor } from "@/lib/training/read"
 import { resolveGuide } from "@/lib/training/resolve"
 import { TRACKS, mmss, screensOf, startOf, trackOf, videoOf } from "@/lib/training/tracks"
 
@@ -39,6 +41,9 @@ export default async function TrackPage({ params }: Props) {
         <p className="training-lead">
           {tr.who}. {tr.lead}
         </p>
+
+        <h2 className="tp-group">המדריכים הכתובים</h2>
+        <ReadCards reads={readsFor(tr.id)} />
 
         <h2 className="tp-group">סרטונים</h2>
         <div className="th-videos">
