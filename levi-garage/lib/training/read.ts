@@ -17,6 +17,9 @@ export const READS: Guide[] = [
   { id: "faq", title: "שאלות נפוצות ופתרון תקלות", who: "לכל הצוות, לפי מי נתקל בזה", minutes: 5, tracks: ["owners", "workers"] },
 ]
 
+/** "דקה אחת", לא "1 דקות" (נמצא בבדיקה עם agent-browser, 6.10). */
+export const readTime = (m: number) => (m === 1 ? "דקה אחת" : `${m} דקות`) + " קריאה"
+
 export const readOf = (id: string) => READS.find((g) => g.id === id)
 export const readsFor = (track: TrackId) => READS.filter((g) => g.tracks.includes(track))
 

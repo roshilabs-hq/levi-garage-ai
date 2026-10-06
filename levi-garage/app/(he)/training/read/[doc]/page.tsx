@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/site/footer"
 import { SiteHeader } from "@/components/site/header"
 import { AskNav } from "@/components/training/search"
 import { dicts } from "@/lib/site/dict"
-import { READS, guideHtml, readOf } from "@/lib/training/read"
+import { READS, guideHtml, readOf, readTime } from "@/lib/training/read"
 import { trackOf } from "@/lib/training/tracks"
 
 type Props = { params: Promise<{ doc: string }> }
@@ -42,7 +42,7 @@ export default async function ReadPage({ params }: Props) {
         </nav>
         <h1>{g.title}</h1>
         <p className="training-lead">
-          {g.who} · {g.minutes} דקות קריאה
+          {g.who} · {readTime(g.minutes)}
         </p>
         <article className="rd" dangerouslySetInnerHTML={{ __html: html }} />
       </main>
