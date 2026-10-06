@@ -50,8 +50,8 @@ export const GARAGE = {
   managerTitle: "מנהל מקצועי",
 }
 // במייל אין גופנים ואין SVG (Gmail ו-Outlook חוסמים), ולכן הלוחית היא תמונה.
-// הכתובת קבועה: levi-garage.vercel.app ממשיכה לעבוד גם אחרי המעבר לדומיין.
-const LOGO_URL = "https://levi-garage.vercel.app/brand/logo-plate.png"
+// מהדומיין של המוסך (6.10): levi-garage.vercel.app שייך לפרויקט הישן ב-Vercel, שנכבה אחרי המעבר לחשבון העסקי.
+const LOGO_URL = "https://levi-garage.co.il/brand/logo-plate.png"
 /** הכתובת שהלקוח רואה בקישורים: הדומיין של המוסך. */
 export const SITE_URL = "https://levi-garage.co.il"
 

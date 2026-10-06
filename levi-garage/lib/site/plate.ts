@@ -28,7 +28,7 @@ export async function lookupPlate(raw: string): Promise<PlateResult> {
 
   try {
     const res = await fetch(url, {
-      headers: { "user-agent": "levi-garage-site/1.0 (+https://levi-garage.vercel.app)" },
+      headers: { "user-agent": "levi-garage-site/1.0 (+https://levi-garage.co.il)" },
       signal: AbortSignal.timeout(35000),
       next: { revalidate: 86400 },
     })

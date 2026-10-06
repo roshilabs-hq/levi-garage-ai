@@ -120,7 +120,7 @@ export async function createPairCode(_prev: PairResult, formData: FormData): Pro
   if (error || !code) return { ok: false, error: "לא הצלחנו ליצור קוד. לנסות שוב." }
 
   const h = await headers()
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "levi-garage.vercel.app"
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "levi-garage.co.il"
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")
   const url = `${proto}://${host}/station/pair/${code}`
   const svg = await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" })

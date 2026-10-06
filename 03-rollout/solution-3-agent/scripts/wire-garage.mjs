@@ -58,7 +58,7 @@ function need(name, hint) {
 
 // קודם מוודאים שיש את כל מה שצריך, ורק אחר כך מייצרים טוקן. אחרת הרצה
 // שנכשלת על ערך חסר הייתה משאירה אחריה קובץ עם טוקן שלא שימש לכלום.
-const siteUrl = need("SITE_URL", 'למשל: SITE_URL=https://levi-garage.vercel.app  (בלי "/" בסוף)')
+const siteUrl = need("SITE_URL", 'למשל: SITE_URL=https://levi-garage.co.il  (בלי "/" בסוף)')
 
 const waNumber =
   target === "site"

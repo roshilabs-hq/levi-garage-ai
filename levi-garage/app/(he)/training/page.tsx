@@ -1,40 +1,75 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 
 import "./training.css"
 import { SiteFooter } from "@/components/site/footer"
 import { SiteHeader } from "@/components/site/header"
-import { TrainingGuide } from "@/components/training/guide"
-import { VideoPlayer } from "@/components/training/video"
+import { OldHash } from "@/components/training/old-hash"
+import { AskNav, TrainingSearch } from "@/components/training/search"
 import { dicts } from "@/lib/site/dict"
 import { resolveGuide } from "@/lib/training/resolve"
-import { VIDEOS } from "@/lib/training/videos"
+import { EXAM, GENERAL, TRACKS, screensOf, videoOf } from "@/lib/training/tracks"
 
 export const metadata: Metadata = {
   title: "מרכז ההדרכה | מוסך לוי ובניו",
-  description: "כל מסך במערכת של המוסך, וכל כפתור בו: מה הוא עושה, ומה קורה אחרי שלוחצים.",
+  description: "כל מסך במערכת של המוסך, וכל כפתור בו, בשני מסלולים: לבעלים ולמנהל העבודה, ולעובדים.",
 }
 
-// מרכז ההדרכה (5.10): המדריך האינטראקטיבי לכל תפקיד. הצילומים מהמערכת החיה, עם
-// נתוני הדגמה ושמות בדויים. אותו עמוד יקבל בהמשך גם את סרטוני ההדרכה, עם פרקים.
+// מרכז ההדרכה (רועי, 6.10): בכניסה שתי קוביות גדולות. מימין המדריך לבעלים ולמנהל העבודה,
+// משמאל המדריך לעובדים. כל קובייה פותחת מאגר הדרכות, ובכל הדרכה הסרטון והמדריך של המסך.
 export default function TrainingPage() {
   const t = dicts.he
   const { roles } = resolveGuide()
-  const screens = roles.reduce((a, r) => a + r.screens.length, 0)
   return (
     <>
       <SiteHeader t={t} overPhoto={false} />
+      <OldHash />
       <main id="main" className="wrap training">
         <h1>מרכז ההדרכה</h1>
-        <p className="training-lead">
-          כל מסך במערכת, וכל כפתור בו: מה הוא עושה, ומה קורה אחרי שלוחצים. {screens} מסכים, מצולמים מהמערכת החיה. בוחרים תפקיד, ולוחצים על
-          מספר בתמונה או ברשימה.
-        </p>
-        {VIDEOS.map((v) => (
-          <VideoPlayer key={v.id} video={v} />
-        ))}
-        <h2 className="training-guide-title">כל כפתור, בכל מסך</h2>
-        <TrainingGuide roles={roles} />
+        <p className="training-lead">כל מסך במערכת, וכל כפתור בו: מה הוא עושה, ומה קורה אחרי שלוחצים. בוחרים את המדריך שלכם.</p>
+
+        <div className="th-tiles">
+          {TRACKS.map((tr) => {
+            const groups = screensOf(tr, roles)
+            const screens = groups.reduce((a, r) => a + r.screens.length, 0)
+            const spots = groups.reduce((a, r) => a + r.screens.reduce((b, s) => b + s.spots.length, 0), 0)
+            const videos = [tr.video, ...tr.extra].length
+            return (
+              <Link key={tr.id} href={`/training/${tr.id}`} className={`th-tile th-${tr.id}`}>
+                <span className="th-who">{tr.who}</span>
+                <span className="th-title">{tr.title}</span>
+                <span className="th-lead">{tr.lead}</span>
+                <span className="th-count">
+                  {screens} מסכים · {spots} כפתורים · {videos === 1 ? "סרטון" : `${videos} סרטונים`}
+                </span>
+                <span className="th-go" aria-hidden="true">
+                  להדרכות ←
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+
+        <TrainingSearch roles={roles} />
+
+        <h2 className="th-more">סרטונים</h2>
+        <div className="th-videos">
+          {[...GENERAL, ...EXAM].map((id) => {
+            const v = videoOf(id)
+            if (!v) return null
+            return (
+              <Link key={id} href={`/training/video/${id}`} className="tp-card tp-video">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={v.poster} alt="" loading="lazy" />
+                <span className="tp-kicker">{EXAM.includes(id) ? "לבוחני הפרויקט" : "לכולם"} · {v.length}</span>
+                <span className="tp-title">{v.title}</span>
+                <span className="tp-lead">{v.who}</span>
+              </Link>
+            )
+          })}
+        </div>
       </main>
+      <AskNav />
       <SiteFooter t={t} />
     </>
   )

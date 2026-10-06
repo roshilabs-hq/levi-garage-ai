@@ -20,7 +20,7 @@ if (existsSync(localFile)) {
 }
 
 const key = local.get("CAL_API_KEY")
-const site = (local.get("SITE_URL") || "https://levi-garage.vercel.app").replace(/\/+$/, "")
+const site = (local.get("SITE_URL") || "https://levi-garage.co.il").replace(/\/+$/, "")
 if (!key) {
   console.error(`✗ חסר CAL_API_KEY ב-${localFile}`)
   process.exit(1)

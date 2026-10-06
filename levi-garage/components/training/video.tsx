@@ -16,10 +16,11 @@ const LANGS = [
 ]
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`
 
-export function VideoPlayer({ video }: { video: TrainingVideo }) {
+// start: מאיפה הסרטון מתחיל (בדף של מסך: הפרק של המסך בהדרכה המלאה). bare: בלי הכותרת.
+export function VideoPlayer({ video, start = 0, bare = false }: { video: TrainingVideo; start?: number; bare?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null)
   const list = useRef<HTMLOListElement>(null)
-  const [now, setNow] = useState(0)
+  const [now, setNow] = useState(start)
   const [lang, setLang] = useState("")
 
   useEffect(() => {
@@ -41,13 +42,15 @@ export function VideoPlayer({ video }: { video: TrainingVideo }) {
   }, [current])
 
   return (
-    <section className="tv" aria-labelledby={`v-${video.id}`}>
-      <div className="tv-head">
-        <h2 id={`v-${video.id}`}>{video.title}</h2>
-        <p>
-          {video.who} · {video.length}
-        </p>
-      </div>
+    <section className="tv" aria-labelledby={bare ? undefined : `v-${video.id}`} aria-label={bare ? `סרטון: ${video.title}` : undefined}>
+      {!bare && (
+        <div className="tv-head">
+          <h2 id={`v-${video.id}`}>{video.title}</h2>
+          <p>
+            {video.who} · {video.length}
+          </p>
+        </div>
+      )}
       <div className="tv-body">
         <div className="tv-player">
           <video
@@ -55,10 +58,14 @@ export function VideoPlayer({ video }: { video: TrainingVideo }) {
             controls
             playsInline
             preload="metadata"
-            poster={video.poster}
+            // בדף של מסך: בלי התמונה של תחילת הסרטון, כדי שהתצוגה המקדימה תהיה מהמסך עצמו (#t=).
+            poster={start > 0 ? undefined : video.poster}
             onTimeUpdate={(e) => setNow(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => {
+              if (start > 0 && e.currentTarget.currentTime < 0.5) e.currentTarget.currentTime = start
+            }}
           >
-            <source src={video.src} type="video/mp4" />
+            <source src={start > 0 ? `${video.src}#t=${start}` : video.src} type="video/mp4" />
             {LANGS.filter((l) => l.id).map((l) => (
               <track key={l.id} kind="subtitles" srcLang={l.id} label={l.label} src={video.src.replace(/\.mp4$/, `.${l.id}.vtt`)} />
             ))}
@@ -75,7 +82,7 @@ export function VideoPlayer({ video }: { video: TrainingVideo }) {
           {video.chapters.map((c, i) => (
             <li key={c.t}>
               <button
-                className={i === current && now > 0 ? "on" : ""}
+                className={i === current && (now > 0 || start > 0) ? "on" : ""}
                 onClick={() => {
                   const v = ref.current
                   if (!v) return

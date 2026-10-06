@@ -55,7 +55,7 @@ Remove-Item Env:NODE_OPTIONS
 **ב. קובץ מקומי אחד** בשם `.env.wiring.local`, בתיקייה `03-rollout/solution-3-agent/`. הוא כבר ב-`.gitignore`:
 
 ```
-SITE_URL=https://levi-garage.vercel.app
+SITE_URL=https://levi-garage.co.il
 NEXT_PUBLIC_WHATSAPP_NUMBER=9725XXXXXXXX
 BOT_DIR=C:\projects\Personal-Bot
 BOT_URL=https://<הכתובת של הבוט>.vercel.app
@@ -84,7 +84,9 @@ node 03-rollout/solution-3-agent/scripts/wire-garage.mjs bot
 
 **`GARAGE_PHONE` הוא הנייד של המוסך** `055-3048489` (עודכן ב-29.9; עד אז מספר בדוי), והוא כתוב בסקריפט בגלוי בכוונה: הבוט מציג אותו ללקוחות. **בבוט עצמו המשתנה עוד מחזיק את המספר הישן**, עד שמריצים את `wire-garage.mjs` מחדש או מעדכנים אותו ב-Vercel של הבוט.
 
-**כתובת האתר בבוט עדיין `levi-garage.vercel.app`** (נמצא ב-29.9: הקישור לאישור שהלקוחה קיבלה בוואטסאפ היה על vercel.app ולא על הדומיין). הכתובת הזו עובדת, אבל הלקוח צריך לראות את `levi-garage.co.il`. התיקון: ב-`.env.wiring.local` לשנות ל-`SITE_URL=https://levi-garage.co.il`, ולהריץ את `wire-garage.mjs` מחדש. הסקריפט כותב לבוט את `GARAGE_ASK_URL` מתוך `SITE_URL`, ומשם הבוט לוקח גם את הכתובת של קישור האישור. באותה הרצה מתעדכן גם הטלפון.
+**✅ תוקן (נבדק 6.10): הבוט עובד מול `levi-garage.co.il`.** ביומני הפרויקט הישן ב-Vercel, בשבוע של סבב הבדיקות (30.9 עד 6.10), אין אף פנייה ל-`/api/ask` ואף פתיחה של `/approve`. הבוט בונה את קישור האישור מהכתובת של `GARAGE_ASK_URL`. מה שנכתב כאן ב-29.9:
+
+~~כתובת האתר בבוט עדיין `levi-garage.vercel.app`~~ (נמצא ב-29.9: הקישור לאישור שהלקוחה קיבלה בוואטסאפ היה על vercel.app ולא על הדומיין). הכתובת הזו עובדת, אבל הלקוח צריך לראות את `levi-garage.co.il`. התיקון: ב-`.env.wiring.local` לשנות ל-`SITE_URL=https://levi-garage.co.il`, ולהריץ את `wire-garage.mjs` מחדש. הסקריפט כותב לבוט את `GARAGE_ASK_URL` מתוך `SITE_URL`, ומשם הבוט לוקח גם את הכתובת של קישור האישור. באותה הרצה מתעדכן גם הטלפון.
 
 ---
 
