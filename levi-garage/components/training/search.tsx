@@ -5,7 +5,8 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import { X } from "lucide-react"
+import { useMemo, useRef, useState } from "react"
 
 import type { ResolvedRole } from "@/lib/training/match"
 import { trackOfRole } from "@/lib/training/tracks"
@@ -15,6 +16,7 @@ const hrefOf = (role: string, screen: string, n?: number) => `/training/${trackO
 
 export function TrainingSearch({ roles }: { roles: ResolvedRole[] }) {
   const [query, setQuery] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
   const total = roles.reduce((sum, r) => sum + r.screens.reduce((a, s) => a + s.spots.length, 0), 0)
 
   const results = useMemo(() => {
@@ -31,10 +33,33 @@ export function TrainingSearch({ roles }: { roles: ResolvedRole[] }) {
 
   return (
     <div className="tg-find">
-      <label className="tg-search">
-        <span className="sr-only">חיפוש בכל ההדרכות</span>
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`חיפוש בכל ${total} הכפתורים, למשל "להחזיר לתור"`} />
-      </label>
+      <div className="tg-search-box">
+        <label className="tg-search">
+          <span className="sr-only">חיפוש בכל ההדרכות</span>
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+            placeholder={`חיפוש בכל ${total} הכפתורים, למשל "להחזיר לתור"`}
+          />
+        </label>
+        {/* ✕ לניקוי (רועי, 7.10): בלי זה, מי שלא מצא מילה נשאר עם השדה מלא. האייפון לא מציג ✕ משלו */}
+        {query && (
+          <button
+            type="button"
+            className="tg-search-clear"
+            aria-label="ניקוי החיפוש"
+            onClick={() => {
+              setQuery("")
+              inputRef.current?.focus()
+            }}
+          >
+            <X aria-hidden />
+          </button>
+        )}
+      </div>
       {query.trim().length >= 2 && (
         <div className="tg-results" aria-live="polite">
           {results.length === 0 ? (

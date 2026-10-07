@@ -40,7 +40,7 @@ export default async function TrackPage({ params, searchParams }: Props) {
   let n = 0
   return (
     <div className="tr-page">
-      <SiteHeader t={t} overPhoto={false} langs={false} />
+      <SiteHeader t={t} overPhoto={false} langs={false} cta={{ href: "/training", label: ui.home }} />
       <main id="main" className="wrap training" lang={lang} dir={dirOf(lang)}>
         <nav className="tc-crumbs" aria-label="מיקום">
           <Link href="/training">{ui.home}</Link> <span aria-hidden="true">›</span>{" "}

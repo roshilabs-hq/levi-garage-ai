@@ -26,7 +26,8 @@ function LangLinks({ current, label }: { current: Lang; label: string }) {
 }
 
 // langs: בורר השפה של האתר. במרכז ההדרכה הוא מוסתר, כדי שלא ייראה כאילו הוא מחליף את שפת המדריך (6.10).
-export function SiteHeader({ t, overPhoto = true, langs = true }: { t: Dict; overPhoto?: boolean; langs?: boolean }) {
+// cta: במרכז ההדרכה הכפתור בכותרת הוא "מרכז ההדרכה" ולא "קביעת תור" (רועי, 7.10: "שתמיד יהיה כפתור חזרה").
+export function SiteHeader({ t, overPhoto = true, langs = true, cta }: { t: Dict; overPhoto?: boolean; langs?: boolean; cta?: { href: string; label: string } }) {
   const [solid, setSolid] = useState(!overPhoto)
   const [open, setOpen] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
@@ -95,7 +96,13 @@ export function SiteHeader({ t, overPhoto = true, langs = true }: { t: Dict; ove
           </ul>
           <div className="nav-end">
             {langs && <LangLinks current={t.lang} label={t.footer.langs} />}
-            <a className="btn" href={bookingLink({}, t.lang)}>{t.nav.book}</a>
+            {cta ? (
+              <Link className="btn" href={cta.href}>
+                {cta.label}
+              </Link>
+            ) : (
+              <a className="btn" href={bookingLink({}, t.lang)}>{t.nav.book}</a>
+            )}
           </div>
         </div>
       </header>

@@ -39,6 +39,7 @@ export default function TrainingPage() {
             כקישורים ישירים, וכפתור למאגר ההדרכות. מה שמשותף לכולם בשורה אחת מתחת. */}
         <h2 className="th-more">מי אתם?</h2>
         {/* בתקופת הבדיקה של הקורס הבוחנים ראשונים (רועי, 7.10). אחרי הציון: להחזיר את הפס לסוף הדף. */}
+        <h3 className="th-sub">הבוחנים</h3>
         <Link href="/training/exam" className="th-exam">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={videoOf("exam")?.poster} alt="" />
@@ -51,6 +52,7 @@ export default function TrainingPage() {
             להנחיות ←
           </span>
         </Link>
+        <h3 className="th-sub">הצוות</h3>
         <div className="th-tiles">
           {TRACKS.map((tr) => {
             const groups = screensOf(tr, roles)

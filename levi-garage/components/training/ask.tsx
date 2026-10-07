@@ -3,10 +3,11 @@
 // "שאלה על המערכת" במרכז ההדרכה (1.5.0, הרעיון של רועי). שואלים איך עושים משהו,
 // והתשובה מגיעה עם כפתורים שמקפיצים לצילום ומסמנים את הכפתור הנכון.
 
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 
 type Ref = { role: string; screen: string; n: number; label: string }
-type Msg = { role: "user" | "model"; text: string; refs?: Ref[] }
+type Msg = { role: "user" | "model"; text: string; refs?: Ref[]; exam?: boolean }
 
 const STARTERS = ["איך מורידים רכב לחניה?", "איך נותנים הנחה של 15%?", "שכחתי את הקוד שלי", "كيف أبلّغ عن عطل في الشاشة؟"]
 
@@ -72,7 +73,7 @@ export function AskPanel({ onRef }: { onRef: (role: string, screen: string, n: n
           : res.ok && json.answer
             ? json.answer
             : "לא הצלחתי לענות כרגע. אפשר לחפש בשורת החיפוש למעלה, או לשאול את דניאל."
-      setMsgs((m) => [...m, { role: "model", text: answer, refs: res.ok ? json.refs : [] }])
+      setMsgs((m) => [...m, { role: "model", text: answer, refs: res.ok ? json.refs : [], exam: res.ok && json.exam === true }])
     } catch {
       setMsgs((m) => [...m, { role: "model", text: "אין חיבור כרגע. אפשר לנסות שוב בעוד רגע." }])
     } finally {
@@ -110,6 +111,12 @@ export function AskPanel({ onRef }: { onRef: (role: string, screen: string, n: n
         {msgs.map((m, i) => (
           <div key={i} className={`tg-msg ${m.role}`}>
             <p dir="auto">{m.text}</p>
+            {/* שאלה של בוחן הקורס (7.10): הבוט עונה רק על המדריכים, ומפנה לדף ההנחיות לבוחנים */}
+            {m.exam && (
+              <div className="tg-msg-refs">
+                <Link href="/training/exam">להנחיות לבוחנים ←</Link>
+              </div>
+            )}
             {m.refs && m.refs.length > 0 && (
               <div className="tg-msg-refs">
                 {m.refs.map((r) => (

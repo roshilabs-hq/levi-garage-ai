@@ -25,7 +25,7 @@ export default function ExamPage() {
   const v = videoOf("exam")
   return (
     <div className="tr-page">
-      <SiteHeader t={t} overPhoto={false} langs={false} />
+      <SiteHeader t={t} overPhoto={false} langs={false} cta={{ href: "/training", label: "מרכז ההדרכה" }} />
       <main id="main" className="wrap training">
         <nav className="tc-crumbs" aria-label="מיקום">
           <Link href="/training">מרכז ההדרכה</Link> <span aria-hidden="true">›</span> <span aria-current="page">לבוחני הפרויקט</span>
