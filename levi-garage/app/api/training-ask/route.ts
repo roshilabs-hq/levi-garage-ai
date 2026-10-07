@@ -90,7 +90,9 @@ export async function POST(req: Request) {
       .slice(0, 3)
       .map(({ role, screen, n, label }) => ({ role, screen, n, label }))
     return NextResponse.json({ answer: out.answer, refs, exam: out.exam === true })
-  } catch {
+  } catch (e) {
+    // הסיבה ביומן של Vercel, בלי השאלה עצמה (7.10: בדיקה חוזרת מצאה 502 באתר החי)
+    console.error("training-ask failed:", (e as Error).message)
     return NextResponse.json({ error: "failed" }, { status: 502 })
   }
 }

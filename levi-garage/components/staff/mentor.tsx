@@ -82,6 +82,10 @@ export function Mentor({ jobId, compact = false }: { jobId?: number; compact?: b
     try {
       const res = await fetch("/api/staff/mentor", { method: "POST", body: form })
       const json = await res.json().catch(() => ({}))
+      if (res.status === 429) {
+        setError("הרבה שאלות בשעה האחרונה. לנסות שוב בעוד כמה דקות, או לקרוא לדניאל.")
+        return
+      }
       if (!res.ok || !json.ok) throw new Error()
       setTurns((t) => [...t, { role: "model", text: json.answer, red: json.red_list }])
     } catch {

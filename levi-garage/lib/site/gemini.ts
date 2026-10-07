@@ -62,32 +62,42 @@ export async function generateJson<T>(opts: {
 }): Promise<T> {
   const { token, project } = await accessToken()
   const model = opts.model ?? "gemini-2.5-flash"
-  const res = await fetch(
-    `https://aiplatform.googleapis.com/v1/projects/${project}/locations/global/publishers/google/models/${model}:generateContent`,
-    {
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: opts.system }] },
+    contents: opts.contents.map((c) => ({
+      role: c.role,
+      parts: c.parts ? c.parts.map(toApiPart) : [{ text: c.text ?? "" }],
+    })),
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: opts.schema,
+      temperature: opts.temperature ?? 0.2,
+      maxOutputTokens: opts.maxOutputTokens ?? 800,
+      // אפשר לכבות "חשיבה" רק ב-flash. ב-pro זה מוחזר כשגיאה 400,
+      // ולכן ב-pro פשוט לא שולחים את השדה.
+      ...(model.includes("flash") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+    },
+  })
+  // 7.10: בבדיקה חוזרת, 5 מתוך 6 קריאות לבוט ההדרכה קיבלו 429 "Resource exhausted" מהמאגר הגלובלי
+  // של Gemini (עומס אצל Google, לא מכסה שלנו). דקה אחר כך הכול עבר. לכן, על 429, 500 או 503
+  // מנסים פעם אחת באזור באירופה, שיש לו מאגר משאבים נפרד. על חריגת זמן לא, כדי לא להכפיל המתנה.
+  let json: {
+    error?: { code?: number; message?: string }
+    candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[]
+  } = {}
+  for (const loc of ["global", "europe-west1"]) {
+    const host = loc === "global" ? "aiplatform.googleapis.com" : `${loc}-aiplatform.googleapis.com`
+    const res = await fetch(`https://${host}/v1/projects/${project}/locations/${loc}/publishers/google/models/${model}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: opts.system }] },
-        contents: opts.contents.map((c) => ({
-          role: c.role,
-          parts: c.parts ? c.parts.map(toApiPart) : [{ text: c.text ?? "" }],
-        })),
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: opts.schema,
-          temperature: opts.temperature ?? 0.2,
-          maxOutputTokens: opts.maxOutputTokens ?? 800,
-          // אפשר לכבות "חשיבה" רק ב-flash. ב-pro זה מוחזר כשגיאה 400,
-          // ולכן ב-pro פשוט לא שולחים את השדה.
-          ...(model.includes("flash") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-        },
-      }),
+      body,
       // הודעה קולית ב-pro לוקחת כ-17 שניות לפי ה-POC, ולכן זמן ההמתנה ארוך יותר.
       signal: AbortSignal.timeout(opts.timeoutMs ?? 20_000),
-    },
-  )
-  const json = await res.json()
+    })
+    json = await res.json()
+    if (!json.error || ![429, 500, 503].includes(Number(json.error.code))) break
+    console.error(`Gemini ${json.error.code} in ${loc}${loc === "global" ? ", trying europe-west1" : ""}`)
+  }
   if (json.error) throw new Error(`Gemini ${json.error.code}: ${json.error.message ?? ""}`.trim())
   const candidate = json.candidates?.[0]
   const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("")

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
+import { sniffPhoto } from "@/lib/staff/sniff"
 
 // דניאל מוסיף תמונה לממצא שכבר קיים. המסלול החלופי לכלל "אדום או בטיחות — עם תמונה":
 // המכונאי דיווח מהליפט בלי לצלם, והתור מסמן "חסרה תמונה". דניאל ניגש לרכב עם
@@ -35,8 +36,11 @@ export async function POST(req: Request) {
   if (finding.status !== "draft") return NextResponse.json({ error: "sent" }, { status: 409 })
 
   const bytes = Buffer.from(await photo.arrayBuffer())
-  const path = `job-${finding.job_card_id}/add-${finding.id}-${Date.now()}.${mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg"}`
-  const up = await supabase.storage.from("job-media").upload(path, bytes, { contentType: mime, upsert: false })
+  // הסוג לפי התוכן, לא לפי מה שהדפדפן הצהיר (ביקורת אבטחה חיצונית, 7.10, ממצא 8)
+  const type = sniffPhoto(bytes)
+  if (!type) return NextResponse.json({ error: "photo" }, { status: 400 })
+  const path = `job-${finding.job_card_id}/add-${finding.id}-${Date.now()}.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`
+  const up = await supabase.storage.from("job-media").upload(path, bytes, { contentType: type, upsert: false })
   if (up.error) return NextResponse.json({ error: "upload" }, { status: 502 })
 
   const { error } = await supabase.from("media").insert({
@@ -44,7 +48,7 @@ export async function POST(req: Request) {
     finding_id: finding.id,
     kind: "photo",
     storage_path: path,
-    mime,
+    mime: type,
     bytes: bytes.length,
     created_by: staff.id,
   })

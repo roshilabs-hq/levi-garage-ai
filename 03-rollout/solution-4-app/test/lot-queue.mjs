@@ -37,8 +37,22 @@ const call = (path, { token = anonKey, key = anonKey, ...init } = {}) =>
     headers: { apikey: key, authorization: `Bearer ${token}`, "content-type": "application/json", prefer: "return=representation", ...(init.headers || {}) },
   })
 const admin = (path, init = {}) => call(path, { ...init, token: serviceKey, key: serviceKey })
-const rpc = (fn, body, token) => call(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(body), token })
-const patchJob = (id, body, token) => call(`/rest/v1/job_cards?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(body), token })
+// 051 (ביקורת אבטחה חיצונית, 7.10): מכונאי פועל רק על הרכב שעל הליפט שהוא עובד עליו. כמו
+// באפליקציה (כניסה לעמדה, ו"למשוך לליפט" שמעלה לליפט של המכונאי), לפני כל פעולה של מכונאי
+// הוא "עומד" ליד הליפט של הרכב, או ליד הליפט שאליו הוא מעלה אותו.
+const mechanics = new Set()
+const jobLift = async (id) => (await (await admin(`/rest/v1/job_cards?id=eq.${id}&select=lift`)).json())[0]?.lift ?? null
+const standAt = async (token, lift) => {
+  if (mechanics.has(token) && lift != null) await call(`/rest/v1/rpc/set_my_lift`, { method: "POST", body: JSON.stringify({ p_lift: lift }), token })
+}
+const rpc = async (fn, body, token) => {
+  if (body?.p_job_id) await standAt(token, await jobLift(body.p_job_id))
+  return call(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(body), token })
+}
+const patchJob = async (id, body, token) => {
+  await standAt(token, "lift" in body && body.lift !== null ? body.lift : await jobLift(id))
+  return call(`/rest/v1/job_cards?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(body), token })
+}
 
 async function signIn(email) {
   const res = await call(`/auth/v1/token?grant_type=password`, { method: "POST", body: JSON.stringify({ email, password: passwordFor(email) }) })
@@ -50,6 +64,10 @@ const manager = await signIn("test1@test.com")
 const mechanic = await signIn("test5@test.com")
 const otherMechanic = await signIn("test2@test.com")
 const screen = await signIn("screen2@test.com")
+mechanics.add(mechanic)
+mechanics.add(otherMechanic)
+const idOf = async (token) => (await (await call(`/auth/v1/user`, { token })).json()).id
+const liftsBefore = await (await admin(`/rest/v1/staff?id=in.(${await idOf(mechanic)},${await idOf(otherMechanic)})&select=id,lift`)).json()
 
 const items = await (await admin(`/rest/v1/price_list?select=id,code,fixed_price,price_original`)).json()
 const item = (code) => items.find((i) => i.code === code)
@@ -292,6 +310,9 @@ try {
     ok("תזכורת אחת לכל בקשה", Array.isArray(againNudge) && !againNudge.some((x) => x.token === eToken))
   }
 } finally {
+  for (const s of Array.isArray(liftsBefore) ? liftsBefore : []) {
+    await admin(`/rest/v1/staff?id=eq.${s.id}`, { method: "PATCH", body: JSON.stringify({ lift: s.lift }) })
+  }
   for (const id of jobs) {
     const fs = await (await admin(`/rest/v1/findings?job_card_id=eq.${id}&select=id`)).json()
     for (const f of fs) await admin(`/rest/v1/approvals?finding_id=eq.${f.id}`, { method: "DELETE" })

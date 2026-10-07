@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
+import { staffAiAllowed } from "@/lib/staff/ai-quota"
 import { createFindingFromAudio } from "@/lib/staff/make-finding"
 
 // ניסיון תמלול חוזר, על הקלטה ששמורה כבר.
@@ -33,6 +34,8 @@ export async function POST(req: Request) {
   if (!media || media.kind !== "audio") return NextResponse.json({ error: "not found" }, { status: 404 })
   // כבר יש טיוטה מההקלטה הזאת. ניסיון חוזר היה יוצר כפילות שדניאל ישלח פעמיים.
   if (media.finding_id) return NextResponse.json({ error: "already" }, { status: 409 })
+  // מכסה לפני הקריאה ל-Gemini (ביקורת אבטחה חיצונית, 7.10, ממצא 7)
+  if (!(await staffAiAllowed(staff.id))) return NextResponse.json({ error: "limit" }, { status: 429 })
 
   const { data: job } = await supabase
     .from("job_cards")

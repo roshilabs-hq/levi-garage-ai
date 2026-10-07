@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
+import { staffAiAllowed } from "@/lib/staff/ai-quota"
+import { sniffAudio, sniffPhoto } from "@/lib/staff/sniff"
 import { createFindingFromAudio } from "@/lib/staff/make-finding"
 import { itemByKey } from "@/lib/staff/inspection"
 
@@ -16,21 +18,9 @@ export const maxDuration = 90
 const MAX_AUDIO = 20 * 1024 * 1024
 const MAX_PHOTO = 12 * 1024 * 1024
 
-// הדלי משווה mime כמחרוזת מדויקת, והדפדפן שולח "audio/webm;codecs=opus".
-// בלי הניקוי הזה ההעלאה נדחית, המכונאי רואה "לא הצלחנו לשמור", ומה שאמר
-// באמת אובד — בדיוק המקרה שכל המסלול נבנה כדי למנוע.
-const ALLOWED_AUDIO = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"]
+// הדלי משווה mime כמחרוזת מדויקת, והדפדפן שולח "audio/webm;codecs=opus". לכן הסוג נקבע לפי
+// תוכן הקובץ (lib/staff/sniff.ts), ותמיד יוצא אחד מהסוגים שהדלי מקבל.
 const ALLOWED_PHOTO = ["image/jpeg", "image/png", "image/webp"]
-
-function audioMime(raw: string) {
-  const base = (raw || "").split(";")[0].trim().toLowerCase()
-  if (ALLOWED_AUDIO.includes(base)) return base
-  // כינויים שמכשירים שולחים לאותם פורמטים בדיוק.
-  if (base === "audio/x-m4a" || base === "audio/aac" || base === "audio/m4a") return "audio/mp4"
-  if (base === "audio/x-wav" || base === "audio/wave") return "audio/wav"
-  if (base === "audio/mp3") return "audio/mpeg"
-  return "audio/webm"
-}
 
 function photoMime(raw: string) {
   const base = (raw || "").split(";")[0].trim().toLowerCase()
@@ -80,18 +70,26 @@ export async function POST(req: Request) {
   const base = `job-${job.id}/cap-${Date.now()}`
   const saved: { path: string; kind: "audio" | "photo"; mime: string; bytes: Buffer }[] = []
 
-  if (photo) {
-    const mime = photoMime(photo.type)
-    const bytes = Buffer.from(await photo.arrayBuffer())
+  // סוג הקובץ לפי התוכן (ממצא 8): מה שלא מזוהה כתמונה או כקול לא נשמר ולא נשלח למודל.
+  const photoBytes = photo ? Buffer.from(await photo.arrayBuffer()) : null
+  const audioBytes = audio ? Buffer.from(await audio.arrayBuffer()) : null
+  const photoType = photoBytes ? sniffPhoto(photoBytes) : null
+  const audioType = audioBytes ? sniffAudio(audioBytes) : null
+  if (photoBytes && !photoType) return NextResponse.json({ error: "photo" }, { status: 400 })
+  if (audioBytes && !audioType) return NextResponse.json({ error: "audio" }, { status: 400 })
+
+  if (photo && photoBytes && photoType) {
+    const mime = photoType
+    const bytes = photoBytes
     const path = `${base}-p0.${mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg"}`
     const up = await supabase.storage.from("job-media").upload(path, bytes, { contentType: mime, upsert: false })
     if (up.error) console.error("capture photo upload failed:", up.error.message)
     else saved.push({ path, kind: "photo", mime, bytes })
   }
-  if (audio) {
-    const mime = audioMime(audio.type)
-    const bytes = Buffer.from(await audio.arrayBuffer())
-    const path = `${base}.${mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "m4a" : "webm"}`
+  if (audio && audioBytes && audioType) {
+    const mime = audioType
+    const bytes = audioBytes
+    const path = `${base}.${{ "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/wav": "wav" }[mime] ?? "webm"}`
     const up = await supabase.storage.from("job-media").upload(path, bytes, { contentType: mime, upsert: false })
     if (up.error) console.error("capture audio upload failed:", up.error.message)
     else saved.push({ path, kind: "audio", mime, bytes })
@@ -112,6 +110,9 @@ export async function POST(req: Request) {
 
   const a = saved.find((m) => m.kind === "audio")
   const p = saved.find((m) => m.kind === "photo")
+
+  // מכסה (ממצא 7), אחרי השמירה: ההקלטה לא אובדת, ודניאל יכול לנסות שוב מהכרטיס.
+  if (!(await staffAiAllowed(staff.id))) return NextResponse.json({ error: "limit", saved: saved.length > 0 }, { status: 429 })
 
   try {
     const { finding_id, report } = await createFindingFromAudio({

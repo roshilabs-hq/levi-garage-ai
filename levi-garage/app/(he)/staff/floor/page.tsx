@@ -475,7 +475,8 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                     <Link className="btn quiet" href={`/staff/job/${c.id}`}>
                       מה נשלח
                     </Link>
-                    {c.lift !== null && (
+                    {/* 051: מכונאי מוריד רק את הרכב שעל הליפט שלו. מנהל, כל רכב. */}
+                    {c.lift !== null && (isManager || c.lift === staff.lift) && (
                       <form action={lowerCar}>
                         <input type="hidden" name="job_id" value={c.id} />
                         <button className="btn quiet" type="submit">להוריד לחניה</button>

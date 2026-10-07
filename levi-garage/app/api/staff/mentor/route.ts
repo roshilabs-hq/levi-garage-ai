@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
+import { staffAiAllowed } from "@/lib/staff/ai-quota"
+import { sniffPhoto } from "@/lib/staff/sniff"
 import { INSPECTION_ITEMS, type InspectionState } from "@/lib/staff/inspection"
 import { askMentor, type MentorTurn } from "@/lib/mentor/ask"
 
@@ -75,9 +77,12 @@ export async function POST(req: Request) {
     }
   }
 
-  const pic = photo
-    ? { data: Buffer.from(await photo.arrayBuffer()).toString("base64"), mime: (photo.type || "image/jpeg").split(";")[0] }
-    : null
+  // הסוג לפי התוכן (ממצא 8), ומכסה לפני הקריאה ל-Gemini (ממצא 7). ביקורת אבטחה חיצונית, 7.10.
+  const photoBytes = photo ? Buffer.from(await photo.arrayBuffer()) : null
+  const photoType = photoBytes ? sniffPhoto(photoBytes) : null
+  if (photoBytes && !photoType) return NextResponse.json({ error: "photo" }, { status: 400 })
+  if (!(await staffAiAllowed(staff.id))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  const pic = photoBytes && photoType ? { data: photoBytes.toString("base64"), mime: photoType } : null
 
   try {
     const out = await askMentor(

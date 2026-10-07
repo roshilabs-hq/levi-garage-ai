@@ -30,12 +30,16 @@ export async function ipKeyFromHeaders(prefix: string): Promise<string> {
 export async function allowed(key: string, windowSeconds: number, max: number): Promise<boolean> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anon = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  // 052 (ביקורת אבטחה חיצונית, 7.10, ממצא 4): המסד סופר רק עם הסוד של השרת. בלעדיו כל אחד עם
+  // המפתח הציבורי יכול היה למלא את המונים או לשרוף את התקרה היומית של הבוטים. עד שהסוד מוגדר
+  // ב-Vercel, נשארים עם הפונקציה הישנה, כדי שההגבלה לא תיכבה בזמן המעבר.
+  const secret = process.env.RATE_LIMIT_SECRET
   if (!url || !anon) return true
   try {
     const res = await fetch(`${url}/rest/v1/rpc/rate_hit`, {
       method: "POST",
       headers: { apikey: anon, authorization: `Bearer ${anon}`, "content-type": "application/json" },
-      body: JSON.stringify({ p_key: key.slice(0, 120), p_window_seconds: windowSeconds, p_max: max }),
+      body: JSON.stringify({ p_key: key.slice(0, 120), p_window_seconds: windowSeconds, p_max: max, ...(secret ? { p_secret: secret } : {}) }),
       signal: AbortSignal.timeout(3000),
       cache: "no-store",
     })
