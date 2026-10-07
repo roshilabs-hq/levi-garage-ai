@@ -51,6 +51,11 @@ export default async function ReadPage({ params, searchParams }: Props) {
               <span aria-hidden="true">›</span>{" "}
             </>
           )}
+          {g.id === "examiner" && (
+            <>
+              <Link href="/training/exam">לבוחני הפרויקט</Link> <span aria-hidden="true">›</span>{" "}
+            </>
+          )}
           <span aria-current="page">{title}</span>
         </nav>
         <h1>{title}</h1>

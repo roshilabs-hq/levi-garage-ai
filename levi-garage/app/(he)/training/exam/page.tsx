@@ -16,7 +16,6 @@ export const metadata: Metadata = {
   robots: { index: false },
 }
 
-const REPO = "https://github.com/roshilabs-hq/levi-garage-ai"
 
 // דף לבוחני פרויקט הגמר (רועי, 6.10: "הנחיות מצידנו, לא רק הסרטון"). הסרטון, ומתחתיו ההנחיות
 // הכתובות. הוא מחוץ לשני המסלולים, כי הוא לא הדרכה לעובדי המוסך.
@@ -37,7 +36,7 @@ export default function ExamPage() {
         {v && <VideoPlayer video={v} bare />}
         <ExamSteps />
         <p className="ex-full">
-          כל התרחישים, עם הסבר מלא לכל צעד: <a href={`${REPO}/blob/main/04-empower/examiner-guide.md`}>המדריך המלא לבוחנים</a>.
+          כל התרחישים, עם הסבר מלא לכל צעד: <Link href="/training/read/examiner">המדריך המלא לבוחנים</Link>.
         </p>
       </main>
       <AskNav />

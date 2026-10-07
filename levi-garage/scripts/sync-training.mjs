@@ -50,6 +50,12 @@ const guides = Object.fromEntries(
       .replace(/\]\(([a-z-]+)\.md(#[^)]*)?\)/g, (_, f, h = "") => `](/training/read/${f}${h})`),
   ]),
 )
+// המדריך המלא לבוחנים (7.10, רועי: "למה מפנה ל-GIT?"): דף באתר, כמו שאר המדריכים. הוא יושב
+// ב-04-empower ולא ב-guides, ולכן "../" שלו הוא שורש הריפו. קישור לאתר עצמו נשאר בתוך האתר.
+guides.examiner = readFileSync(join(src, "..", "examiner-guide.md"), "utf8")
+  .replace(/\r\n/g, NL)
+  .replace(/\]\(\.\.\/([^)]+)\)/g, (_, f) => `](${REPO.replace(/\/blob\/main\/04-empower$/, f.endsWith("/") ? "/tree/main" : "/blob/main")}/${f})`)
+  .replace(/\]\(https:\/\/levi-garage\.co\.il(\/[^)]*)\)/g, "]($1)")
 writeFileSync(
   join(root, "lib", "training", "guides.ts"),
   `// נוצר ב-scripts/sync-training.mjs מתוך 04-empower/guides. לא לערוך כאן.${NL}export const GUIDES: Record<string, string> = ${JSON.stringify(guides, null, 1)}${NL}`,

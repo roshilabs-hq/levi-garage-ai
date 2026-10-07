@@ -343,6 +343,10 @@
 .rd blockquote p { margin: 4px 0; }
 .rd img { display: block; max-width: 100%; height: auto; margin: 16px 0; border-radius: 12px; box-shadow: 0 0 0 1px var(--line), var(--shadow); }
 .rd code { unicode-bidi: isolate; direction: ltr; font-family: ui-monospace, Consolas, monospace; font-size: .9em; padding: 1px 6px; border-radius: 6px; background: var(--sunk); white-space: nowrap; }
+/* בתוך טבלה כתובת ארוכה נשברת, אחרת הטבלה חורגת מרוחב הטלפון (המדריך לבוחנים, 7.10) */
+.rd td code { white-space: normal; overflow-wrap: anywhere; }
+/* בטלפון: קישור ארוך או ציטוט ארוך נשברים, ולא דוחפים את הדף הצידה */
+@media (max-width: 640px) { .rd code { white-space: normal; overflow-wrap: anywhere; } .rd a { overflow-wrap: anywhere; } }
 .rd table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 16px; display: block; overflow-x: auto; }
 .rd th, .rd td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .rd th { background: var(--sunk); }
