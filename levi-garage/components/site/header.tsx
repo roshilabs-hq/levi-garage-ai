@@ -25,7 +25,8 @@ function LangLinks({ current, label }: { current: Lang; label: string }) {
   )
 }
 
-export function SiteHeader({ t, overPhoto = true }: { t: Dict; overPhoto?: boolean }) {
+// langs: בורר השפה של האתר. במרכז ההדרכה הוא מוסתר, כדי שלא ייראה כאילו הוא מחליף את שפת המדריך (6.10).
+export function SiteHeader({ t, overPhoto = true, langs = true }: { t: Dict; overPhoto?: boolean; langs?: boolean }) {
   const [solid, setSolid] = useState(!overPhoto)
   const [open, setOpen] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
@@ -89,7 +90,7 @@ export function SiteHeader({ t, overPhoto = true }: { t: Dict; overPhoto?: boole
             ))}
           </ul>
           <div className="nav-end">
-            <LangLinks current={t.lang} label={t.footer.langs} />
+            {langs && <LangLinks current={t.lang} label={t.footer.langs} />}
             <a className="btn" href={bookingLink({}, t.lang)}>{t.nav.book}</a>
             <button className="menu-btn" aria-expanded={open} aria-controls="mobile-menu" aria-label={open ? t.nav.close : t.nav.menu} onClick={() => setOpen((o) => !o)}>
               {open ? <X aria-hidden /> : <Menu aria-hidden />}
@@ -103,7 +104,7 @@ export function SiteHeader({ t, overPhoto = true }: { t: Dict; overPhoto?: boole
             <li key={l.href}><a href={l.href} onClick={() => { setOpen(false); setSolid(true) }}>{l.label}</a></li>
           ))}
         </ul>
-        <LangLinks current={t.lang} label={t.footer.langs} />
+        {langs && <LangLinks current={t.lang} label={t.footer.langs} />}
       </div>
       {overPhoto && <div ref={sentinel} aria-hidden style={{ position: "absolute", top: 0, height: 120, width: 1 }} />}
     </>

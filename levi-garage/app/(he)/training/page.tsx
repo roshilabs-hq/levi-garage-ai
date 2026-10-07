@@ -24,11 +24,11 @@ export default function TrainingPage() {
   const { roles } = resolveGuide()
   return (
     <>
-      <SiteHeader t={t} overPhoto={false} />
+      <SiteHeader t={t} overPhoto={false} langs={false} />
       <OldHash />
       <main id="main" className="wrap training">
         <h1>מרכז ההדרכה</h1>
-        <p className="training-lead">כל מסך במערכת, וכל כפתור בו: מה הוא עושה, ומה קורה אחרי שלוחצים. בוחרים את המדריך שלכם.</p>
+        <p className="training-lead">כל מסך במערכת, וכל פעולה בו: מה היא עושה, ומה קורה אחרי שלוחצים. בוחרים את המדריך שלכם.</p>
 
         <div className="th-tiles">
           {TRACKS.map((tr) => {

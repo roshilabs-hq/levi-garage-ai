@@ -32,7 +32,7 @@ export default async function TrackPage({ params }: Props) {
   let n = 0
   return (
     <>
-      <SiteHeader t={t} overPhoto={false} />
+      <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training">
         <nav className="tc-crumbs" aria-label="מיקום">
           <Link href="/training">מרכז ההדרכה</Link> <span aria-hidden="true">›</span> <span aria-current="page">{tr.title}</span>

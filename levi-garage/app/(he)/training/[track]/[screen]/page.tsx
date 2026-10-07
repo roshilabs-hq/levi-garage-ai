@@ -47,7 +47,7 @@ export default async function ScreenPage({ params }: Props) {
   const at = startOf(f.tr, f.screen)
   return (
     <>
-      <SiteHeader t={t} overPhoto={false} />
+      <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training">
         <nav className="tc-crumbs" aria-label="מיקום">
           <Link href="/training">מרכז ההדרכה</Link> <span aria-hidden="true">›</span> <Link href={`/training/${f.tr.id}`}>{f.tr.title}</Link>{" "}

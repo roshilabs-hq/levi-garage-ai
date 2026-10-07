@@ -216,6 +216,7 @@ function Car({
         <form action={lowerCar} className="lift-lower">
           <input type="hidden" name="job_id" value={card.id} />
           <button className="btn quiet" type="submit">מחכים לחלק? להוריד לחניה</button>
+          <p className="staff-meta">רק רכב סגור, שאפשר לנסוע בו. רכב פתוח נשאר על הליפט.</p>
         </form>
       )}
       <Link className="lift-link" href={`/staff/job/${card.id}`}>הכרטיס המלא</Link>

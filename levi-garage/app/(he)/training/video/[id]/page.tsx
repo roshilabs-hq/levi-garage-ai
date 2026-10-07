@@ -29,7 +29,7 @@ export default async function VideoPage({ params }: Props) {
   const tr = TRACKS.find((x) => x.video === v.id || x.extra.includes(v.id))
   return (
     <>
-      <SiteHeader t={t} overPhoto={false} />
+      <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training">
         <nav className="tc-crumbs" aria-label="מיקום">
           <Link href="/training">מרכז ההדרכה</Link> <span aria-hidden="true">›</span>{" "}

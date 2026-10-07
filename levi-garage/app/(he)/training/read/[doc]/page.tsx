@@ -29,7 +29,7 @@ export default async function ReadPage({ params }: Props) {
   const tr = g.tracks.length === 1 ? trackOf(g.tracks[0]) : undefined
   return (
     <>
-      <SiteHeader t={t} overPhoto={false} />
+      <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training">
         <nav className="tc-crumbs" aria-label="מיקום">
           <Link href="/training">מרכז ההדרכה</Link> <span aria-hidden="true">›</span>{" "}
