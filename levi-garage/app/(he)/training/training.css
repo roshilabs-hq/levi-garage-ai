@@ -170,25 +170,37 @@
 .training-guide-title { margin-top: 56px; font-size: 28px; }
 
 /* ---------- שני מסלולים (6.10): קוביות בכניסה, מאגר הדרכות, ודף לכל מסך ---------- */
-.th-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+.th-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
+/* שני המסלולים באותו משקל (7.10): אותו רקע, אותו מבנה. הכרטיס כבר לא קישור אחד, כי יש בו קישורים למדריכים */
 .th-tile {
-  display: grid; gap: 10px; align-content: start; min-height: 300px; padding: 32px 30px; border-radius: 22px;
-  text-decoration: none; color: var(--forest-ink); background: var(--forest); box-shadow: var(--shadow);
-  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+  display: flex; flex-direction: column; gap: 10px; padding: 30px 30px 28px; border-radius: 22px;
+  color: var(--forest-ink); background: var(--forest); box-shadow: var(--shadow);
 }
-.th-tile.th-workers { background: var(--surface); color: var(--ink); box-shadow: var(--shadow), inset 0 0 0 2px var(--forest); }
-.th-tile:hover { transform: translateY(-3px); }
-.th-tile:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 .th-who { font-weight: 700; font-size: 16px; color: var(--amber); }
-.th-workers .th-who { color: var(--muted); }
 /* במצב כהה הירוק מתבהר, והענבר עליו יורד מתחת ל-4.5:1 */
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .th-owners .th-who { color: var(--forest-ink); } }
-:root[data-theme="dark"] .th-owners .th-who { color: var(--forest-ink); }
-.th-title { font-family: var(--font-display), serif; font-weight: 700; font-size: clamp(1.9rem, 3.2vw, 2.6rem); line-height: 1.12; }
-.th-lead { font-size: 18px; line-height: 1.55; opacity: .92; max-width: 46ch; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .th-tile .th-who { color: var(--forest-ink); } }
+:root[data-theme="dark"] .th-tile .th-who { color: var(--forest-ink); }
+.th-title { font-family: var(--font-display), serif; font-weight: 700; font-size: clamp(1.9rem, 3.2vw, 2.5rem); line-height: 1.12; margin: 0; }
+.th-title a { color: inherit; text-decoration: none; }
+.th-title a:hover { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
+.th-lead { font-size: 18px; line-height: 1.55; opacity: .92; max-width: 46ch; margin: 0; }
+.th-langs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 0; font-size: 15px; }
+.th-langs a { padding: 3px 14px; border-radius: 999px; color: inherit; text-decoration: none; font-weight: 700; box-shadow: inset 0 0 0 1.5px currentColor; }
+.th-langs a:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+.th-reads { list-style: none; padding: 0; margin: 6px 0 0; }
+.th-reads li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
+.th-reads li:last-child { border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
+.th-reads a { color: inherit; font-weight: 700; font-size: 17px; text-underline-offset: 4px; }
+.th-reads span { font-size: 14px; opacity: .78; white-space: nowrap; }
 .th-count { font-size: 15px; opacity: .8; margin-top: 4px; }
-.th-go { margin-top: auto; justify-self: start; padding: 10px 22px; border-radius: 999px; font-weight: 700; background: var(--amber); color: var(--amber-ink); }
-.th-workers .th-go { background: var(--forest); color: var(--forest-ink); }
+.th-go {
+  margin-top: auto; align-self: flex-start; display: inline-flex; gap: 6px; padding: 10px 22px; border-radius: 999px;
+  font-weight: 700; text-decoration: none; background: var(--amber); color: var(--amber-ink);
+  transition: transform 160ms var(--ease-out);
+}
+.th-count { margin-bottom: 10px; }
+.th-go:hover { transform: translateY(-2px); }
+.th-tile a:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
 
 .tg-find { margin-top: 28px; max-width: 720px; }
 .tg-find .tg-search input { width: 100%; }
@@ -200,7 +212,15 @@
 
 .th-more, .tp-group { font-size: 26px; margin-top: 48px; }
 .tp-why { color: var(--muted); max-width: 70ch; margin-top: 6px; }
-.th-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; max-width: 900px; }
+.th-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+/* השאלות הנפוצות בשורה של "לכל הצוות", באותו גובה כמו הסרטונים */
+.th-faq-mark {
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px;
+  aspect-ratio: 16 / 9; padding: 14px 16px; border-radius: 10px; background: var(--forest);
+}
+.th-faq-mark span { padding: 5px 12px; border-radius: 12px 12px 12px 4px; background: var(--forest-ink); color: var(--forest); font-weight: 700; font-size: 15px; }
+.th-faq-mark span:nth-child(2) { margin-inline-start: 18px; }
+.th-faq-mark span:nth-child(3) { margin-inline-start: 36px; }
 
 /* פרקים בהדרכה המלאה: הפרק של התפקיד ככותרת, והמסכים שלו מוזחים מתחתיו */
 .tv-head-ch button { font-weight: 700; margin-top: 6px; }
@@ -216,7 +236,7 @@
 .th-exam:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .th-exam img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; display: block; background: #0d120f; }
 .th-exam-text { display: grid; gap: 4px; }
-.th-exam .th-go { margin-top: 0; background: var(--forest); color: var(--forest-ink); white-space: nowrap; }
+.th-exam .th-go { margin-top: 0; align-self: center; background: var(--forest); color: var(--forest-ink); white-space: nowrap; }
 
 /* דף הבוחנים: ההנחיות הכתובות */
 .ex { max-width: 860px; }
@@ -277,7 +297,7 @@
 
 @media (max-width: 760px) {
   .th-tiles { grid-template-columns: 1fr; }
-  .th-tile { min-height: 0; padding: 24px 22px; }
+  .th-tile { padding: 24px 22px; }
   .ts-pager { grid-template-columns: 1fr; }
   .ts-next { text-align: start; }
   .th-exam { grid-template-columns: minmax(0, 1fr); padding: 14px; gap: 14px; }
@@ -287,8 +307,8 @@
   .ex-code { white-space: normal; overflow-wrap: anywhere; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .th-tile, .tp-card { transition: none; }
-  .th-tile:hover, .tp-card:hover { transform: none; }
+  .th-go, .tp-card { transition: none; }
+  .th-go:hover, .tp-card:hover { transform: none; }
 }
 
 /* ---------- המדריכים הכתובים (6.10): כרטיסים, ודף קריאה ---------- */
@@ -325,4 +345,3 @@
 .tl-langs .tl-note { flex-basis: 100%; color: var(--muted); font-size: 14px; }
 /* כתובת או שם כפתור בעברית בתוך שורה ברוסית: לא להפוך */
 .training[dir="ltr"] .tg-list b, .training[dir="ltr"] .tp-title { unicode-bidi: plaintext; }
-.th-langs { font-size: 15px; font-weight: 700; }
