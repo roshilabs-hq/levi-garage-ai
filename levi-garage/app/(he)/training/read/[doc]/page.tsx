@@ -40,7 +40,7 @@ export default async function ReadPage({ params, searchParams }: Props) {
   const tr = g.tracks.length === 1 ? trackOf(g.tracks[0]) : g.tracks.includes("workers") && lang !== "he" ? trackOf("workers") : undefined
   const title = ui.reads[g.id]?.title ?? g.title
   return (
-    <>
+    <div className="tr-page">
       <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training" lang={lang} dir={dirOf(lang)}>
         <nav className="tc-crumbs" aria-label="מיקום">
@@ -61,6 +61,6 @@ export default async function ReadPage({ params, searchParams }: Props) {
       </main>
       <AskNav />
       <SiteFooter t={t} />
-    </>
+    </div>
   )
 }

@@ -39,7 +39,7 @@ export default async function TrackPage({ params, searchParams }: Props) {
   const base = `/training/${tr.id}`
   let n = 0
   return (
-    <>
+    <div className="tr-page">
       <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training" lang={lang} dir={dirOf(lang)}>
         <nav className="tc-crumbs" aria-label="מיקום">
@@ -109,6 +109,6 @@ export default async function TrackPage({ params, searchParams }: Props) {
       </main>
       <AskNav />
       <SiteFooter t={t} />
-    </>
+    </div>
   )
 }

@@ -55,7 +55,7 @@ export default async function ScreenPage({ params, searchParams }: Props) {
   const title = (s: typeof f.screen) => translateScreen(s, lang).title
   const base = `/training/${f.tr.id}`
   return (
-    <>
+    <div className="tr-page">
       <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training" lang={lang} dir={dirOf(lang)}>
         <nav className="tc-crumbs" aria-label="מיקום">
@@ -104,6 +104,6 @@ export default async function ScreenPage({ params, searchParams }: Props) {
       </main>
       <AskNav />
       <SiteFooter t={t} />
-    </>
+    </div>
   )
 }

@@ -33,7 +33,7 @@ export default async function VideoPage({ params, searchParams }: Props) {
   const t = dicts.he
   const tr = TRACKS.find((x) => x.video === v.id || x.extra.includes(v.id))
   return (
-    <>
+    <div className="tr-page">
       <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training" lang={vt ? lang : undefined} dir={vt ? dirOf(lang) : undefined}>
         <nav className="tc-crumbs" aria-label="מיקום">
@@ -53,6 +53,6 @@ export default async function VideoPage({ params, searchParams }: Props) {
       </main>
       <AskNav />
       <SiteFooter t={t} />
-    </>
+    </div>
   )
 }

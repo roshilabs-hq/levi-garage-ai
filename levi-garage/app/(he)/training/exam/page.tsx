@@ -24,7 +24,7 @@ export default function ExamPage() {
   const t = dicts.he
   const v = videoOf("exam")
   return (
-    <>
+    <div className="tr-page">
       <SiteHeader t={t} overPhoto={false} langs={false} />
       <main id="main" className="wrap training">
         <nav className="tc-crumbs" aria-label="מיקום">
@@ -42,6 +42,6 @@ export default function ExamPage() {
       </main>
       <AskNav />
       <SiteFooter t={t} />
-    </>
+    </div>
   )
 }

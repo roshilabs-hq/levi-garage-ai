@@ -22,8 +22,10 @@ export default function TrainingPage() {
   const t = dicts.he
   const { roles } = resolveGuide()
   const faq = readOf("faq")
+  // עטיפה אחת לכל הדף (7.10): במעבר בין דפים Next גולל אל האלמנט הראשון של הדף החדש. בלי העטיפה
+  // הוא תפס את הכותרת התחתונה, והדף נפתח למטה. כך גם בכל דפי מרכז ההדרכה.
   return (
-    <>
+    <div className="tr-page">
       <SiteHeader t={t} overPhoto={false} langs={false} />
       <OldHash />
       <main id="main" className="wrap training">
@@ -119,6 +121,6 @@ export default function TrainingPage() {
       </main>
       <AskNav />
       <SiteFooter t={t} />
-    </>
+    </div>
   )
 }
