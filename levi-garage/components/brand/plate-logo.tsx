@@ -24,7 +24,8 @@ export function PlateLogo({
 }) {
   const fill = mono ? "#ffffff" : "#f2c230"
   const strip = mono ? "#111214" : "#1c3f8f"
-  const nameSize = lang === "ru" ? 30 : 42
+  // ל-Frank Ruhl Libre אין קירילית, והגופן החלופי רחב יותר: ב-30 השם נגע בשולי הלוחית (7.10)
+  const nameSize = lang === "ru" ? 27 : 42
   return (
     <svg
       className={className}

@@ -31,7 +31,7 @@ export type Dict = {
     disclaimer: string; thinking: string; error: string; limit: string; open: string; close: string
     book: string; whatsapp: string; you: string; garage: string
   }
-  footer: { tagline: string; privacy: string; accessibility: string; terms: string; demo: string; langs: string; themeLight: string; themeDark: string }
+  footer: { tagline: string; privacy: string; accessibility: string; terms: string; staff: string; demo: string; langs: string; themeLight: string; themeDark: string }
   book: {
     title: string; lead: string; loading: string; fallback: string
     /** 6.10 (תיקון 13): טופס Cal.com בעברית בלבד. בערבית וברוסית מסבירים מעליו מה כל שדה ותיבה. */
@@ -190,6 +190,7 @@ const he: Dict = {
     privacy: "מדיניות פרטיות",
     accessibility: "הצהרת נגישות",
     terms: "תנאי שימוש",
+    staff: "לצוות המוסך: מרכז ההדרכה",
     demo: "אתר הדגמה לפרויקט גמר. העסק, האנשים והתמונות בדויים, והתמונות נוצרו להמחשה.",
     langs: "שפה",
     themeLight: "תאורה בהירה",
@@ -362,6 +363,7 @@ const ar: Dict = {
     privacy: "سياسة الخصوصية (بالعبرية)",
     accessibility: "بيان الإتاحة (بالعبرية)",
     terms: "شروط الاستخدام (بالعبرية)",
+    staff: "لطاقم الكراج: مركز التدريب",
     demo: "موقع عرض لمشروع تخرّج. المصلحة والأشخاص والصور متخيّلة، والصور أُنتجت للتوضيح.",
     langs: "اللغة",
     themeLight: "إضاءة فاتحة",
@@ -536,6 +538,7 @@ const ru: Dict = {
     privacy: "Политика конфиденциальности (на иврите)",
     accessibility: "Заявление о доступности (на иврите)",
     terms: "Условия использования (на иврите)",
+    staff: "Для сотрудников: обучение",
     demo: "Демонстрационный сайт для дипломного проекта. Бизнес, люди и фотографии вымышлены, фото созданы для иллюстрации.",
     langs: "Язык",
     themeLight: "Светлая тема",

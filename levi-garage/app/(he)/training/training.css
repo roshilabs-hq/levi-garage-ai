@@ -229,10 +229,10 @@
 /* הפס לבוחני הפרויקט, בסוף הכניסה: מחוץ להדרכת העובדים */
 .th-exam {
   display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; gap: 22px; align-items: center;
-  margin-top: 64px; padding: 16px 16px 16px 24px; border-radius: 20px; text-decoration: none;
-  background: var(--sunk); color: var(--ink); box-shadow: 0 0 0 1px var(--line);
+  margin: 16px 0 20px; padding: 16px 16px 16px 24px; border-radius: 20px; text-decoration: none;
+  background: var(--sunk); color: var(--ink); box-shadow: 0 0 0 2px var(--amber);
 }
-.th-exam:hover { box-shadow: 0 0 0 2px var(--amber); }
+.th-exam:hover { box-shadow: 0 0 0 3px var(--amber); }
 .th-exam:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .th-exam img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; display: block; background: #0d120f; }
 .th-exam-text { display: grid; gap: 4px; }

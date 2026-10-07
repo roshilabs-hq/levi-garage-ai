@@ -128,7 +128,7 @@ p { margin: 0; text-wrap: pretty; }
 .langs a { text-decoration: none; padding: 6px 8px; border-radius: 8px; opacity: .75; }
 .langs a[aria-current] { opacity: 1; font-weight: 700; }
 .langs a:hover { opacity: 1; }
-.menu-btn { display: none; background: none; border: 0; color: inherit; padding: 8px; margin-inline-end: -8px; cursor: pointer; }
+.menu-btn { display: none; background: none; border: 0; color: inherit; padding: 8px; margin-inline-start: -8px; cursor: pointer; }
 .menu-btn svg { width: 26px; height: 26px; }
 .mobile-menu { display: none; }
 

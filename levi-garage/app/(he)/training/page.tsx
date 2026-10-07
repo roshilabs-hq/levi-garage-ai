@@ -38,6 +38,19 @@ export default function TrainingPage() {
         {/* לפי קהל (רועי, 6.10 ו-7.10): שני מסלולים באותו משקל. בכל אחד המדריכים הכתובים שלו,
             כקישורים ישירים, וכפתור למאגר ההדרכות. מה שמשותף לכולם בשורה אחת מתחת. */}
         <h2 className="th-more">מי אתם?</h2>
+        {/* בתקופת הבדיקה של הקורס הבוחנים ראשונים (רועי, 7.10). אחרי הציון: להחזיר את הפס לסוף הדף. */}
+        <Link href="/training/exam" className="th-exam">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={videoOf("exam")?.poster} alt="" />
+          <span className="th-exam-text">
+            <span className="tp-kicker">בוחני פרויקט הגמר? מתחילים כאן</span>
+            <span className="tp-title">איך בוחנים את המוסך בעצמכם</span>
+            <span className="tp-lead">סרטון של {videoOf("exam")?.length}, ותרחיש של 15 דקות בכתב, צעד אחרי צעד, עם מה שאמור לקרות בכל צעד.</span>
+          </span>
+          <span className="th-go" aria-hidden="true">
+            להנחיות ←
+          </span>
+        </Link>
         <div className="th-tiles">
           {TRACKS.map((tr) => {
             const groups = screensOf(tr, roles)
@@ -106,18 +119,6 @@ export default function TrainingPage() {
           )}
         </div>
 
-        <Link href="/training/exam" className="th-exam">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={videoOf("exam")?.poster} alt="" loading="lazy" />
-          <span className="th-exam-text">
-            <span className="tp-kicker">לבוחני פרויקט הגמר</span>
-            <span className="tp-title">איך בוחנים את המוסך בעצמכם</span>
-            <span className="tp-lead">סרטון של {videoOf("exam")?.length}, ותרחיש של 15 דקות בכתב, צעד אחרי צעד, עם מה שאמור לקרות בכל צעד.</span>
-          </span>
-          <span className="th-go" aria-hidden="true">
-            להנחיות ←
-          </span>
-        </Link>
       </main>
       <AskNav />
       <SiteFooter t={t} />

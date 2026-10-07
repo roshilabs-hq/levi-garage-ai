@@ -16,6 +16,8 @@ export function SiteFooter({ t }: { t: Dict }) {
             <li><Link href="/privacy">{t.footer.privacy}</Link></li>
             <li><Link href="/accessibility">{t.footer.accessibility}</Link></li>
             <li><Link href="/terms">{t.footer.terms}</Link></li>
+            {/* לצוות (רועי, 7.10): לא בתפריט הראשי של הלקוחות, אבל יש דרך להגיע. בערבית וברוסית ישר למסלול המכונאים בשפה */}
+            <li><Link href={t.lang === "he" ? "/training" : `/training/workers?lang=${t.lang}`}>{t.footer.staff}</Link></li>
             <li>
               <ThemeToggle labels={{ light: t.footer.themeLight, dark: t.footer.themeDark }} />
             </li>
