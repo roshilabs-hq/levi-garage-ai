@@ -5,14 +5,17 @@ import { notFound } from "next/navigation"
 import "../../training.css"
 import { SiteFooter } from "@/components/site/footer"
 import { SiteHeader } from "@/components/site/header"
+import { LangSwitch } from "@/components/training/lang-switch"
 import { ScreenGuide } from "@/components/training/screen"
 import { AskNav } from "@/components/training/search"
 import { VideoPlayer } from "@/components/training/video"
 import { dicts } from "@/lib/site/dict"
+import { hasScreen, translateScreen, translateVideo } from "@/lib/training/i18n"
+import { UI, dirOf, glang, withLang } from "@/lib/training/i18n-ui"
 import { resolveGuide } from "@/lib/training/resolve"
 import { TRACKS, mmss, screensOf, startOf, trackOf, videoOf } from "@/lib/training/tracks"
 
-type Props = { params: Promise<{ track: string; screen: string }> }
+type Props = { params: Promise<{ track: string; screen: string }>; searchParams: Promise<{ lang?: string }> }
 
 export function generateStaticParams() {
   const { roles } = resolveGuide()
@@ -38,59 +41,63 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // הדרכה אחת: הסרטון מתחיל בפרק של המסך בהדרכה המלאה, ומתחתיו המדריך עם הנקודות.
-export default async function ScreenPage({ params }: Props) {
+// מסכי המכונאים גם בערבית וברוסית (7.10), עם הכתוביות של הסרטון באותה שפה.
+export default async function ScreenPage({ params, searchParams }: Props) {
   const { track, screen } = await params
   const f = find(track, screen)
   if (!f) notFound()
+  const lang = hasScreen(f.screen.id) ? glang((await searchParams).lang) : "he"
+  const ui = UI[lang]
   const t = dicts.he
   const video = videoOf(f.tr.video)
-  const at = startOf(f.tr, f.screen)
+  const at = startOf(f.tr, f.screen) // לפי הכותרת בעברית, כמו שמות הפרקים
+  const sc = translateScreen(f.screen, lang)
+  const title = (s: typeof f.screen) => translateScreen(s, lang).title
+  const base = `/training/${f.tr.id}`
   return (
     <>
       <SiteHeader t={t} overPhoto={false} langs={false} />
-      <main id="main" className="wrap training">
+      <main id="main" className="wrap training" lang={lang} dir={dirOf(lang)}>
         <nav className="tc-crumbs" aria-label="מיקום">
-          <Link href="/training">מרכז ההדרכה</Link> <span aria-hidden="true">›</span> <Link href={`/training/${f.tr.id}`}>{f.tr.title}</Link>{" "}
-          <span aria-hidden="true">›</span> <span aria-current="page">{f.screen.title}</span>
+          <Link href="/training">{ui.home}</Link> <span aria-hidden="true">›</span>{" "}
+          <Link href={withLang(base, lang)}>{lang === "he" ? f.tr.title : ui.trackTitle}</Link> <span aria-hidden="true">›</span>{" "}
+          <span aria-current="page">{sc.title}</span>
         </nav>
-        <p className="ts-where">
-          {f.role.name} · מסך {f.index} מתוך {f.total}
-        </p>
-        <h1>{f.screen.title}</h1>
-        <p className="training-lead">{f.screen.intro}</p>
+        <p className="ts-where">{ui.where(lang === "he" ? f.role.name : ui.mechanics, f.index, f.total)}</p>
+        <h1>{sc.title}</h1>
+        {hasScreen(f.screen.id) && <LangSwitch href={`${base}/${f.screen.id}`} lang={lang} />}
+        <p className="training-lead">{sc.intro}</p>
 
         {video && at !== null && (
           <div className="ts-video">
-            <h2 className="tp-group">בסרטון</h2>
-            <p className="tp-why">
-              מתוך &quot;{video.title}&quot;. הסרטון מתחיל כאן במסך הזה ({mmss(at)}), וברשימה שלידו כל שאר הפרקים.
-            </p>
-            <VideoPlayer video={video} start={at} bare />
+            <h2 className="tp-group">{ui.inVideo}</h2>
+            <p className="tp-why">{ui.videoFrom(ui.videosT[video.id]?.title ?? video.title, mmss(at))}</p>
+            <VideoPlayer video={translateVideo(video, lang)} start={at} bare sub={lang === "he" ? "" : lang} />
           </div>
         )}
 
-        <h2 className="tp-group">כל כפתור במסך</h2>
-        <p className="tp-why">לוחצים על מספר בתמונה או ברשימה, ומקבלים הסבר: מה הכפתור עושה, ומה קורה אחרי שלוחצים.</p>
-        <ScreenGuide screen={f.screen} />
+        <h2 className="tp-group">{ui.allSpots}</h2>
+        <p className="tp-why">{ui.allSpotsWhy}</p>
+        <ScreenGuide screen={sc} lang={lang} />
 
         <nav className="ts-pager" aria-label="מסכים נוספים">
           {f.prev ? (
-            <Link href={`/training/${f.tr.id}/${f.prev.screen.id}`} className="ts-prev">
-              <span>המסך הקודם</span>
-              <b>→ {f.prev.screen.title}</b>
+            <Link href={withLang(`${base}/${f.prev.screen.id}`, lang)} className="ts-prev">
+              <span>{ui.prevScreen}</span>
+              <b>{lang === "ru" ? `← ${title(f.prev.screen)}` : `→ ${title(f.prev.screen)}`}</b>
             </Link>
           ) : (
             <span />
           )}
           {f.next ? (
-            <Link href={`/training/${f.tr.id}/${f.next.screen.id}`} className="ts-next">
-              <span>המסך הבא</span>
-              <b>{f.next.screen.title} ←</b>
+            <Link href={withLang(`${base}/${f.next.screen.id}`, lang)} className="ts-next">
+              <span>{ui.nextScreen}</span>
+              <b>{lang === "ru" ? `${title(f.next.screen)} →` : `${title(f.next.screen)} ←`}</b>
             </Link>
           ) : (
-            <Link href={`/training/${f.tr.id}`} className="ts-next">
-              <span>סיימתם את המסלול</span>
-              <b>חזרה לכל ההדרכות ←</b>
+            <Link href={withLang(base, lang)} className="ts-next">
+              <span>{ui.done}</span>
+              <b>{lang === "ru" ? `${ui.backAll} →` : `${ui.backAll} ←`}</b>
             </Link>
           )}
         </nav>

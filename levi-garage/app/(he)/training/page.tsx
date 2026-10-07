@@ -42,6 +42,11 @@ export default function TrainingPage() {
                 <span className="th-who">{tr.who}</span>
                 <span className="th-title">{tr.title}</span>
                 <span className="th-lead">{tr.lead}</span>
+                {tr.id === "workers" && (
+                  <span className="th-langs">
+                    גם <bdi lang="ar">بالعربية</bdi> ו<bdi lang="ru">по-русски</bdi>
+                  </span>
+                )}
                 <span className="th-count">
                   {reads} מדריכים כתובים · {videos === 1 ? "סרטון" : `${videos} סרטונים`} · {screens} מסכים · {spots} כפתורים
                 </span>

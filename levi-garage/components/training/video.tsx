@@ -17,11 +17,12 @@ const LANGS = [
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`
 
 // start: מאיפה הסרטון מתחיל (בדף של מסך: הפרק של המסך בהדרכה המלאה). bare: בלי הכותרת.
-export function VideoPlayer({ video, start = 0, bare = false }: { video: TrainingVideo; start?: number; bare?: boolean }) {
+// sub: שפת הכתוביות בהתחלה (בהדרכה בערבית או ברוסית, 7.10).
+export function VideoPlayer({ video, start = 0, bare = false, sub = "" }: { video: TrainingVideo; start?: number; bare?: boolean; sub?: string }) {
   const ref = useRef<HTMLVideoElement>(null)
   const list = useRef<HTMLOListElement>(null)
   const [now, setNow] = useState(start)
-  const [lang, setLang] = useState("")
+  const [lang, setLang] = useState(sub)
 
   useEffect(() => {
     const v = ref.current

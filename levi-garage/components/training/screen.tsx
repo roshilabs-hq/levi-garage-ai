@@ -6,11 +6,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { UI, type GLang } from "@/lib/training/i18n-ui"
 import type { ResolvedScreen } from "@/lib/training/match"
 
 const PHONE = 600 // צילום צר מזה הוא של טלפון: מוצג צר, כמו בטלפון.
 
-export function ScreenGuide({ screen }: { screen: ResolvedScreen }) {
+export function ScreenGuide({ screen, lang = "he" }: { screen: ResolvedScreen; lang?: GLang }) {
+  const ui = UI[lang]
   const [current, setCurrent] = useState<number | null>(null)
   const [tour, setTour] = useState<number | null>(null)
   const spots = screen.spots
@@ -45,14 +47,16 @@ export function ScreenGuide({ screen }: { screen: ResolvedScreen }) {
   useEffect(() => {
     if (tour === null) return
     const onKey = (e: KeyboardEvent) => {
-      // בעברית "הבא" הוא שמאלה.
-      if (e.key === "ArrowLeft") go(Math.min(spots.length - 1, tour + 1))
-      if (e.key === "ArrowRight") go(Math.max(0, tour - 1))
+      // בעברית ובערבית "הבא" הוא שמאלה, ברוסית ימינה.
+      const fwd = lang === "ru" ? "ArrowRight" : "ArrowLeft"
+      const back = lang === "ru" ? "ArrowLeft" : "ArrowRight"
+      if (e.key === fwd) go(Math.min(spots.length - 1, tour + 1))
+      if (e.key === back) go(Math.max(0, tour - 1))
       if (e.key === "Escape") setTour(null)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [tour, spots.length, go])
+  }, [tour, spots.length, go, lang])
 
   const step = tour !== null ? spots[tour] : null
 
@@ -60,14 +64,14 @@ export function ScreenGuide({ screen }: { screen: ResolvedScreen }) {
     <>
       {spots.length > 1 && (
         <button className="btn tg-tour-start" onClick={() => go(0)}>
-          סיור מודרך: {spots.length} כפתורים, אחד אחרי השני
+          {ui.tour(spots.length)}
         </button>
       )}
-      <ScreenView screen={screen} current={current} onPick={(n) => { setTour(null); focus(n, false) }} />
+      <ScreenView screen={screen} lang={lang} current={current} onPick={(n) => { setTour(null); focus(n, false) }} />
       {step && tour !== null && (
-        <div className="tg-tour" role="dialog" aria-label="סיור מודרך" aria-live="polite">
+        <div className="tg-tour" role="dialog" aria-label={ui.tourName} aria-live="polite">
           <p className="tg-tour-where">
-            {tour + 1} מתוך {spots.length} · {screen.title}
+            {ui.of(tour + 1, spots.length)} · {screen.title}
           </p>
           <p className="tg-tour-t">
             <span className="num">{step.n}</span> {step.t}
@@ -75,19 +79,19 @@ export function ScreenGuide({ screen }: { screen: ResolvedScreen }) {
           <p className="tg-tour-b">{step.b}</p>
           <div className="tg-tour-do">
             <button className="btn quiet" onClick={() => go(tour - 1)} disabled={tour === 0}>
-              הקודם
+              {ui.prev}
             </button>
             {tour < spots.length - 1 ? (
               <button className="btn" onClick={() => go(tour + 1)}>
-                הבא
+                {ui.next}
               </button>
             ) : (
               <button className="btn" onClick={() => setTour(null)}>
-                סיום
+                {ui.end}
               </button>
             )}
-            <button className="tg-tour-x" onClick={() => setTour(null)} aria-label="יציאה מהסיור">
-              יציאה
+            <button className="tg-tour-x" onClick={() => setTour(null)} aria-label={ui.exitTour}>
+              {ui.exit}
             </button>
           </div>
         </div>
@@ -96,7 +100,8 @@ export function ScreenGuide({ screen }: { screen: ResolvedScreen }) {
   )
 }
 
-export function ScreenView({ screen, current, onPick }: { screen: ResolvedScreen; current: number | null; onPick: (n: number) => void }) {
+export function ScreenView({ screen, current, onPick, lang = "he" }: { screen: ResolvedScreen; current: number | null; onPick: (n: number) => void; lang?: GLang }) {
+  const ui = UI[lang]
   const phone = screen.width < PHONE
   const listRef = useRef<HTMLOListElement>(null)
 
@@ -110,11 +115,11 @@ export function ScreenView({ screen, current, onPick }: { screen: ResolvedScreen
   }, [current])
 
   return (
-    <section id={`screen-${screen.id}`} className={`tg-screen ${phone ? "tg-phone" : "tg-desk"}`} aria-label={`המסך: ${screen.title}`}>
+    <section id={`screen-${screen.id}`} className={`tg-screen ${phone ? "tg-phone" : "tg-desk"}`} aria-label={ui.screen(screen.title)}>
       <div className="tg-body">
         <div className="tg-shot" style={{ aspectRatio: `${screen.width} / ${screen.height}` }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/training/${screen.id}.png`} alt={`צילום המסך: ${screen.title}`} width={screen.width} height={screen.height} />
+          <img src={`/training/${screen.id}.png`} alt={ui.shot(screen.title)} width={screen.width} height={screen.height} />
           {screen.spots.map((p) => (
             <button
               key={p.n}

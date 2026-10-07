@@ -41,5 +41,13 @@ const md = new Marked({
 export function guideHtml(id: string) {
   const src = GUIDES[id]
   if (!src) return null
+  return mdHtml(src)
+}
+
+/** Markdown של מדריך (גם מתורגם, 7.10) ל-HTML, בלי הכותרת הראשית. */
+export function mdHtml(src: string) {
   return md.parse(src.replace(/^# .*\n+/, "")) as string
 }
+
+/** הכותרת הראשית של מדריך ב-Markdown, אם יש. */
+export const mdTitle = (src: string) => src.match(/^# (.*)$/m)?.[1] ?? null
