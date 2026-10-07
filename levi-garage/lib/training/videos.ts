@@ -53,7 +53,7 @@ export const VIDEOS: TrainingVideo[] = [
     id: "full-2",
     title: "ההדרכה המלאה, חלק 2: דניאל, אבי והלקוח",
     who: "למשרד: הלוח, הקבלה, התמחור, הכרטיס, המפה, העמדות, המדדים, המסכים התלויים ומה שהלקוח רואה",
-    length: "17:35",
+    length: "17:52",
     src: "/training/video/full-2.mp4",
     poster: "/training/video/full-2.jpg",
     chapters: [
@@ -80,7 +80,7 @@ export const VIDEOS: TrainingVideo[] = [
       { t: 938.5, title: "הלקוח" },
       { t: 953.3, title: "הלקוח · הצעת המחיר של הקבלה" },
       { t: 983.9, title: "הלקוח · ממצאים לאישור" },
-      { t: 1036.7, title: "סגירה" },
+      { t: 1052.5, title: "סגירה" },
     ],
   },
   {
