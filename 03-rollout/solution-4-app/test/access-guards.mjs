@@ -107,6 +107,17 @@ try {
   ok("מנהל: 'מוכן' עם ממצא שמחכה ללקוח נחסם", (await patch("job_cards", j2.id, { status: "ready" }, manager)) === "ready-open")
   await admin(`/rest/v1/findings?id=eq.${waiting.id}`, { method: "PATCH", body: JSON.stringify({ status: "declined" }) })
   ok("מנהל: אחרי אבחון ובלי ממצא פתוח, 'מוכן' מותר", (await patch("job_cards", j2.id, { status: "ready" }, manager)) === "ok")
+  // 056 (ביקורת שלישית, 8.10, ממצא 3): ו"מוכן" נשאר נכון גם אחרי זה
+  ok("מנהל: למחוק אבחון לרכב מוכן נחסם", (await patch("job_cards", j2.id, { inspected_at: null }, manager)) === "ready-inspect")
+  ok("מנהל: להחזיר ממצא של רכב מוכן לטיוטה נחסם", (await patch("findings", waiting.id, { status: "draft" }, manager)) === "job-ready")
+  const lateAdd = await call(`/rest/v1/findings`, {
+    method: "POST",
+    token: manager,
+    headers: { prefer: "return=representation" },
+    body: JSON.stringify({ job_card_id: j2.id, source: "manual", title: "מאוחר", summary: "מאוחר", urgency: "yellow", status: "draft" }),
+  })
+  ok("מנהל: להוסיף ממצא פתוח לרכב מוכן נחסם", (await lateAdd.json().catch(() => ({}))).hint === "job-ready")
+  ok("מנהל: עדכון אחר לרכב מוכן עדיין מותר", (await patch("job_cards", j2.id, { odometer_km: 123456 }, manager)) === "ok")
 
   // 4. ממצא
   const [it] = await (await admin(`/rest/v1/price_list?code=eq.brakes-front-pads&select=id`)).json()

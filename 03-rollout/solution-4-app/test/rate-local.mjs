@@ -31,9 +31,21 @@ ok("חלון של שנייה: הפעם השנייה נחסמת", localAllowed(sh
 await new Promise((r) => setTimeout(r, 1100))
 ok("אחרי שהחלון נגמר: מותר שוב", localAllowed(short, 1, 1) === true)
 
-// הצפה במפתחות שונים לא מנפחת את הזיכרון בלי סוף, ולא נופלת
-for (let i = 0; i < 6000; i++) localAllowed(`${k}:flood:${i}`, 60, 5)
-ok("אחרי 6,000 מפתחות שונים: עדיין עובד", localAllowed(`${k}:after`, 60, 1) === true)
+// הצפה במפתחות שונים לא מנפחת את הזיכרון בלי סוף, ולא משחררת את מי שכבר נחסם (ביקורת שלישית, ממצא 5)
+const blocked = `${k}:blocked`
+localAllowed(blocked, 600, 1)
+ok("לפני ההצפה: הפעם השנייה נחסמת", localAllowed(blocked, 600, 1) === false)
+let refused = 0
+for (let i = 0; i < 6000; i++) if (!localAllowed(`${k}:flood:${i}`, 600, 5)) refused++
+ok("אחרי 6,000 מפתחות שונים: מי שנחסם עדיין חסום", localAllowed(blocked, 600, 1) === false)
+ok("כשהמונה מלא, מפתחות חדשים נדחים (ולא מאפסים את הקיימים)", refused > 0, `נדחו ${refused}`)
+
+// חלונות שנגמרו מפנים מקום
+const { localAllowed: fresh } = await import(`../../../levi-garage/lib/site/rate-local.ts?fresh=${Date.now()}`)
+for (let i = 0; i < 5000; i++) fresh(`${k}:short:${i}`, 1, 5)
+ok("מונה מלא בחלונות פעילים: מפתח חדש נדחה", fresh(`${k}:new1`, 60, 5) === false)
+await new Promise((r) => setTimeout(r, 1100))
+ok("אחרי שהחלונות נגמרו: יש מקום למפתח חדש", fresh(`${k}:new2`, 60, 5) === true)
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

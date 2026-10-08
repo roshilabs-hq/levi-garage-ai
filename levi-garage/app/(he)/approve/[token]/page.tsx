@@ -51,7 +51,10 @@ type View = {
 type Supa = Awaited<ReturnType<typeof createClient>>
 async function signPhotos(supabase: Supa, token: string, paths: string[]): Promise<Record<string, string>> {
   if (paths.length === 0) return {}
-  const { data: left } = await supabase.rpc("link_seconds_left", { p_token: token })
+  // תקלה בבדיקה: לא חותמים בכלל, במקום לחתום לשעה בלי לדעת כמה נשאר (ביקורת שלישית, 8.10, ממצא 4).
+  // null בלי תקלה: לקישור אין מועד פקיעה, ונשארים עם שעה.
+  const { data: left, error } = await supabase.rpc("link_seconds_left", { p_token: token })
+  if (error) return {}
   const ttl = typeof left === "number" ? Math.min(60 * 60, left) : 60 * 60
   if (ttl < 1) return {}
   const { data } = await supabase.storage.from("shared-quotes").createSignedUrls(paths, ttl)

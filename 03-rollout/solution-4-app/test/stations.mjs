@@ -63,6 +63,7 @@ if (!token) process.exit(1)
 let stationId = null
 let noamId = null
 let noamLiftBefore = null
+let token2 = null
 try {
   // --- מה המכשיר רואה ---
   const info = await (await rpc("station_info", { p_token: token })).json()
@@ -135,6 +136,41 @@ try {
   const demoForMech = await signIn("test5@test.com", process.env.STAFF_DEMO_PASSWORD)
   ok("מכונאי לא נכנס בסיסמת ההדגמה", demoForMech === null)
 
+  // --- 057 (ביקורת שלישית, 8.10, ממצאים 1 ו-2): הליפט שייך לכניסה, וביטול עמדה מנתק ---
+  // כמו stationLogin באפליקציה: קוד בעמדה, כניסה בשם המכונאי, ורישום הכניסה עם הטוקן של העמדה.
+  const atStation = async (stationToken) => {
+    const r = await (await rpc("station_login", { p_token: stationToken, p_staff_id: noam.id, p_pin: demoPin })).json()
+    if (!r?.ok) return null
+    const session = await signIn("test6@test.com")
+    const bound = await rpc("bind_station_session", { p_token: stationToken }, session)
+    return bound.ok ? { session, lift: await bound.json() } : null
+  }
+  const json = async (res) => (res.ok ? res.json() : null)
+  const first = await atStation(token)
+  ok("כניסה בעמדה של ליפט 3: הכניסה רשומה על ליפט 3", first?.lift === 3 && (await json(await rpc("my_lift", {}, first.session))) === 3)
+
+  const created2 = await rpc("create_station", { p_label: "ליפט 2 (בדיקה אוטומטית)", p_lift: 2 }, manager)
+  token2 = created2.ok ? await created2.json() : null
+  const second = token2 ? await atStation(token2) : null
+  ok("אותו מכונאי נכנס בעמדה של ליפט 2", second?.lift === 2 && (await json(await rpc("my_lift", {}, second.session))) === 2)
+  ok("והכניסה הפתוחה בליפט 3 נשארת על ליפט 3", (await json(await rpc("my_lift", {}, first?.session))) === 3)
+
+  ok("בלי עמדה תקפה אין רישום", !(await rpc("bind_station_session", { p_token: "c".repeat(48) }, second?.session)).ok)
+  ok("מנהל לא נרשם כעמדה", !(await rpc("bind_station_session", { p_token: token2 }, manager)).ok)
+  ok("אורח לא נרשם כעמדה", !(await rpc("bind_station_session", { p_token: token2 })).ok)
+
+  // ביטול העמדה של ליפט 3, כשהמכונאי עוד מחובר בה
+  await call(`/rest/v1/stations?id=eq.${stationId}`, { method: "PATCH", token: manager, body: JSON.stringify({ revoked_at: new Date().toISOString() }) })
+  const here1 = await json(await rpc("my_station_session", {}, first?.session))
+  ok("אחרי ביטול העמדה: הכניסה בה יודעת שבוטלה", here1?.revoked === true, JSON.stringify(here1))
+  ok("ואין לה יותר תפקיד במסד", (await json(await rpc("my_role", {}, first?.session))) === null)
+  const cards1 = await json(await call(`/rest/v1/job_cards?select=id&limit=1`, { token: first?.session }))
+  ok("ולא קוראת כרטיסים", Array.isArray(cards1) && cards1.length === 0, JSON.stringify(cards1))
+  ok("הכניסה בעמדה האחרת ממשיכה לעבוד", (await json(await rpc("my_role", {}, second?.session))) === "mechanic")
+  const cards2 = await json(await call(`/rest/v1/job_cards?select=id&limit=1`, { token: second?.session }))
+  ok("וקוראת כרטיסים", Array.isArray(cards2) && cards2.length === 1)
+  ok("כניסה בסיסמה, בלי עמדה, לא מושפעת", (await json(await rpc("my_role", {}, mechanic))) === "mechanic")
+
   if (stationId) {
     const swap = await call(`/rest/v1/stations?id=eq.${stationId}`, {
       method: "PATCH",
@@ -158,8 +194,14 @@ try {
     const key = process.env.SUPABASE_SECRET_KEY
     if (key) await fetch(`${url}/rest/v1/stations?id=eq.${stationId}`, { method: "DELETE", headers: { apikey: key, authorization: `Bearer ${key}` } })
   }
-  // הכניסה העבירה את נועם לליפט 3 (054). מחזירים אותו לאן שהיה.
+  // העמדה השנייה (057): מבטלים ומוחקים (רישומי הכניסה נמחקים איתה)
   const key = process.env.SUPABASE_SECRET_KEY
+  if (token2 && key) {
+    const h = { apikey: key, authorization: `Bearer ${key}` }
+    const rows2 = await (await fetch(`${url}/rest/v1/stations?label=eq.${encodeURIComponent("ליפט 2 (בדיקה אוטומטית)")}&select=id`, { headers: h })).json()
+    for (const r of Array.isArray(rows2) ? rows2 : []) await fetch(`${url}/rest/v1/stations?id=eq.${r.id}`, { method: "DELETE", headers: h })
+  }
+  // הכניסה העבירה את נועם לליפט 3 (054). מחזירים אותו לאן שהיה.
   if (noamId && key) {
     await fetch(`${url}/rest/v1/staff?id=eq.${noamId}`, {
       method: "PATCH",

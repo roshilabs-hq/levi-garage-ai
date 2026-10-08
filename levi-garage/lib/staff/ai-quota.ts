@@ -16,7 +16,11 @@ export async function staffAiAllowed(staffId: string): Promise<boolean> {
 // והמכסה נבדקה אחרי, ותמונה לממצא לא נספרה בכלל: סשן שנשאר פתוח יכול היה למלא את האחסון.
 //   · 120 בשעה לכל איש צוות: לכידה עם תמונה והקלטה היא שתיים, וגם זה פי כמה מיום עמוס.
 //   · 3,000 ביום לכל הצוות יחד.
-export async function staffUploadAllowed(staffId: string): Promise<boolean> {
-  if (!(await allowed(`staff-up:${staffId}`, 3600, 120))) return false
-  return allowed("staff-up:all", 86400, 3000)
+// כל קובץ נספר לחוד: לכידה עם תמונה והקלטה היא שתיים (ביקורת שלישית, 8.10, ממצא 7).
+export async function staffUploadAllowed(staffId: string, files = 1): Promise<boolean> {
+  for (let i = 0; i < files; i++) {
+    if (!(await allowed(`staff-up:${staffId}`, 3600, 120))) return false
+    if (!(await allowed("staff-up:all", 86400, 3000))) return false
+  }
+  return true
 }

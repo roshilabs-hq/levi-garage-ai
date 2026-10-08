@@ -78,7 +78,8 @@ export async function POST(req: Request) {
   if (photoBytes && !photoType) return NextResponse.json({ error: "photo" }, { status: 400 })
   if (audioBytes && !audioType) return NextResponse.json({ error: "audio" }, { status: 400 })
   // מכסת העלאות לפני השמירה. מכסת הניתוח (למטה) נבדקת אחרי, כדי שהקלטה תישמר גם כשהניתוח מחכה.
-  if ((photoBytes || audioBytes) && !(await staffUploadAllowed(staff.id))) {
+  const files = (photoBytes ? 1 : 0) + (audioBytes ? 1 : 0)
+  if (files > 0 && !(await staffUploadAllowed(staff.id, files))) {
     return NextResponse.json({ error: "upload-limit", saved: false }, { status: 429 })
   }
 
@@ -101,16 +102,24 @@ export async function POST(req: Request) {
   // טקסט בלבד הוא לכידה תקינה, בלי קובץ. רק כשניסינו להעלות ונכשלנו זו שגיאה.
   if (saved.length === 0 && (audio || photo)) return NextResponse.json({ error: "upload" }, { status: 502 })
 
-  if (saved.length) await supabase.from("media").insert(
-    saved.map((m) => ({
-      job_card_id: job.id,
-      kind: m.kind,
-      storage_path: m.path,
-      mime: m.mime,
-      bytes: m.bytes.length,
-      created_by: staff.id,
-    })),
-  )
+  if (saved.length) {
+    const { error: mediaError } = await supabase.from("media").insert(
+      saved.map((m) => ({
+        job_card_id: job.id,
+        kind: m.kind,
+        storage_path: m.path,
+        mime: m.mime,
+        bytes: m.bytes.length,
+        created_by: staff.id,
+      })),
+    )
+    // בלי שורה ב-media הקובץ יתום: אף מסך לא מראה אותו ואף אחד לא ימחק אותו. מוחקים מיד (056).
+    if (mediaError) {
+      console.error("capture media insert failed:", mediaError.message)
+      await supabase.storage.from("job-media").remove(saved.map((m) => m.path))
+      return NextResponse.json({ error: "save", saved: false }, { status: 502 })
+    }
+  }
 
   const a = saved.find((m) => m.kind === "audio")
   const p = saved.find((m) => m.kind === "photo")

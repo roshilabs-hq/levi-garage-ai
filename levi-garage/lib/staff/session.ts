@@ -32,8 +32,17 @@ export async function getStaff(): Promise<StaffMember | null> {
     .maybeSingle()
 
   if (!data?.active) return null
+  const staff = { ...(data as Omit<StaffMember, "email">), email: auth.user.email ?? "" }
 
-  return { ...(data as Omit<StaffMember, "email">), email: auth.user.email ?? "" }
+  // מכונאי שנכנס בעמדה (057): הליפט הוא של הכניסה הזו, לא של העובד. ועמדה שבוטלה מנתקת אותו,
+  // כמו שהמסד כבר מתייחס אליו (my_role ריק). אם הבדיקה עצמה נכשלה, נשארים עם השורה, והמסד אוכף.
+  if (staff.role === "mechanic") {
+    const { data: here } = await supabase.rpc("my_station_session")
+    const s = here as { bound?: boolean; lift?: number | null; revoked?: boolean } | null
+    if (s?.revoked) return null
+    if (s?.bound) staff.lift = s.lift ?? null
+  }
+  return staff
 }
 
 /** לעמודים שמאחורי ההתחברות. מי שלא מחובר מגיע למסך הכניסה. */

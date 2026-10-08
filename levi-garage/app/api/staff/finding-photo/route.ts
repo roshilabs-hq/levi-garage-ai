@@ -55,7 +55,11 @@ export async function POST(req: Request) {
     bytes: bytes.length,
     created_by: staff.id,
   })
-  if (error) return NextResponse.json({ error: "save" }, { status: 502 })
+  if (error) {
+    // בלי שורה ב-media הקובץ יתום. מוחקים אותו מיד (056, ביקורת שלישית, ממצא 6).
+    await supabase.storage.from("job-media").remove([path])
+    return NextResponse.json({ error: "save" }, { status: 502 })
+  }
 
   return NextResponse.json({ ok: true })
 }

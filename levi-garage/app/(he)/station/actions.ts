@@ -61,8 +61,15 @@ export async function stationLogin(formData: FormData) {
     console.error("station sign-in failed:", error.status, error.code)
     back("signin")
   }
-  // העמדה קובעת איפה הוא עובד, ו-station_login כבר רשמה את זה במסד (054). מכונאי לא
-  // בוחר ליפט בעצמו: עובר ליפט כשהוא נכנס בעמדה של הליפט האחר.
+  // העמדה קובעת איפה הוא עובד. מכונאי לא בוחר ליפט בעצמו: עובר ליפט כשהוא נכנס בעמדה של
+  // הליפט האחר. הליפט נרשם על הכניסה הזו בלבד (057), כך שכניסה פתוחה בעמדה אחרת לא "עוברת"
+  // איתו, וביטול העמדה מנתק את מי שמחובר בה. בלי הרישום לא נכנסים.
+  const { error: bindError } = await supabase.rpc("bind_station_session", { p_token: token })
+  if (bindError) {
+    console.error("station session bind failed:", bindError.code)
+    await supabase.auth.signOut()
+    back("signin")
+  }
   redirect("/staff/lift")
 }
 
