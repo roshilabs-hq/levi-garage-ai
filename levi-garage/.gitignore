@@ -28,9 +28,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# env files
-.env*.local
-.env
+# env files: כל קובץ env, חוץ מקובץ הדוגמה
+.env*
+!.env.example
 
 # MCP config with real tokens (use .mcp.example.json as template)
 .mcp.json

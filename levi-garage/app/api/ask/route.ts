@@ -5,7 +5,7 @@ import { NextResponse } from "next/server"
 import { generateJson } from "@/lib/site/gemini"
 import { knowledge } from "@/lib/site/knowledge"
 import { asksForUpdates, REMOVED_REPLY, wantsRemoval } from "@/lib/site/consent"
-import { allowed, ipKey } from "@/lib/site/rate"
+import { allowed, clientIp, ipKey } from "@/lib/site/rate"
 import { customerCars, describeCars, firstName, grantConsent, revokeConsent } from "@/lib/site/customer"
 
 // "תשאלו אותנו": עוזר מידע שעונה רק מתוך בסיס הידע של המוסך.
@@ -64,7 +64,7 @@ function fromBot(req: Request) {
 
 function rateKey(req: Request, client: unknown) {
   if (fromBot(req)) return `bot:${typeof client === "string" ? client.slice(0, 64) : "unknown"}`
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local"
+  return clientIp(req.headers)
 }
 
 // כשהבוט שואל בשם לקוח, העוזר יודע מה הרכבים של אותו לקוח — ורק שלו.
@@ -112,8 +112,11 @@ export async function POST(req: Request) {
   // 047: גם מונה משותף לכל השרתים, במסד. כל פנייה כאן היא קריאה ל-Gemini.
   const shared = fromBot(req) ? `ask:bot:${typeof body.client === "string" ? body.client.slice(0, 40) : "unknown"}` : ipKey(req, "ask")
   if (!(await allowed(shared, 600, fromBot(req) ? 40 : 20))) return NextResponse.json({ error: "limit" }, { status: 429 })
-  // 6.10 (M-2): תקרה יומית לכל מבקרי האתר יחד. הבוט בוואטסאפ לא נספר כאן, כדי שלקוחות אמיתיים לא ייחסמו.
-  if (!fromBot(req) && !(await allowed("ask:site:all", 86400, 1500))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  // 6.10 (M-2): תקרה יומית לכל מבקרי האתר יחד. לבוט בוואטסאפ תקרה משלו, גבוהה יותר, כדי שלקוחות אמיתיים
+  // לא ייחסמו בגלל עומס באתר (ביקורת רביעית, 8.10, ממצא 7: עד היום לבוט לא הייתה תקרה כללית בכלל).
+  if (!(await allowed(fromBot(req) ? "ask:bot:all" : "ask:site:all", 86400, fromBot(req) ? 3000 : 1500))) {
+    return NextResponse.json({ error: "limit" }, { status: 429 })
+  }
 
   const question = typeof body.question === "string" ? body.question.trim().slice(0, 400) : ""
   const lang = body.lang === "ar" || body.lang === "ru" ? body.lang : "he"

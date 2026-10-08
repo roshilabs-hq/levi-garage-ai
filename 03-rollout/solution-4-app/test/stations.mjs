@@ -166,12 +166,13 @@ try {
 
   // ביטול העמדה של ליפט 3, כשהמכונאי עוד מחובר בה
   await call(`/rest/v1/stations?id=eq.${stationId}`, { method: "PATCH", token: manager, body: JSON.stringify({ revoked_at: new Date().toISOString() }) })
-  const here1 = await json(await rpc("my_station_session", {}, first?.session))
-  ok("אחרי ביטול העמדה: הכניסה בה יודעת שבוטלה", here1?.revoked === true, JSON.stringify(here1))
-  ok("ואין לה יותר תפקיד במסד", (await json(await rpc("my_role", {}, first?.session))) === null)
-  // המחירון: כל עובד קורא אותו (is_worker), אז הוא מבדיל בין כניסה חיה לכניסה שבוטלה
-  const cards1 = await json(await call(`/rest/v1/price_list?select=id&limit=1`, { token: first?.session }))
-  ok("ולא קוראת כלום (גם לא את המחירון)", Array.isArray(cards1) && cards1.length === 0, JSON.stringify(cards1))
+  // 064: כל בקשה מכניסה שהעמדה שלה בוטלה נדחית (401), לפני שהיא מגיעה לטבלה או לפונקציה
+  const r1 = await rpc("my_role", {}, first?.session)
+  ok("אחרי ביטול העמדה: כל בקשה מהכניסה בה נדחית (401)", r1.status === 401, `status ${r1.status}`)
+  const cards1 = await call(`/rest/v1/price_list?select=id&limit=1`, { token: first?.session })
+  ok("גם קריאה של המחירון", cards1.status === 401, `status ${cards1.status}`)
+  const wall1 = await rpc("wall_board", {}, first?.session)
+  ok("וגם מסך הסדנה (wall_board)", wall1.status === 401, `status ${wall1.status}`)
   ok("הכניסה בעמדה האחרת ממשיכה לעבוד", (await json(await rpc("my_role", {}, second?.session))) === "mechanic")
   const cards2 = await json(await call(`/rest/v1/price_list?select=id&limit=1`, { token: second?.session }))
   ok("וקוראת כרגיל", Array.isArray(cards2) && cards2.length === 1)

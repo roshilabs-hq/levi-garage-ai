@@ -127,10 +127,12 @@ export async function createPairCode(_prev: PairResult, formData: FormData): Pro
   const { data: code, error } = await supabase.rpc("create_pair_code", { p_lift: lift })
   if (error || !code) return { ok: false, error: "לא הצלחנו ליצור קוד. לנסות שוב." }
 
+  // הכתובת בקוד ה-QR לא נלקחת מכותרת שהבקשה שולחת (ביקורת רביעית, 8.10, ממצא 9): קוד צימוד לדומיין
+  // אחר היה שולח את המכשיר למקום אחר. רק הדומיין שלנו, או localhost בפיתוח.
   const h = await headers()
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "levi-garage.co.il"
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")
-  const url = `${proto}://${host}/station/pair/${code}`
+  const asked = (h.get("host") ?? "").toLowerCase()
+  const local = /^localhost(:\d+)?$/.test(asked)
+  const url = `${local ? `http://${asked}` : "https://levi-garage.co.il"}/station/pair/${code}`
   const svg = await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" })
   return {
     ok: true,

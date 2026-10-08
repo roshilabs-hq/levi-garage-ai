@@ -21,14 +21,20 @@ function ipOf(forwarded: string | null | undefined): string {
 }
 const hashed = (prefix: string, ip: string) => `${prefix}:${createHash("sha256").update(ip).digest("hex").slice(0, 24)}`
 
+// הכתובת מהכותרת ש-Vercel קובע בעצמו (x-vercel-forwarded-for, x-real-ip), ורק אחר כך x-forwarded-for.
+// לקוח יכול לשלוח x-forwarded-for משלו; את הכותרות של Vercel הוא לא קובע (ביקורת רביעית, 8.10, ממצא 10).
+export function clientIp(h: Headers): string {
+  return ipOf(h.get("x-vercel-forwarded-for") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for"))
+}
+
 export function ipKey(req: Request, prefix: string): string {
-  return hashed(prefix, ipOf(req.headers.get("x-forwarded-for")))
+  return hashed(prefix, clientIp(req.headers))
 }
 
 /** אותו מפתח, מתוך פעולת שרת (שם אין Request, רק headers()). */
 export async function ipKeyFromHeaders(prefix: string): Promise<string> {
   const h = await headers()
-  return hashed(prefix, ipOf(h.get("x-forwarded-for")))
+  return hashed(prefix, clientIp(h))
 }
 
 // הסוד נגזר מ-STATION_SECRET, שכבר נמצא בשרת (HMAC עם תווית משלו), ולכן לא צריך משתנה חדש
