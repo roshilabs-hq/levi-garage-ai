@@ -161,7 +161,18 @@ try {
   ok("מנהל: לערוך טיוטה מותר", (await patch("findings", fid, { customer_text: "נוסח מעודכן" }, manager)) === "ok")
   await admin(`/rest/v1/findings?id=eq.${fid}`, { method: "PATCH", body: JSON.stringify({ status: "sent", sent_at: new Date().toISOString() }) })
   ok("מנהל: לשנות מחיר אחרי שנשלח נחסם", (await patch("findings", fid, { list_price_original: 1 }, manager)) === "discount-sent")
-  ok("מנהל: לסמן 'דווח' על ממצא שנשלח עדיין מותר", (await patch("findings", fid, { safety_reported_at: new Date().toISOString() }, manager)) === "ok")
+  // 067: "דווח לרשות" רק על ממצא שהלקוח דחה (כמו בכפתור, markSafetyReported)
+  ok("מנהל: לסמן 'דווח' על ממצא שעוד לא נדחה נחסם", (await patch("findings", fid, { safety_reported_at: new Date().toISOString() }, manager)) === "finding-flow")
+  // 067: החלטה של לקוח לא נרשמת ישירות
+  ok("מנהל: לסמן ממצא 'אושר' ישירות נחסם", (await patch("findings", fid, { status: "approved" }, manager)) === "finding-flow")
+  ok("מנהל: לסמן ממצא 'נדחה' ישירות נחסם", (await patch("findings", fid, { status: "declined" }, manager)) === "finding-flow")
+  await admin(`/rest/v1/findings?id=eq.${fid}`, { method: "PATCH", body: JSON.stringify({ status: "declined" }) })
+  ok("מנהל: לסמן 'דווח' על ממצא שהלקוח דחה מותר", (await patch("findings", fid, { safety_reported_at: new Date().toISOString() }, manager)) === "ok")
+  const [draft2] = await (await admin(`/rest/v1/findings`, { method: "POST", headers: { prefer: "return=representation" }, body: JSON.stringify({ job_card_id: j1.id, source: "manual", title: "טיוטה", summary: "טיוטה", urgency: "yellow", status: "draft" }) })).json()
+  ok("מנהל: לשלוח ממצא ישירות (status=sent) נחסם", (await patch("findings", draft2.id, { status: "sent", sent_at: new Date().toISOString() }, manager)) === "finding-flow")
+  ok("מנהל: 'לא לשלוח' (טיוטה ← בוטל) עדיין מותר", (await patch("findings", draft2.id, { status: "cancelled" }, manager)) === "ok")
+  const sentIns = await call(`/rest/v1/findings`, { method: "POST", token: manager, headers: { prefer: "return=representation" }, body: JSON.stringify({ job_card_id: j1.id, source: "manual", title: "x", summary: "x", urgency: "yellow", status: "sent" }) })
+  ok("מנהל: ליצור ממצא שכבר 'נשלח' נחסם", (await sentIns.json().catch(() => ({}))).hint === "finding-flow")
 
   // 5. ממצא שמחכה לאבי לא יוצא ללקוח, גם לא בעדכון ישיר
   const j5 = await newJob()
@@ -183,6 +194,15 @@ try {
   const token = await (await rpc("send_intake_request", { p_job_id: j4.id }, manager)).json()
   ok("רכב בלי תור: אישור בלי תקנון מחזיר 'terms'", (await (await rpc("intake_decide", { p_token: token, p_decision: "approved" })).json()) === "terms")
   ok("רכב בלי תור: אחרי התקנון, האישור עובר", (await (await rpc("intake_accept_terms", { p_token: token })).json()) === "done" && (await (await rpc("intake_decide", { p_token: token, p_decision: "approved" })).json()) === "done")
+  // 067: אחרי שהלקוח אישר את הקבלה, הפריטים קפואים (כמו ממצא שנשלח)
+  const [qi] = await (await admin(`/rest/v1/quote_items?job_card_id=eq.${j4.id}&select=id`)).json()
+  ok("מנהל: לשנות מחיר בקבלה שהלקוח אישר נחסם", (await patch("quote_items", qi.id, { price_original: 1 }, manager)) === "quote-locked")
+  const addLate = await call(`/rest/v1/quote_items`, { method: "POST", token: manager, body: JSON.stringify({ job_card_id: j4.id, title: "מאוחר", labor_hours: 1, price_original: 1, warranty_original: "ללא", single_reason: "x", part_choice: "original" }) })
+  ok("מנהל: להוסיף פריט לקבלה שאושרה נחסם", (await addLate.json().catch(() => ({}))).hint === "quote-locked")
+  ok("מנהל: למחוק פריט מקבלה שאושרה נחסם", !(await call(`/rest/v1/quote_items?id=eq.${qi.id}`, { method: "DELETE", token: manager })).ok || (await (await admin(`/rest/v1/quote_items?id=eq.${qi.id}&select=id`)).json()).length === 1)
+  // 067: לאורח אין כתיבה לאף טבלה
+  const anonWrite = await call(`/rest/v1/job_cards`, { method: "POST", body: JSON.stringify({ plate: "0000000", notes: NOTE }) })
+  ok("אורח לא כותב לטבלה (הרשאה, לא רק RLS)", anonWrite.status === 401 || /permission denied/i.test(await anonWrite.text()), `HTTP ${anonWrite.status}`)
 
   // 7. מכונאי לא נוגע בתורים
   ok("מכונאי: לשנות תור נחסם", (await patch("bookings", b.id, { customer_phone: "0509999999" }, mechanic)) === "mechanic-locked")

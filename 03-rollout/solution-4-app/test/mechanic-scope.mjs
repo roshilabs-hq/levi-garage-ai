@@ -159,6 +159,13 @@ try {
   ok("A: מוסיף תמונה לרכב שלו", Boolean(await inserted("media", media(onMine.id, myFinding.id), mechA.token)))
   ok("A: לא מוסיף תמונה לרכב על ליפט אחר", !(await inserted("media", media(onOther.id), mechA.token)))
   ok("A: לא מצמיד לרכב שלו ממצא של רכב אחר", !(await inserted("media", media(onMine.id, otherFinding.id), mechA.token)))
+  // 067: "נוצר על ידי" הוא המשתמש עצמו, ובעדכון רק השיוך לממצא
+  ok("A: לא רושם מדיה בשם מישהו אחר", !(await inserted("media", { ...media(onMine.id, myFinding.id), created_by: mechB.id }, mechA.token)))
+  const [mine] = await (await admin(`/rest/v1/media?job_card_id=eq.${onMine.id}&select=id&limit=1`)).json()
+  ok("A: לא משנה נתיב של קובץ במדיה", (await patched("media", mine.id, { storage_path: "job-0/stolen.jpg" }, mechA.token)) === 0)
+  ok("A: משייך מדיה לממצא של הרכב שלו (השדה היחיד שמותר)", (await patched("media", mine.id, { finding_id: myFinding.id }, mechA.token)) === 1)
+  // 067: קריאת עזרה רק לרכב שמותר לו לגעת בו
+  ok("A: לא פותח קריאת עזרה לרכב על ליפט אחר", !(await inserted("help_calls", { job_card_id: onOther.id, lift: L2, requested_by: mechA.id, kind: "help" }, mechA.token)))
 
   // 5. B על הליפט שלו, ומנהל בלי שינוי
   ok("B: מעדכן את הרכב שעל הליפט שלו", (await patched("job_cards", onOther.id, { status: "in_progress" }, mechB.token)) === 1)
