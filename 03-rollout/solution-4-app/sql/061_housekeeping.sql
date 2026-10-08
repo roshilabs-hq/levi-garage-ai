@@ -7,7 +7,7 @@
 --   · הדוח נרשם ביומן האבטחה (060), ואבי רואה מתי רץ ומה נמצא.
 -- הקריאה דורשת סוד שנמצא רק בשרת, נגזר מ-STATION_SECRET (כמו 052). במסד רק הגיבוב.
 --
--- מוחלת ידנית, ב-SQL Editor של Supabase: כלי ההחלה (MCP) דוחה כל מיגרציה שיש בה delete.
+-- הוחלה ידנית ב-SQL Editor של Supabase (8.10), כי כלי ההחלה (MCP) דוחה כל מיגרציה שיש בה delete.
 
 insert into private.settings (key, value)
 values ('housekeeping_rpc_hash', '065b8acc10e1830d8c9e03bccaab7bd58dcf06bebb556b236efa799330b898e3')
