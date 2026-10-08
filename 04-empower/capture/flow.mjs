@@ -408,6 +408,9 @@ try {
   await go(m, "/staff/lift")
   await shot(m, "f15-lift-finish")
   await m.click('button:has-text("סיימתי את העבודה")')
+  // 066: "סיימתי" שואל אם הרכב סגור וכשיר לנסיעה. "כן" פעיל אחרי חצי שנייה.
+  await m.waitForTimeout(700)
+  await m.click('button:has-text("כן, סיימתי, להוריד לחניה")')
   await m.waitForTimeout(2500)
   await patch("job_cards", `id=eq.${job.id}`, { work_done_at: T("14:30") })
   await patch("help_calls", `job_card_id=eq.${job.id}&kind=eq.done`, { created_at: T("14:30") })

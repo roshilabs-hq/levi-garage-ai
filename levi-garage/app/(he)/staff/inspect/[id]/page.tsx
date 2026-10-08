@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { INSPECTION_ITEMS, progress, type InspectionState } from "@/lib/staff/inspection"
 import { TopBar } from "@/components/staff/top-bar"
+import { IdleLogout } from "@/components/staff/idle-logout"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { CaptureButton } from "@/components/staff/capture-button"
 import { AddPhoto } from "@/components/staff/add-photo"
@@ -56,6 +57,7 @@ export default async function InspectPage({
   return (
     <main className="staff-wrap inspect-page">
       <TopBar staff={staff} current="lift" />
+      {staff.atStation && <IdleLogout />}
       <AutoRefresh seconds={30} live />
 
       <header className="staff-top">

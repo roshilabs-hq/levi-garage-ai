@@ -5,6 +5,7 @@ import { NextResponse } from "next/server"
 import { generateJson } from "@/lib/site/gemini"
 import { knowledge } from "@/lib/site/knowledge"
 import { asksForUpdates, REMOVED_REPLY, wantsRemoval } from "@/lib/site/consent"
+import { readJson } from "@/lib/site/body"
 import { allowed, clientIp, ipKey } from "@/lib/site/rate"
 import { customerCars, describeCars, firstName, grantConsent, revokeConsent } from "@/lib/site/customer"
 
@@ -101,17 +102,17 @@ ${name ? `First name: ${name}
 type Turn = { role: "user" | "model"; text: string }
 
 export async function POST(req: Request) {
-  let body: { question?: unknown; lang?: unknown; history?: unknown; client?: unknown }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "bad" }, { status: 400 })
-  }
+  // מבקר באתר: המכסה לפי כתובת לפני שקוראים את הגוף. הבוט מזוהה בכותרת, והמכסה שלו לפי הלקוח שבגוף.
+  // בכל מקרה הגוף נקרא עם תקרת גודל (ביקורת חמישית, ממצא 5).
+  if (!fromBot(req) && !(await allowed(ipKey(req, "ask"), 600, 20))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  const body = await readJson<{ question?: unknown; lang?: unknown; history?: unknown; client?: unknown }>(req)
+  if (!body) return NextResponse.json({ error: "bad" }, { status: 400 })
 
   if (limited(rateKey(req, body.client))) return NextResponse.json({ error: "limit" }, { status: 429 })
   // 047: גם מונה משותף לכל השרתים, במסד. כל פנייה כאן היא קריאה ל-Gemini.
-  const shared = fromBot(req) ? `ask:bot:${typeof body.client === "string" ? body.client.slice(0, 40) : "unknown"}` : ipKey(req, "ask")
-  if (!(await allowed(shared, 600, fromBot(req) ? 40 : 20))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  if (fromBot(req) && !(await allowed(`ask:bot:${typeof body.client === "string" ? body.client.slice(0, 40) : "unknown"}`, 600, 40))) {
+    return NextResponse.json({ error: "limit" }, { status: 429 })
+  }
   // 6.10 (M-2): תקרה יומית לכל מבקרי האתר יחד. לבוט בוואטסאפ תקרה משלו, גבוהה יותר, כדי שלקוחות אמיתיים
   // לא ייחסמו בגלל עומס באתר (ביקורת רביעית, 8.10, ממצא 7: עד היום לבוט לא הייתה תקרה כללית בכלל).
   if (!(await allowed(fromBot(req) ? "ask:bot:all" : "ask:site:all", 86400, fromBot(req) ? 3000 : 1500))) {

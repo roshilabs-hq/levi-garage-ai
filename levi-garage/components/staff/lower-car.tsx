@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import { lowerCar } from "@/app/(he)/staff/actions"
+import { callManager, lowerCar } from "@/app/(he)/staff/actions"
 
 // "להוריד מהליפט לחניה" עם אישור (ביקורת UX חיצונית, 8.10, ממצא 1). עד היום לחיצה אחת הורידה
 // את הרכב, וההחלטה אם הוא סגור ואפשר לנסוע בו נשארה רק בהסבר שמעל הכפתור. עכשיו הלחיצה שואלת,
@@ -13,7 +13,8 @@ import { lowerCar } from "@/app/(he)/staff/actions"
 // נגיעה כפולה בכפפה הייתה נוחתת על "כן", שמופיע באותו מקום. לכן "כן" פעיל רק אחרי חצי שנייה.
 const ARM_MS = 500
 
-export function LowerCar({ jobId, label, className }: { jobId: number; label: string; className: string }) {
+// done: הכפתור "סיימתי את העבודה". גם הוא מוריד את הרכב מהליפט, ולכן שואל את אותה שאלה (066).
+export function LowerCar({ jobId, label, className, done = false }: { jobId: number; label: string; className: string; done?: boolean }) {
   const [ask, setAsk] = useState(false)
   const [armed, setArmed] = useState(false)
   const question = useRef<HTMLParagraphElement>(null)
@@ -34,15 +35,16 @@ export function LowerCar({ jobId, label, className }: { jobId: number; label: st
   }
 
   return (
-    <form action={lowerCar} className="lower-confirm">
+    <form action={done ? callManager : lowerCar} className="lower-confirm">
       <input type="hidden" name="job_id" value={jobId} />
       <input type="hidden" name="fit" value="yes" />
+      {done && <input type="hidden" name="kind" value="done" />}
       <p className="lower-q" ref={question} tabIndex={-1}>
         הרכב סגור, מורכב, ואפשר לנסוע בו?
       </p>
       <div className="lower-do">
         <button className={className} type="submit" disabled={!armed}>
-          כן, להוריד לחניה
+          {done ? "כן, סיימתי, להוריד לחניה" : "כן, להוריד לחניה"}
         </button>
         <button
           className="btn quiet big"

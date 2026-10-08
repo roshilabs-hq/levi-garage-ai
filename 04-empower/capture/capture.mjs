@@ -456,6 +456,9 @@ try {
   await patch("job_cards", `id=eq.${day.queued.id}`, { status: "in_progress" })
   await m.goto(`${BASE}/staff/lift`)
   await m.click('button:has-text("סיימתי את העבודה")')
+  // 066: "סיימתי" שואל אם הרכב סגור וכשיר לנסיעה. "כן" פעיל אחרי חצי שנייה.
+  await m.waitForTimeout(700)
+  await m.click('button:has-text("כן, סיימתי, להוריד לחניה")')
   await m.waitForTimeout(1500)
   await shot(m, "m8-done", null, { fullPage: true })
 

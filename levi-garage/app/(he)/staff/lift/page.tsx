@@ -9,6 +9,7 @@ import { PricePick, type PickItem } from "@/components/staff/price-pick"
 import { callManager, takeCar } from "../actions"
 import { LowerCar } from "@/components/staff/lower-car"
 import { TopBar } from "@/components/staff/top-bar"
+import { IdleLogout } from "@/components/staff/idle-logout"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { elapsed } from "@/lib/staff/format"
 import { ACTIVE, queueOf } from "@/lib/staff/queue"
@@ -172,11 +173,7 @@ function Car({
       {/* הפעולה של עכשיו: כפתור אחד, גדול. "סיימתי" כשהכול מאושר, ואחרת להוריד לחניה —
           הליפט לא מחכה לתשובה של לקוח, ודניאל יחזיר את הרכב לתור כשיאשר. */}
       {finish ? (
-        <form action={callManager}>
-          <input type="hidden" name="job_id" value={card.id} />
-          <input type="hidden" name="kind" value="done" />
-          <button className="lift-primary" type="submit">סיימתי את העבודה</button>
-        </form>
+        <LowerCar jobId={card.id} label="סיימתי את העבודה" className="lift-primary" done />
       ) : (
         !doneCall && (
           // ההדרכה לבעל המוסך (6.10, 04-empower/training-session): "רכב מפורק לא זז". המכונאי
@@ -275,6 +272,7 @@ export default async function LiftPage({ searchParams }: { searchParams: Promise
   return (
     <main className="staff-wrap lift-page">
       <TopBar staff={staff} current="lift" />
+      {staff.atStation && <IdleLogout />}
       <AutoRefresh seconds={30} live />
 
       <header className="staff-top">

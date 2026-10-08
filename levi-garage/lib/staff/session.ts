@@ -1,6 +1,8 @@
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
+import { STATION_COOKIE } from "@/lib/staff/station"
 
 // מי מחובר, ומה מותר לו. שורת ה-staff היא מקור האמת לתפקיד:
 // משתמש שנוצר ב-auth אבל אין לו שורה כאן, הוא לא איש צוות.
@@ -17,6 +19,8 @@ export type StaffMember = {
   email: string
   /** למשתמש מסך בלבד: איזה מסך מותר לו לפתוח. */
   screen: ScreenKind | null
+  /** מכונאי שנכנס בעמדה (057). */
+  atStation?: boolean
 }
 
 export async function getStaff(): Promise<StaffMember | null> {
@@ -41,6 +45,7 @@ export async function getStaff(): Promise<StaffMember | null> {
     const s = here as { bound?: boolean; lift?: number | null; revoked?: boolean } | null
     if (s?.revoked) return null
     staff.lift = s?.bound ? (s.lift ?? null) : null
+    staff.atStation = Boolean(s?.bound)
   }
   return staff
 }
@@ -48,7 +53,8 @@ export async function getStaff(): Promise<StaffMember | null> {
 /** לעמודים שמאחורי ההתחברות. מי שלא מחובר מגיע למסך הכניסה. */
 export async function requireStaff(): Promise<StaffMember> {
   const staff = await getStaff()
-  if (!staff) redirect("/staff/login")
+  // מכשיר של עמדה (כניסה שפגה, עמדה שבוטלה, או "החלפת עובד") חוזר לעמדה, לא לכניסה בסיסמה
+  if (!staff) redirect((await cookies()).get(STATION_COOKIE) ? "/station" : "/staff/login")
   // משתמש מסך לא מסתובב באזור הצוות. זו כל הנקודה שלו: המסך בחדר ההמתנה
   // נשאר מחובר כל היום בחדר ציבורי, ומי שנוגע בו חוזר למסך ולא ללוח היום.
   if (staff.role === "display") redirect(screenPath(staff))

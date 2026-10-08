@@ -22,8 +22,14 @@ const PHRASES = [
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase()
 
+// מילת שלילה בהודעה מבטלת את ההסכמה (ביקורת אבטחה חמישית, 8.10, ממצא 2): "אני לא אשמח לקבל עדכונים"
+// מכילה את הביטוי, אבל היא ההפך מהסכמה. ההודעות הכתובות מראש (PREFILLED) לא מכילות שלילה, והבדיקה
+// מוודאת את זה. הודעה עמומה לא נרשמת: עדיף לא לשלוח למי שהסכים, מאשר לשלוח למי שלא.
+const NEGATION = /(^|[\s,.!?"'״׳])(לא|אל|בלי|אינני|איני|אין|אף פעם|לא רוצה|لا|لن|ليس|بدون|не|нет|никогда|без)(?=$|[\s,.!?"'״׳])/iu
+
 export function asksForUpdates(text: string): boolean {
   const t = norm(text)
+  if (NEGATION.test(t)) return false
   return PHRASES.some((p) => t.includes(norm(p)))
 }
 

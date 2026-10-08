@@ -324,8 +324,10 @@ export async function callManager(formData: FormData) {
   // לבדיקה", ודניאל בודק על הקרקע ומסמן "מוכן" מתי שהוא פנוי. עד 2.10 הרכב
   // נשאר על הליפט עד הבדיקה, והליפט חיכה לבן אדם.
   if (kind === "done") {
-    // מהמסד (063): מכונאי מסיים רק את הרכב שעל הליפט שלו, ורק רכב פעיל
-    await supabase.rpc("finish_on_lift", { p_job_id: jobId })
+    // "סיימתי" מוריד את הרכב מהליפט, ולכן שואל קודם אם הוא סגור וכשיר לנסיעה (066), כמו "להוריד
+    // לחניה". המסד דורש את האישור גם הוא, ומכונאי מסיים רק את הרכב שעל הליפט שלו (063).
+    if (formData.get("fit") !== "yes") return
+    await supabase.rpc("finish_on_lift", { p_job_id: jobId, p_fit: true })
     revalidatePath("/staff/floor")
     revalidatePath("/wall")
     revalidatePath("/staff")

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { generateJson } from "@/lib/site/gemini"
+import { readJson } from "@/lib/site/body"
 import { allowed, ipKey } from "@/lib/site/rate"
 import { TRAINING_DOCS } from "@/lib/training/docs"
 import { resolveGuide } from "@/lib/training/resolve"
@@ -55,16 +56,13 @@ const schema = {
 type Turn = { role: "user" | "model"; text: string }
 
 export async function POST(req: Request) {
-  let body: { question?: unknown; history?: unknown }
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "bad" }, { status: 400 })
-  }
-  const question = typeof body.question === "string" ? body.question.trim().slice(0, 400) : ""
-  if (!question) return NextResponse.json({ error: "bad" }, { status: 400 })
+  // קודם המכסה לפי כתובת, ורק אחר כך קוראים את הגוף, עם תקרת גודל (ביקורת חמישית, ממצא 5)
   // כל פנייה היא קריאה ל-Gemini: 15 שאלות לעשר דקות לכל כתובת.
   if (!(await allowed(ipKey(req, "training"), 600, 15))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  const body = await readJson<{ question?: unknown; history?: unknown }>(req)
+  if (!body) return NextResponse.json({ error: "bad" }, { status: 400 })
+  const question = typeof body.question === "string" ? body.question.trim().slice(0, 400) : ""
+  if (!question) return NextResponse.json({ error: "bad" }, { status: 400 })
   // 6.10 (M-2): תקרה יומית לכל המבקרים יחד. כל שאלה שולחת ל-Gemini את כל המדריך (כ-35KB).
   if (!(await allowed("training:all", 86400, 800))) return NextResponse.json({ error: "limit" }, { status: 429 })
 
