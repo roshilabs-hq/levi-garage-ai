@@ -139,11 +139,11 @@ try {
   ok("אי אפשר לזייף גרסה ישירות, רק דרך הפונקציה", forged.status >= 400, `HTTP ${forged.status}`)
 
   // ---------- 5. בדיקת הכניסה ----------
-  const insMech = await call(`/rest/v1/inspections`, {
+  // מ-066 האבחון נכתב רק דרך set_inspection_item, לא ישירות לטבלה
+  const insMech = await call(`/rest/v1/rpc/set_inspection_item`, {
     token: mechanic,
     method: "POST",
-    headers: { prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify({ job_card_id: jobId, items: { brakes: { light: "red" } } }),
+    body: JSON.stringify({ p_job_id: jobId, p_key: "brakes", p_light: "red" }),
   })
   ok("מכונאי בעמדת האבחון רושם בדיקת כניסה", insMech.status < 300, `HTTP ${insMech.status}`)
   const insWall = await call(`/rest/v1/inspections?job_card_id=eq.${jobId}`, {

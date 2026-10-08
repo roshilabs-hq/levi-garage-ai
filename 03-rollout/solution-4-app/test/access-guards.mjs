@@ -89,6 +89,24 @@ try {
   await rpc("set_inspection_item", { p_job_id: j1.id, p_key: "scan", p_light: "green" }, mechanic)
   ok("מכונאי: אחרי תשעה פריטים, סיום אבחון עובר", (await hintOf(await rpc("complete_inspection", { p_job_id: j1.id }, mechanic))) === "ok" && Boolean((await row("job_cards", j1.id)).inspected_at))
 
+  // 066 (ביקורת חמישית, ממצאים 1 ו-6): בדיקות עוינות. לא רק "המסלול הנכון עובד", אלא "המסלול העוקף נחסם".
+  ok("מכונאי: לשנות פריט אחרי שהאבחון הסתיים נחסם", (await hintOf(await rpc("set_inspection_item", { p_job_id: j1.id, p_key: "brakes", p_light: "red" }, mechanic))) === "inspection-closed")
+  const directItems = await call(`/rest/v1/inspections?job_card_id=eq.${j1.id}`, { method: "PATCH", token: mechanic, body: JSON.stringify({ items: { brakes: { light: "green" } } }) })
+  ok("מכונאי: לכתוב את פריטי האבחון ישירות נחסם", !directItems.ok && (await directItems.json().catch(() => ({}))).hint === "inspect-rpc")
+  ok("מכונאי: למחוק את האבחון ישירות נחסם", !(await call(`/rest/v1/inspections?job_card_id=eq.${j1.id}`, { method: "DELETE", token: mechanic, headers: { prefer: "return=representation" } })).ok || Boolean((await (await admin(`/rest/v1/inspections?job_card_id=eq.${j1.id}&select=job_card_id`)).json())[0]))
+  ok("מנהל: גם הוא לא כותב פריטים ישירות", !(await call(`/rest/v1/inspections?job_card_id=eq.${j1.id}`, { method: "PATCH", token: manager, body: JSON.stringify({ items: {} }) })).ok)
+  // ממצא של רכב אחר בתוך האבחון (נכתב כאן במפתח השירות, כאילו עקף): הסיום נדחה
+  const j7 = await newJob({ status: "open" })
+  const jOther = await newJob({ status: "open" })
+  const [foreign] = await (await admin(`/rest/v1/findings`, { method: "POST", headers: { prefer: "return=representation" }, body: JSON.stringify({ job_card_id: jOther.id, source: "manual", title: "זר", summary: "זר", urgency: "red", status: "draft" }) })).json()
+  const items = Object.fromEntries(["brakes", "tires", "steering", "lights", "fluids", "leaks", "battery", "wipers", "scan"].map((k) => [k, { light: "green" }]))
+  items.brakes = { light: "red", finding_id: foreign.id }
+  await admin(`/rest/v1/inspections`, { method: "POST", headers: { prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ job_card_id: j7.id, items }) })
+  ok("סיום אבחון עם ממצא של רכב אחר נדחה", (await hintOf(await rpc("complete_inspection", { p_job_id: j7.id }, mechanic))) === "inspect-incomplete")
+  items.brakes = { light: "red", finding_id: 999999999 }
+  await admin(`/rest/v1/inspections?job_card_id=eq.${j7.id}`, { method: "PATCH", body: JSON.stringify({ items }) })
+  ok("סיום אבחון עם ממצא שלא קיים נדחה", (await hintOf(await rpc("complete_inspection", { p_job_id: j7.id }, mechanic))) === "inspect-incomplete")
+
   // 2. מכונאי: מה אסור
   const j2 = await newJob()
   ok("מכונאי: לסמן 'מוכן' נחסם", (await patch("job_cards", j2.id, { status: "ready" }, mechanic)) === "mechanic-locked")
