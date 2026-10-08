@@ -4,7 +4,7 @@
 -- אי אפשר לדעת שהכניסה הגיעה מעמדה שבוטלה. אם הסשן של Supabase עוד חי (חידוש טוקן), מחיקת הרישום
 -- הייתה מחזירה לו את ההרשאות. עכשיו נמחק רק רישום שהסשן שלו כבר לא קיים ב-auth.sessions.
 --
--- הוחלה ידנית ב-SQL Editor של Supabase, כמו 061 (כלי ההחלה דוחה delete).
+-- הוחלה ידנית ב-SQL Editor של Supabase (8.10), כמו 061, כי כלי ההחלה דוחה delete.
 
 create or replace function public.housekeeping(p_secret text)
 returns jsonb
