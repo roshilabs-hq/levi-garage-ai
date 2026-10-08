@@ -457,6 +457,7 @@ section { position: relative; }
 .cal-frame:has(iframe) .cal-loading { display: none; }
 .cal-loading { color: var(--muted); padding: 24px 0; }
 .cal-fallback { margin-top: 12px; }
+.cal-fallback-after { margin-top: 6px; font-size: 15px; color: var(--muted); max-width: 60ch; }
 .booked-done h1 { font-size: clamp(2.2rem, 4.2vw, 3.2rem); }
 
 /* הלוגו: לוחית (29.9) */

@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
 import { CaptureButton } from "@/components/staff/capture-button"
 import { PricePick, type PickItem } from "@/components/staff/price-pick"
-import { callManager, lowerCar, takeCar } from "../actions"
+import { callManager, takeCar } from "../actions"
+import { LowerCar } from "@/components/staff/lower-car"
 import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { elapsed } from "@/lib/staff/format"
@@ -187,10 +188,7 @@ function Car({
               <br />
               <b>רכב סגור שנוסע:</b> להוריד לחניה, והליפט עובר לבא בתור.
             </p>
-            <form action={lowerCar}>
-              <input type="hidden" name="job_id" value={card.id} />
-              <button className="lift-primary" type="submit">להוריד מהליפט לחניה</button>
-            </form>
+            <LowerCar jobId={card.id} label="להוריד מהליפט לחניה" className="lift-primary" />
           </div>
         )
       )}
@@ -213,11 +211,10 @@ function Car({
 
       {/* מחכים לחלק, גם כשהכול מאושר: אפשר תמיד להוריד לחניה. */}
       {finish && (
-        <form action={lowerCar} className="lift-lower">
-          <input type="hidden" name="job_id" value={card.id} />
-          <button className="btn quiet" type="submit">מחכים לחלק? להוריד לחניה</button>
+        <div className="lift-lower">
+          <LowerCar jobId={card.id} label="מחכים לחלק? להוריד לחניה" className="btn quiet" />
           <p className="staff-meta">רק רכב סגור, שאפשר לנסוע בו. רכב פתוח נשאר על הליפט.</p>
-        </form>
+        </div>
       )}
       <Link className="lift-link" href={`/staff/job/${card.id}`}>הכרטיס המלא</Link>
     </li>

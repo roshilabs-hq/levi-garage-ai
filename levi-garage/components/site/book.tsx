@@ -134,11 +134,25 @@ export function BookFlow({ t, plate, service }: { t: Dict; plate?: string; servi
           <p className="cal-loading">{t.book.loading}</p>
         </div>
         {slow && (
-          <p className="cal-fallback">
-            <a href={calDirectLink({ plate, service })} target="_blank" rel="noreferrer">
-              {t.book.fallback}
-            </a>
-          </p>
+          <>
+            <p className="cal-fallback">
+              <a href={calDirectLink({ plate, service })} target="_blank" rel="noreferrer">
+                {t.book.fallback}
+              </a>
+            </p>
+            {/* ביקורת UX, 8.10, ממצא 14: מי שקובע בקישור הישיר לא חוזר לכאן, ולא רואה את "צעד אחרון" */}
+            <p className="cal-fallback-after">
+              {t.book.fallbackAfter}
+              {wa && (
+                <>
+                  {" "}
+                  <a href={wa} target="_blank" rel="noreferrer">
+                    {t.book.waButton}
+                  </a>
+                </>
+              )}
+            </p>
+          </>
         )}
       </div>
     </>

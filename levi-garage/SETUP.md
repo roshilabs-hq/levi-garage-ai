@@ -1,3 +1,7 @@
+> **מוסך לוי ובניו: זה לא מדריך ההתקנה.** הקובץ הזה הוא רשימת המשימות של תבנית הקורס, שממנה הפרויקט התחיל.
+> **איך מקימים את המערכת מאפס:** [RECOVERY.md](../RECOVERY.md), כולל כל הרכיבים, סדר המיגרציות, משתני הסביבה ובדיקת שחזור.
+> **מה נמסר למוסך ומי אחראי על מה:** [הסכם השירות](../04-empower/service-agreement.md).
+
 - [ ]  **בניית הטמפלייט המושלם ל-Vibe Coding עם Claude Code**
     - [ ]  let AI set up and create the most easy to use guide by levraging one of these approaches:
     (cd, purge git, git init, npm i (install deps), etc…)

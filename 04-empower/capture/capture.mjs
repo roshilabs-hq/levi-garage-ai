@@ -469,8 +469,10 @@ try {
   failed = e
   console.error("✗", e.message)
 } finally {
-  // רק כשכל הצילומים רצו: רשימה חלקית הייתה מוחקת נקודות של מסכים שלא צולמו הפעם.
-  if (!failed && Object.keys(hotspots).length) {
+  // הנקודות נשמרות לכל מסך שצולם עד הסוף, גם אם שלב מאוחר יותר נכשל. המיזוג עם הקובץ
+  // הקיים שומר את הנקודות של מסכים שלא צולמו הפעם (8.10: חיבור עמדה לא עובד מול שרת
+  // מקומי, ובלי זה גם d6 שצולם בהצלחה לא היה מתעדכן).
+  if (Object.keys(hotspots).length) {
     const file = resolve(OUT, "..", "hotspots.json")
     const prev = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}
     writeFileSync(file, JSON.stringify({ ...prev, ...hotspots }, null, 1))

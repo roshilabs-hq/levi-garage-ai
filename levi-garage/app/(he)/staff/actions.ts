@@ -817,7 +817,8 @@ export async function lowerCar(formData: FormData) {
   const staff = await requireStaff()
   if (staff.role === "display") return
   const id = Number(formData.get("job_id"))
-  if (!id) return
+  // ביקורת UX, 8.10, ממצא 1: רק אחרי "כן, הרכב סגור ואפשר לנסוע בו" (components/staff/lower-car.tsx)
+  if (!id || formData.get("fit") !== "yes") return
   const supabase = await createClient()
   await supabase
     .from("job_cards")

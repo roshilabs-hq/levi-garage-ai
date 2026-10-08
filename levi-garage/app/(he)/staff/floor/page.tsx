@@ -8,7 +8,8 @@ import { TopBar } from "@/components/staff/top-bar"
 import { Since } from "@/components/staff/since"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { TOO_LONG, stageLabel, type Stage } from "@/lib/staff/stages"
-import { assignLift, lowerCar, requeueCar, sendOutside, setJobStatus, toFrontOfQueue } from "../actions"
+import { assignLift, requeueCar, sendOutside, setJobStatus, toFrontOfQueue } from "../actions"
+import { LowerCar } from "@/components/staff/lower-car"
 import { approvedWaitingForUs, awaitingIntake, doneAwaitingCheck, isOutside, isParked, queueOf } from "@/lib/staff/queue"
 
 export const metadata: Metadata = { title: "מפת המוסך | מוסך לוי ובניו", robots: { index: false, follow: false } }
@@ -477,10 +478,7 @@ export default async function FloorPage({ searchParams }: { searchParams: Promis
                     </Link>
                     {/* 051: מכונאי מוריד רק את הרכב שעל הליפט שלו. מנהל, כל רכב. */}
                     {c.lift !== null && (isManager || c.lift === staff.lift) && (
-                      <form action={lowerCar}>
-                        <input type="hidden" name="job_id" value={c.id} />
-                        <button className="btn quiet" type="submit">להוריד לחניה</button>
-                      </form>
+                      <LowerCar jobId={c.id} label="להוריד לחניה" className="btn quiet" />
                     )}
                   </div>
                 </li>

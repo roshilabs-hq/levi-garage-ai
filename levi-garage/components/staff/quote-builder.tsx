@@ -104,7 +104,8 @@ export function QuoteBuilder({
               <form action={dismissFinding} className="qb-dismiss">
                 <input type="hidden" name="finding_id" value={d.id} />
                 <input type="hidden" name="job_id" value={jobId} />
-                <button type="submit" className="link-btn">לא לשלוח את זה (לבטל)</button>
+                {/* ביקורת UX, 8.10, ממצא 13: הכפתור מבטל את הממצא עצמו, לא רק מוציא אותו מההודעה */}
+                <button type="submit" className="link-btn">לבטל את הממצא (לא יישלח ללקוח)</button>
               </form>
             </li>
           )

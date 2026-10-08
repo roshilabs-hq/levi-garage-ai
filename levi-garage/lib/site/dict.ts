@@ -33,7 +33,7 @@ export type Dict = {
   }
   footer: { tagline: string; privacy: string; accessibility: string; terms: string; staff: string; demo: string; langs: string; themeLight: string; themeDark: string }
   book: {
-    title: string; lead: string; loading: string; fallback: string
+    title: string; lead: string; loading: string; fallback: string; fallbackAfter: string
     /** 6.10 (תיקון 13): טופס Cal.com בעברית בלבד. בערבית וברוסית מסבירים מעליו מה כל שדה ותיבה. */
     formNote?: string
     doneTitle: string; doneLead: string; stepTitle: string; stepBody: string; waButton: string; waMessage: string; note: string; nudgeTitle: string; nudgeBody: string
@@ -201,6 +201,7 @@ const he: Dict = {
     lead: "בוחרים יום ושעה להשאיר את הרכב. מספר הרישוי מספיק: את פרטי הרכב נשלוף בעצמנו ממשרד התחבורה.",
     loading: "טוענים את היומן…",
     fallback: "היומן לא נטען? אפשר לקבוע גם כאן",
+    fallbackAfter: "אחרי שקבעתם שם, שלחו לנו הודעה אחת בוואטסאפ. בלעדיה לא נוכל לשלוח תזכורת, את הצעת המחיר ואת ההודעה שהרכב מוכן.",
     doneTitle: "התור נקבע ✅",
     doneLead: "קיבלנו את התור. פרטי הרכב כבר נשלפו ממאגר משרד התחבורה, כך שהמכונאי יודע מה מגיע עוד לפני שתגיעו.",
     stepTitle: "צעד אחרון: הודעה אחת בוואטסאפ",
@@ -376,6 +377,7 @@ const ar: Dict = {
     lead: "اختاروا يومًا وساعة لترك السيارة. رقم اللوحة يكفي: نجلب تفاصيل السيارة بأنفسنا من وزارة المواصلات.",
     loading: "جارٍ تحميل التقويم…",
     fallback: "التقويم لم يُحمَّل؟ يمكن الحجز هنا أيضًا",
+    fallbackAfter: "بعد الحجز هناك، أرسلوا لنا رسالة واحدة عبر واتساب. بدونها لا نستطيع إرسال تذكير، ولا عرض السعر، ولا رسالة أن السيارة جاهزة.",
     doneTitle: "تم حجز الموعد ✅",
     doneLead: "استلمنا الموعد. تفاصيل السيارة جُلبت من وزارة المواصلات، فالميكانيكي يعرف ما القادم قبل وصولكم.",
     stepTitle: "خطوة أخيرة: رسالة واحدة في واتساب",
@@ -551,6 +553,7 @@ const ru: Dict = {
     lead: "Выберите день и время, когда оставите машину. Достаточно номера: данные автомобиля мы сами возьмём из базы Минтранса.",
     loading: "Загружаем календарь…",
     fallback: "Календарь не загрузился? Записаться можно здесь",
+    fallbackAfter: "После записи там отправьте нам одно сообщение в WhatsApp. Без него мы не сможем прислать напоминание, предложение цены и сообщение, что машина готова.",
     doneTitle: "Вы записаны ✅",
     doneLead: "Запись получена. Данные автомобиля уже взяты из базы Минтранса, так что механик знает, что к нему едет, ещё до вашего приезда.",
     stepTitle: "Последний шаг: одно сообщение в WhatsApp",
