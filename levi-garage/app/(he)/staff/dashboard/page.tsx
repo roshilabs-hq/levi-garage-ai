@@ -5,6 +5,8 @@ import { requireManager } from "@/lib/staff/session"
 import { OPENING } from "@/lib/hours"
 import { customerResponse, discountsSince, israel, liftDeadMinutesPerDay, readyByFour, writtenApprovals, type Approval, type Discounted, type Move } from "@/lib/staff/metrics"
 import { TopBar } from "@/components/staff/top-bar"
+import { todayNumbers, type TodayCard } from "@/lib/staff/today"
+import Link from "next/link"
 
 export const metadata: Metadata = { title: "מדדים | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -52,6 +54,20 @@ export default async function DashboardPage() {
 
   type ApprovalRow = Approval & { decision: string | null; price_chosen: number | null; findings: { job_card_id: number } | { job_card_id: number }[] | null }
   type DiscRow = { job_card_id: number; status: string; discount_reason: string | null; list_price_original: number | null; list_price_aftermarket: number | null; approvals: Discounted["approval"] | Discounted["approval"][] }
+
+  // פס "היום" (ביקורת UX חיצונית, 8.10, ממצא 10): המצב עכשיו, באותו חישוב כמו לוח היום.
+  const [{ data: liveCards }, { data: readyRecent }] = await Promise.all([
+    supabase
+      .from("job_cards")
+      .select("status, lift, opened_at, lift_since, status_since, parked_at, outside_at, priority_at, work_done_at, work_approved_at")
+      .not("status", "in", "(delivered,cancelled)"),
+    supabase.from("job_cards").select("ready_at").gte("ready_at", new Date(nowMs - 24 * 60 * 60 * 1000).toISOString()),
+  ])
+  const todayDate = israel(now).date
+  const today = todayNumbers(
+    (liveCards ?? []) as TodayCard[],
+    (readyRecent ?? []).filter((r) => r.ready_at && israel(r.ready_at).date === todayDate).length,
+  )
 
   const [tests, demo, moves, readyCards, openedCards, approvals, discounted, nudges] = await Promise.all([
     all<{ id: number; notes: string | null }>((a, b) => supabase.from("job_cards").select("id, notes").or(`notes.like."רשומת בדיקה*",notes.like."מדריך*"`).range(a, b)),
@@ -187,8 +203,30 @@ export default async function DashboardPage() {
         </div>
       </header>
 
+      <section className="staff-section today-strip" aria-labelledby="today-title">
+        <h2 id="today-title">היום, עכשיו</h2>
+        <ul className="today-nums">
+          <li>
+            <b className="num">{today.ready}</b>
+            <span>מוכנים היום</span>
+          </li>
+          <li>
+            <b className="num">{today.waiting}</b>
+            <span>מחכים לתשובת לקוח</span>
+          </li>
+          <li>
+            <b className="num">{today.lifts} מתוך 4</b>
+            <span>ליפטים בעבודה</span>
+          </li>
+          <li className={today.late > 0 ? "late" : undefined}>
+            <b className="num">{today.late}</b>
+            <span>{today.late > 0 ? <Link href="/staff#g-late">חריגות, בלוח</Link> : "חריגות"}</span>
+          </li>
+        </ul>
+      </section>
+
       <section className="staff-section" aria-labelledby="measured-title">
-        <h2 id="measured-title">נמדד מנתוני אמת</h2>
+        <h2 id="measured-title">נמדד מנתוני אמת, 30 יום</h2>
         <ul className="kpis">
           {measured.map((k) => (
             <li key={k.title} className="kpi">

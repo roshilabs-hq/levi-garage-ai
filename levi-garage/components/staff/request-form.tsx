@@ -48,6 +48,8 @@ export function RequestForm({
   const [error, setError] = useState("")
 
   const done = items.every((i) => picks[i.finding_id])
+  const picked = items.filter((i) => picks[i.finding_id]).length
+  const nextOpen = items.find((i) => !picks[i.finding_id])
   const total = items.reduce((sum, i) => {
     const p = picks[i.finding_id]
     if (p === "original") return sum + Number(i.price_original ?? 0)
@@ -88,7 +90,7 @@ export function RequestForm({
             : [{ key: "original", label: "לאשר", price: i.price_original, warranty: i.warranty_original }]
           const pick = picks[i.finding_id]
           return (
-            <li key={i.finding_id} className={`req-item ${pick ? `picked-${pick}` : ""}`}>
+            <li key={i.finding_id} id={`req-item-${i.finding_id}`} className={`req-item ${pick ? `picked-${pick}` : ""}`}>
               <h2 className="approve-title">
                 <span className="req-n">{n + 1}</span> {i.title}
               </h2>
@@ -174,7 +176,32 @@ export function RequestForm({
               )}
             </>
           ) : (
-            `לבחור לכל פריט: לאשר או לא. ${items.length - Object.keys(picks).length} עוד לא נבחרו.`
+            // ביקורת UX חיצונית, 8.10, ממצא 11: ההתקדמות והסכום כל הזמן, ודרך להגיע לפריט שנשכח
+            <>
+              נבחרו <b className="num">{picked}</b> מתוך <b className="num">{items.length}</b>
+              {total > 0 && (
+                <>
+                  {" "}
+                  · עד עכשיו <b className="num">{money(total)}</b>
+                </>
+              )}
+              {nextOpen && (
+                <>
+                  <br />
+                  <button
+                    className="link-btn"
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById(`req-item-${nextOpen.finding_id}`)
+                      el?.scrollIntoView({ behavior: "smooth", block: "center" })
+                      el?.querySelector<HTMLElement>("input, button")?.focus({ preventScroll: true })
+                    }}
+                  >
+                    לפריט שעוד לא בחרת ({items.indexOf(nextOpen) + 1})
+                  </button>
+                </>
+              )}
+            </>
           )}
         </p>
         {error && <p className="staff-error" role="alert">{error}</p>}

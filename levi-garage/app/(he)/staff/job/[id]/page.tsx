@@ -7,6 +7,7 @@ import { requireStaff } from "@/lib/staff/session"
 import { markIntakeSigned, reissueQuote, resendIntakeRequest, resendReadyNotice, resendRequestNotice, setJobStatus } from "../../actions"
 import { noticeLabel } from "@/lib/staff/notify"
 import { QuoteBuilder, type BuilderDraft } from "@/components/staff/quote-builder"
+import { SendLinkMyself } from "@/components/staff/send-link-myself"
 import { AddPhoto } from "@/components/staff/add-photo"
 import { PricePick, type PickItem } from "@/components/staff/price-pick"
 import type { PriceItem } from "@/components/staff/arrive-form"
@@ -425,6 +426,10 @@ export default async function JobCardPage({
                       <input type="hidden" name="job_id" value={job.id} />
                       <button className="btn quiet" type="submit">לשלוח שוב בוואטסאפ</button>
                     </form>
+                  )}
+                  {/* ביקורת UX, 8.10, ממצא 3: ההודעה האוטומטית לא יצאה, ודניאל שולח בעצמו */}
+                  {open && canSend && g.token && n && n.status !== "sent" && (
+                    <SendLinkMyself phone={job.customer_phone} path={`/approve/${g.token}`} name={job.customer_name} />
                   )}
                 </li>
               )

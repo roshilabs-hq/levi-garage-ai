@@ -1317,6 +1317,14 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .lower-do { display: grid; gap: 10px; }
 .lower-do .lift-primary { margin-top: 10px; }
 .lower-do button:disabled { opacity: .55; cursor: default; }
+/* פס "היום" במדדים (ביקורת UX, 8.10): ארבעה מספרים שאבי קורא בעשר שניות */
+.today-nums { list-style: none; padding: 0; margin: 12px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.today-nums li { display: grid; gap: 4px; padding: 14px 16px; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.today-nums b { font-size: 30px; line-height: 1.1; }
+.today-nums span { color: var(--muted); font-size: 15px; }
+.today-nums li.late { box-shadow: 0 0 0 2px var(--amber); }
+.today-nums li.late b { color: color-mix(in srgb, var(--amber) 75%, var(--ink)); }
+@media (max-width: 640px) { .today-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .capture.quiet .capture-btn { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .capture.quiet .capture-dot { background: #c0392b; }
 

@@ -3,14 +3,14 @@ import Link from "next/link"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireStaff } from "@/lib/staff/session"
-import { elapsed, fmtStamp, fmtTime, minutesSince } from "@/lib/staff/format"
+import { elapsed, fmtStamp, fmtTime } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
 import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { StationRequests } from "@/components/staff/station-requests"
 import { Since } from "@/components/staff/since"
 import { decideDiscount, markIntakeSigned, markSafetyReported, requeueCar, resendIntakeRequest, resolveCall, sendRemindersNow, setJobStatus } from "./actions"
 import { approvedWaitingForUs, awaitingIntake, placeLabel } from "@/lib/staff/queue"
-import { clockOf, heat } from "@/lib/staff/stages"
+import { overdueCards } from "@/lib/staff/today"
 
 export const metadata: Metadata = { title: "לוח היום | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -209,17 +209,8 @@ export default async function StaffBoard({
       a.items[0].created_at.localeCompare(b.items[0].created_at),
   )
 
-  // חריגות (רועי, 30.9: רכב חיכה 7 שעות לליפט, ובלוח לא הופיע כלום). אותם ספים כמו
-  // בצבעים של מסך הסדנה. רכב שמחכה ללקוח כבר מופיע ב"להתקשר", ומחכה לדניאל ב"ממצאים".
-  const overdue = all
-    .filter((c) => c.status !== "waiting_approval" && c.status !== "waiting_quote" && !c.parked_at && !awaitingIntake(c))
-    .map((c) => {
-      const clock = clockOf(c)
-      const minutes = minutesSince(clock.iso)
-      return { c, clock, minutes, level: heat(minutes, clock.limit) }
-    })
-    .filter((x) => x.level !== "ok")
-    .sort((a, b) => b.minutes / b.clock.limit - a.minutes / a.clock.limit)
+  // חריגות: אותו חישוב כמו פס "היום" במדדים (lib/staff/today.ts)
+  const overdue = overdueCards(all)
 
   // 042: בקשות הנחה מעל 10% מדניאל. רק אבי רואה אותן, ורק הוא מחליט.
   const { data: discountAsks } =
