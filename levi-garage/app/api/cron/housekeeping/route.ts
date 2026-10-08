@@ -2,12 +2,14 @@ import { createHmac } from "node:crypto"
 
 import { NextResponse } from "next/server"
 
+import { bearerOk } from "@/lib/site/secret"
+
 // הניקוי החודשי (vercel.json, 061): מוחק נתונים טכניים בלבד (רישומי כניסה בעמדה, מוני קצב, בקשות
 // חיבור וקודי צימוד שפגו), וסופר את נתוני הלקוחות שהגיע הזמן למחוק ידנית. הדוח נרשם ביומן האבטחה,
 // ואבי רואה אותו. Vercel שולח את CRON_SECRET בכותרת; בלעדיו, או בלי המשתנה, הדלת סגורה.
+// ההשוואה בזמן קבוע (סקירת OWASP, 8.10).
 export async function GET(req: Request) {
-  const cron = process.env.CRON_SECRET
-  if (!cron || req.headers.get("authorization") !== `Bearer ${cron}`) {
+  if (!bearerOk(req, process.env.CRON_SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

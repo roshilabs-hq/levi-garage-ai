@@ -1,5 +1,3 @@
-import { timingSafeEqual } from "node:crypto"
-
 import { NextResponse } from "next/server"
 
 import { generateJson } from "@/lib/site/gemini"
@@ -7,6 +5,8 @@ import { knowledge } from "@/lib/site/knowledge"
 import { asksForUpdates, REMOVED_REPLY, wantsRemoval } from "@/lib/site/consent"
 import { readJson } from "@/lib/site/body"
 import { allowed, clientIp, ipKey } from "@/lib/site/rate"
+import { localAllowed } from "@/lib/site/rate-local"
+import { sameSecret } from "@/lib/site/secret"
 import { customerCars, describeCars, firstName, grantConsent, revokeConsent } from "@/lib/site/customer"
 
 // "תשאלו אותנו": עוזר מידע שעונה רק מתוך בסיס הידע של המוסך.
@@ -38,30 +38,16 @@ const schema = {
   required: ["answer", "action"],
 }
 
-const hits = new Map<string, number[]>()
-const WINDOW_MS = 10 * 60 * 1000
-const MAX_PER_WINDOW = 12
-
-function limited(key: string) {
-  const now = Date.now()
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS)
-  recent.push(now)
-  hits.set(key, recent)
-  return recent.length > MAX_PER_WINDOW
-}
+// מונה מהיר בזיכרון של השרת, לפני המונה במסד: 12 שאלות בעשר דקות לכל שואל. עד סקירת ה-OWASP (8.10)
+// הוא ישב במפה משלו שמעולם לא התרוקנה, וכל כתובת חדשה נשארה בה לתמיד. עכשיו הוא המונה המקומי המוגבל
+// בגודל של הגבלת הקצב (lib/site/rate-local.ts), שמוחק חלונות שנגמרו.
+const limited = (key: string) => !localAllowed(`ask-mem:${key}`, 600, 12)
 
 // בוט הוואטסאפ של המוסך מדבר עם אותו בסיס ידע, אבל כל הפניות שלו מגיעות מכתובת אחת.
 // עם טוקן משותף סופרים לפי השולח שהבוט מדווח עליו (מזהה אטום, לא מספר טלפון),
 // כדי ששולח אחד לא יחסום את כל השאר. בלי טוקן תקף, הפנייה נספרת לפי IP כמו כל אחד.
-function fromBot(req: Request) {
-  const token = process.env.GARAGE_BOT_TOKEN
-  const sent = req.headers.get("x-garage-bot-token")
-  // השוואה בזמן קבוע (043), כדי שזמן התגובה לא ירמוז כמה תווים נכונים.
-  if (!token || !sent) return false
-  const a = Buffer.from(token)
-  const b = Buffer.from(sent)
-  return a.length === b.length && timingSafeEqual(a, b)
-}
+// השוואה בזמן קבוע (043), כדי שזמן התגובה לא ירמוז כמה תווים נכונים.
+const fromBot = (req: Request) => sameSecret(req.headers.get("x-garage-bot-token"), process.env.GARAGE_BOT_TOKEN)
 
 function rateKey(req: Request, client: unknown) {
   if (fromBot(req)) return `bot:${typeof client === "string" ? client.slice(0, 64) : "unknown"}`

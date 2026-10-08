@@ -59,7 +59,8 @@ const mechanic = await signIn("test5@test.com")
 const manager = await signIn("test1@test.com")
 const NOTE = "רשומת בדיקה אוטומטית (orphan-media)"
 const stamp = Date.now()
-const paths = [`test/orphan-${stamp}-a.jpg`, `test/orphan-${stamp}-b.jpg`, `test/orphan-${stamp}-c.jpg`]
+// הקבצים בתיקייה של הרכב, כמו בייצור: מ-069 מכונאי כותב רק לתיקייה של רכב שמותר לו לגעת בו
+const paths = []
 let jobId = null
 
 try {
@@ -71,6 +72,7 @@ try {
     })
   ).json()
   jobId = job.id
+  paths.push(`job-${jobId}/orphan-${stamp}-a.jpg`, `job-${jobId}/orphan-${stamp}-b.jpg`, `job-${jobId}/orphan-${stamp}-c.jpg`)
 
   // 1. קובץ יתום שלי: נמחק
   ok("מכונאי מעלה קובץ", (await upload(paths[0], mechanic)).ok)

@@ -1,0 +1,14 @@
+# עדכוני תלויות אוטומטיים (סקירת OWASP, 8.10, A03 שרשרת האספקה): פעם בשבוע Dependabot פותח
+# Pull Request לכל חבילה של האתר שיש לה גרסה חדשה, ומיד כשמתפרסמת אזהרת אבטחה. הדחיפה ל-main
+# נשארת ידנית, אחרי בנייה ובדיקות.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /levi-garage
+    schedule:
+      interval: weekly
+      day: sunday
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
