@@ -1,6 +1,6 @@
 import "server-only"
 
-import { createHash } from "node:crypto"
+import { createHash, createHmac } from "node:crypto"
 import { headers } from "next/headers"
 
 // 047: הגבלת קצב משותפת לכל שרתי Vercel (rate_hit במסד). עד היום כל שרת ספר
@@ -27,13 +27,21 @@ export async function ipKeyFromHeaders(prefix: string): Promise<string> {
   return hashed(prefix, ipOf(h.get("x-forwarded-for")))
 }
 
+// הסוד נגזר מ-STATION_SECRET, שכבר נמצא בשרת (HMAC עם תווית משלו), ולכן לא צריך משתנה חדש
+// ב-Vercel. גזירה חד-כיוונית: מי שמשיג את הנגזר לא מגיע ממנו ל-STATION_SECRET. במסד נשמר רק
+// הגיבוב של הנגזר (rate_rpc_hash). RATE_LIMIT_SECRET, אם יוגדר, גובר, למשל לסיבוב בלי לגעת בעמדות.
+function rateSecret(): string | undefined {
+  if (process.env.RATE_LIMIT_SECRET) return process.env.RATE_LIMIT_SECRET
+  const s = process.env.STATION_SECRET
+  return s && s.length >= 32 ? createHmac("sha256", s).update("rate-limit-v1").digest("base64url") : undefined
+}
+
 export async function allowed(key: string, windowSeconds: number, max: number): Promise<boolean> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anon = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   // 052 (ביקורת אבטחה חיצונית, 7.10, ממצא 4): המסד סופר רק עם הסוד של השרת. בלעדיו כל אחד עם
-  // המפתח הציבורי יכול היה למלא את המונים או לשרוף את התקרה היומית של הבוטים. עד שהסוד מוגדר
-  // ב-Vercel, נשארים עם הפונקציה הישנה, כדי שההגבלה לא תיכבה בזמן המעבר.
-  const secret = process.env.RATE_LIMIT_SECRET
+  // המפתח הציבורי יכול היה למלא את המונים או לשרוף את התקרה היומית של הבוטים.
+  const secret = rateSecret()
   if (!url || !anon) return true
   try {
     const res = await fetch(`${url}/rest/v1/rpc/rate_hit`, {

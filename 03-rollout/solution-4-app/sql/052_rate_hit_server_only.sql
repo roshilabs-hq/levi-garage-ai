@@ -4,12 +4,12 @@
 -- לקרוא לה ישירות, עם כל מפתח: למלא את private.rate_counters בשורות, או "לשרוף" את התקרה היומית
 -- המשותפת (ask:site:all, training:all) ולהשבית את שני הבוטים לכולם.
 --
--- עכשיו הגרסה החדשה דורשת סוד שנמצא רק בשרת (RATE_LIMIT_SECRET ב-Vercel). במסד נשמר רק הגיבוב שלו,
--- כמו station_rpc_hash ב-044. הישנה לא נמחקת (בלי drop), רק נסגרת לכולם.
+-- עכשיו הגרסה החדשה דורשת סוד שנמצא רק בשרת: נגזר מ-STATION_SECRET ב-HMAC עם התווית "rate-limit-v1"
+-- (lib/site/rate.ts), בלי משתנה חדש ב-Vercel. במסד נשמר רק הגיבוב שלו, כמו station_rpc_hash ב-044. הישנה לא נמחקת (בלי drop), רק נסגרת לכולם.
 -- אם הסוד לא מוגדר בשרת, האתר ממשיך לעבוד בלי הגבלה (כמו כשהמסד לא עונה, lib/site/rate.ts).
 
 insert into private.settings (key, value)
-values ('rate_rpc_hash', 'd1606a6cbf0ad1ea1e6ab472fb0c277e5a1a60c88a69ce5da8c24d9c1affa88f')
+values ('rate_rpc_hash', 'cc07099cff2891e965e9a4a7d6f3683f1670ef95c4178bf419ac75dd170f771c')
 on conflict (key) do update set value = excluded.value;
 
 create or replace function public.rate_hit(p_key text, p_window_seconds integer, p_max integer, p_secret text)

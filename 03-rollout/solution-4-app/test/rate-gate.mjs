@@ -1,12 +1,13 @@
 // בודק את 052 (ביקורת אבטחה חיצונית, 7.10, ממצא 4): מי שיש לו רק את המפתח הציבורי של האתר
-// לא סופר יותר במונים של הגבלת הקצב. רק השרת, עם RATE_LIMIT_SECRET.
+// לא סופר יותר במונים של הגבלת הקצב. רק השרת, עם הסוד שנגזר מ-STATION_SECRET (lib/site/rate.ts).
 //
-// הרצה: node --env-file=levi-garage/.env.local --env-file=levi-garage/.env.rate.local 03-rollout/solution-4-app/test/rate-gate.mjs
+// הרצה: node --env-file=levi-garage/.env.local --env-file=levi-garage/.env.staff.local 03-rollout/solution-4-app/test/rate-gate.mjs
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-const secret = process.env.RATE_LIMIT_SECRET
-if (!secret) throw new Error("חסר RATE_LIMIT_SECRET (levi-garage/.env.rate.local)")
+import { createHmac } from "node:crypto"
+if (!process.env.STATION_SECRET) throw new Error("חסר STATION_SECRET (levi-garage/.env.staff.local)")
+const secret = createHmac("sha256", process.env.STATION_SECRET).update("rate-limit-v1").digest("base64url")
 
 let pass = 0
 let fail = 0
