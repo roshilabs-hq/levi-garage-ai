@@ -82,6 +82,8 @@ export async function POST(req: Request) {
       system,
       contents: [...history, { role: "user", text: question }],
       schema,
+      // תשובה בעברית עם רשימת כפתורים: 800 (ברירת המחדל) נחתך לפעמים באמצע ה-JSON
+      maxOutputTokens: 1500,
     })
     const refs = [...new Set(out.refs ?? [])]
       .map((id) => BY_ID.get(id))

@@ -79,13 +79,10 @@ export async function generateJson<T>(opts: {
     },
   })
   // 7.10: בבדיקה חוזרת, 5 מתוך 6 קריאות לבוט ההדרכה קיבלו 429 "Resource exhausted" מהמאגר הגלובלי
-  // של Gemini (עומס אצל Google, לא מכסה שלנו). דקה אחר כך הכול עבר. לכן, על 429, 500 או 503
-  // מנסים פעם אחת באזור באירופה, שיש לו מאגר משאבים נפרד. על חריגת זמן לא, כדי לא להכפיל המתנה.
-  let json: {
-    error?: { code?: number; message?: string }
-    candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[]
-  } = {}
-  for (const loc of ["global", "europe-west1"]) {
+  // של Gemini (עומס אצל Google, לא מכסה שלנו). לכן, כשהקריאה הראשונה נכשלת, מנסים פעם אחת באזור
+  // באירופה, שיש לו מאגר משאבים נפרד. 8.10: כל כשל, לא רק 429/500/503: גם חריגת זמן, תשובה חתוכה,
+  // ריקה או JSON שבור (אחת מכל ~19 שאלות נפלה כך). לכל היותר שתי קריאות לשאלה (ביקורת חוזרת, ממצא 7).
+  const once = async (loc: string): Promise<T> => {
     const host = loc === "global" ? "aiplatform.googleapis.com" : `${loc}-aiplatform.googleapis.com`
     const res = await fetch(`https://${host}/v1/projects/${project}/locations/${loc}/publishers/google/models/${model}:generateContent`, {
       method: "POST",
@@ -94,17 +91,24 @@ export async function generateJson<T>(opts: {
       // הודעה קולית ב-pro לוקחת כ-17 שניות לפי ה-POC, ולכן זמן ההמתנה ארוך יותר.
       signal: AbortSignal.timeout(opts.timeoutMs ?? 20_000),
     })
-    json = await res.json()
-    if (!json.error || ![429, 500, 503].includes(Number(json.error.code))) break
-    console.error(`Gemini ${json.error.code} in ${loc}${loc === "global" ? ", trying europe-west1" : ""}`)
+    const json: {
+      error?: { code?: number; message?: string }
+      candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[]
+    } = await res.json()
+    if (json.error) throw new Error(`Gemini ${json.error.code}: ${json.error.message ?? ""}`.trim())
+    const candidate = json.candidates?.[0]
+    const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("")
+    // ב-pro גם ה"חשיבה" נגרעת מתקציב הפלט, ולכן תקציב קטן מדי מחזיר JSON חתוך באמצע.
+    if (candidate?.finishReason && candidate.finishReason !== "STOP") {
+      throw new Error(`Gemini stopped: ${candidate.finishReason}`)
+    }
+    if (!text) throw new Error("Gemini empty response")
+    return JSON.parse(text) as T
   }
-  if (json.error) throw new Error(`Gemini ${json.error.code}: ${json.error.message ?? ""}`.trim())
-  const candidate = json.candidates?.[0]
-  const text = candidate?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("")
-  // ב-pro גם ה"חשיבה" נגרעת מתקציב הפלט, ולכן תקציב קטן מדי מחזיר JSON חתוך באמצע.
-  if (candidate?.finishReason && candidate.finishReason !== "STOP") {
-    throw new Error(`Gemini stopped: ${candidate.finishReason}`)
+  try {
+    return await once("global")
+  } catch (e) {
+    console.error(`Gemini failed in global (${(e as Error).message.slice(0, 120)}), trying europe-west1`)
+    return await once("europe-west1")
   }
-  if (!text) throw new Error("Gemini empty response")
-  return JSON.parse(text) as T
 }
