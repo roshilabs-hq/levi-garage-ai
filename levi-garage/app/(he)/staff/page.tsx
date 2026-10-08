@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 
 import { createClient } from "@/lib/supabase/server"
+import { jobContacts } from "@/lib/staff/contacts"
 import { requireStaff } from "@/lib/staff/session"
 import { elapsed, fmtStamp, fmtTime } from "@/lib/staff/format"
 import { TopBar } from "@/components/staff/top-bar"
@@ -75,7 +76,7 @@ export default async function StaffBoard({
   const [{ data: cards }, { data: booked }, { data: later }, { data: drafts }, { data: calls }, { data: safety }, { data: pending }] = await Promise.all([
     supabase
       .from("job_cards")
-      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, customer_phone, parked_at, outside_at, priority_at, work_done_at, work_approved_at")
+      .select("id, plate, vehicle_make, vehicle_model, vehicle_year, status, lift, opened_at, lift_since, status_since, customer_name, parked_at, outside_at, priority_at, work_done_at, work_approved_at")
       .not("status", "in", "(delivered,cancelled)")
       .order("opened_at", { ascending: true }),
     supabase
@@ -119,12 +120,17 @@ export default async function StaffBoard({
     // אחרי שעה — דניאל מתקשר. זה ההבדל בין ליפט מת לבין שיחה של דקה.
     supabase
       .from("findings")
-      .select("id, title, summary, approvals!inner(sent_at, nudged_at, decision), job_cards!inner(id, plate, customer_name, customer_phone)")
+      .select("id, title, summary, approvals!inner(sent_at, nudged_at, decision), job_cards!inner(id, plate, customer_name)")
       .eq("status", "sent")
       .is("approvals.decision", null),
   ])
 
-  const all = cards ?? []
+  // הטלפון של הלקוח (להתקשר ממסך הלוח) רק לדניאל ולאבי, דרך המסד (062)
+  const manager = staff.role === "owner" || staff.role === "manager"
+  const contactIds = [...(cards ?? []).map((c) => c.id), ...(pending ?? []).map((f) => one(f.job_cards)?.id).filter((x): x is number => typeof x === "number")]
+  const contacts = manager ? await jobContacts(supabase, [...new Set(contactIds)]) : new Map()
+  const phoneOf = (id: number): string | null => contacts.get(id)?.customer_phone ?? null
+  const all = (cards ?? []).map((c) => ({ ...c, customer_phone: phoneOf(c.id) }))
   const waiting = all.filter((c) => c.status === "waiting_approval")
   // המכונאי סיים וצריך שדניאל ישלח. זה תור שלנו, לא של הלקוח, ולכן הוא
   // מופיע בנפרד: זה הזמן היחיד בשרשרת שאנחנו לבד אשמים בו.
@@ -182,7 +188,8 @@ export default async function StaffBoard({
   const callRows = new Map<number, { job: CallJob; titles: string[]; sent_at: string; nudged: boolean }>()
   for (const f of pending ?? []) {
     const a = one(f.approvals)
-    const job = one(f.job_cards)
+    const found = one(f.job_cards)
+    const job = found ? { ...found, customer_phone: phoneOf(found.id) } : null
     if (!a || !job || Date.now() - new Date(a.sent_at).getTime() <= HOUR) continue
     const row = callRows.get(job.id) ?? { job, titles: [] as string[], sent_at: a.sent_at, nudged: false }
     row.titles.push(f.title || f.summary || "ממצא")

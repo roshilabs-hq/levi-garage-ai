@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
+import { JOB_COLUMNS, jobContact } from "@/lib/staff/contacts"
 import { requireStaff } from "@/lib/staff/session"
 import { markIntakeSigned, reissueQuote, resendIntakeRequest, resendReadyNotice, resendRequestNotice, setJobStatus } from "../../actions"
 import { noticeLabel } from "@/lib/staff/notify"
@@ -74,8 +75,10 @@ export default async function JobCardPage({
 
   const supabase = await createClient()
 
-  const { data: job } = await supabase.from("job_cards").select("*").eq("id", jobId).maybeSingle()
-  if (!job) notFound()
+  const { data: row } = await supabase.from("job_cards").select(JOB_COLUMNS).eq("id", jobId).maybeSingle()
+  if (!row) notFound()
+  // הטלפון והמייל רק לדניאל ולאבי (062). למכונאי הם ריקים, והכפתורים שתלויים בהם לא מוצגים לו ממילא.
+  const job = { ...row, ...(await jobContact(supabase, jobId)) }
 
   const [
     { data: findings },

@@ -6,7 +6,7 @@
 //
 // כל מה שנוצר כאן נמחק בסוף, והליפטים של המכונאים חוזרים למה שהיו, גם אם בדיקה נכשלה.
 
-import { passwordFor } from "./_auth.mjs"
+import { passwordFor, readable } from "./_auth.mjs"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -26,7 +26,7 @@ const ok = (name, cond, extra = "") => {
 }
 
 const call = (path, { token = anonKey, key = anonKey, ...init } = {}) =>
-  fetch(`${url}${path}`, {
+  fetch(`${url}${readable(path, token)}`, {
     ...init,
     headers: { apikey: key, authorization: `Bearer ${token}`, "content-type": "application/json", ...(init.headers || {}) },
   })
@@ -161,6 +161,28 @@ try {
   ok("מנהל: מעדכן רכב על כל ליפט", (await patched("job_cards", onOther.id, { inspected_at: new Date().toISOString() }, manager.token)) === 1)
   ok("מנהל: מסמן בבדיקה של כל רכב", (await rpc("set_inspection_item", { p_job_id: onOther.id, p_key: "brakes", p_light: "green" }, manager.token)).ok)
   ok("מנהל: מעדכן כרטיס מוכן", (await patched("job_cards", closed.id, { inspected_at: new Date().toISOString() }, manager.token)) === 1)
+
+  // 6. 062 (ביקורת רביעית, ממצא 1): מה מכונאי רשאי לקרוא
+  const status = async (path, token) => (await call(path, { token })).status
+  ok("A: לא קורא טלפון של לקוח (עמודה חסומה)", (await status(`/rest/v1/job_cards?select=id,customer_phone&id=eq.${onMine.id}`, mechA.token)) >= 400)
+  ok("A: לא קורא מייל של לקוח", (await status(`/rest/v1/job_cards?select=customer_email&limit=1`, mechA.token)) >= 400)
+  ok("A: לא קורא טלפון מהתורים", (await status(`/rest/v1/bookings?select=customer_phone&limit=1`, mechA.token)) >= 400)
+  ok("גם מנהל לא קורא את הטלפון ישירות מהטבלה", (await status(`/rest/v1/job_cards?select=customer_phone&limit=1`, manager.token)) >= 400)
+  const mgrContact = await (await rpc("job_contacts", { p_job_ids: [onMine.id] }, manager.token)).json()
+  ok("מנהל מקבל את הטלפון דרך job_contacts", Array.isArray(mgrContact) && mgrContact[0]?.customer_phone === "0500000451", JSON.stringify(mgrContact))
+  const mechContact = await (await rpc("job_contacts", { p_job_ids: [onMine.id] }, mechA.token)).json()
+  ok("מכונאי מקבל מ-job_contacts רשימה ריקה", Array.isArray(mechContact) && mechContact.length === 0, JSON.stringify(mechContact))
+  const old = await newJob({ status: "delivered", delivered_at: new Date(Date.now() - 3 * 86400_000).toISOString(), lift: null })
+  const seeOld = await (await call(`/rest/v1/job_cards?select=id&id=eq.${old.id}`, { token: mechA.token })).json()
+  ok("A: לא רואה רכב שנמסר לפני שלושה ימים", Array.isArray(seeOld) && seeOld.length === 0, JSON.stringify(seeOld))
+  const oldFinding = await newFinding(old.id)
+  const seeOldF = await (await call(`/rest/v1/findings?select=id&id=eq.${oldFinding.id}`, { token: mechA.token })).json()
+  ok("A: לא רואה ממצא של רכב שנמסר", Array.isArray(seeOldF) && seeOldF.length === 0)
+  const mgrOld = await (await call(`/rest/v1/job_cards?select=id&id=eq.${old.id}`, { token: manager.token })).json()
+  ok("מנהל רואה גם רכב שנמסר", Array.isArray(mgrOld) && mgrOld.length === 1)
+  const seeActive = await (await call(`/rest/v1/job_cards?select=id,customer_name&id=eq.${queued.id}`, { token: mechA.token })).json()
+  ok("A: רואה רכב שבמוסך עכשיו (בלי פרטי קשר)", Array.isArray(seeActive) && seeActive.length === 1)
+  ok("A: לא קורא בקשות אישור", ((await (await call(`/rest/v1/quote_requests?select=id&limit=1`, { token: mechA.token })).json()) ?? []).length === 0)
 } finally {
   for (const id of jobs) {
     const fs = await (await admin(`/rest/v1/findings?job_card_id=eq.${id}&select=id`)).json()

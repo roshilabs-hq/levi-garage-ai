@@ -11,7 +11,7 @@
 // המסכים נקראים עם הזהויות של המסכים עצמם. שום הודעה לא יוצאת ללקוח: הבדיקה
 // לא נוגעת בבוט, רק בשאילתה שהבוט שואל. הרכב נמחק בסוף, גם אם משהו נכשל.
 
-import { passwordFor } from "./_auth.mjs"
+import { passwordFor, readable } from "./_auth.mjs"
 
 import { createHmac } from "node:crypto"
 import { readFileSync } from "node:fs"
@@ -48,7 +48,7 @@ const ok = (name, cond, extra = "") => {
 }
 
 const call = (path, { token = anonKey, ...init } = {}) =>
-  fetch(`${url}${path}`, {
+  fetch(`${url}${readable(path, token)}`, {
     ...init,
     headers: { apikey: anonKey, authorization: `Bearer ${token}`, "content-type": "application/json", ...(init.headers || {}) },
   })

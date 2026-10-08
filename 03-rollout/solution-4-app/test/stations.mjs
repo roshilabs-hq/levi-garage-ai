@@ -169,11 +169,12 @@ try {
   const here1 = await json(await rpc("my_station_session", {}, first?.session))
   ok("אחרי ביטול העמדה: הכניסה בה יודעת שבוטלה", here1?.revoked === true, JSON.stringify(here1))
   ok("ואין לה יותר תפקיד במסד", (await json(await rpc("my_role", {}, first?.session))) === null)
-  const cards1 = await json(await call(`/rest/v1/job_cards?select=id&limit=1`, { token: first?.session }))
-  ok("ולא קוראת כרטיסים", Array.isArray(cards1) && cards1.length === 0, JSON.stringify(cards1))
+  // המחירון: כל עובד קורא אותו (is_worker), אז הוא מבדיל בין כניסה חיה לכניסה שבוטלה
+  const cards1 = await json(await call(`/rest/v1/price_list?select=id&limit=1`, { token: first?.session }))
+  ok("ולא קוראת כלום (גם לא את המחירון)", Array.isArray(cards1) && cards1.length === 0, JSON.stringify(cards1))
   ok("הכניסה בעמדה האחרת ממשיכה לעבוד", (await json(await rpc("my_role", {}, second?.session))) === "mechanic")
-  const cards2 = await json(await call(`/rest/v1/job_cards?select=id&limit=1`, { token: second?.session }))
-  ok("וקוראת כרטיסים", Array.isArray(cards2) && cards2.length === 1)
+  const cards2 = await json(await call(`/rest/v1/price_list?select=id&limit=1`, { token: second?.session }))
+  ok("וקוראת כרגיל", Array.isArray(cards2) && cards2.length === 1)
   ok("כניסה בסיסמה, בלי עמדה, לא מושפעת", (await json(await rpc("my_role", {}, mechanic))) === "mechanic")
 
   if (stationId) {

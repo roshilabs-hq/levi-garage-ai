@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff, requireStaff, requireManager, screenPath } from "@/lib/staff/session"
+import { bookingContact, jobContact } from "@/lib/staff/contacts"
 import { notifyReady, notifyRequest, sendDueReminders } from "@/lib/staff/notify"
 import { INSPECTION_ITEMS, progress, type InspectionState, type Light } from "@/lib/staff/inspection"
 import { quoteEmail, requestEmail, type QuoteReason, type QuoteSnapshot } from "@/lib/staff/quote"
@@ -77,7 +78,7 @@ export async function receiveCar(formData: FormData) {
   const [{ data: booking }, { data: picked }] = await Promise.all([
     supabase
       .from("bookings")
-      .select("id, status, plate, customer_name, customer_phone, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
+      .select("id, status, plate, customer_name, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
       .eq("id", bookingId)
       .maybeSingle(),
     supabase.from("price_list").select("*").in("id", lines.map((l) => l.id)),
@@ -98,7 +99,8 @@ export async function receiveCar(formData: FormData) {
       engine_code: booking.engine_code,
       fuel: booking.fuel,
       customer_name: booking.customer_name,
-      customer_phone: booking.customer_phone,
+      // הטלפון מהתור, דרך המסד (062): העמודה לא נקראת ישירות
+      customer_phone: (await bookingContact(supabase, booking.id)).customer_phone,
       customer_email: email,
       odometer_km: odometer,
       whatsapp_consent: consent || (booking.whatsapp_consent ?? false),
@@ -224,8 +226,8 @@ export async function resendIntakeRequest(formData: FormData) {
   }
   const { data: rid } = await supabase.rpc("request_id_by_token", { p_token: String(token) })
   const req = rid ? { id: Number(rid) } : null
-  const { data: job } = await supabase.from("job_cards").select("customer_email").eq("id", jobId).single()
-  if (job?.customer_email) await issueQuote(jobId, "intake", "email", String(token))
+  const { customer_email } = await jobContact(supabase, jobId)
+  if (customer_email) await issueQuote(jobId, "intake", "email", String(token))
   if (req) await notifyRequest(supabase, req.id, "intake")
   revalidatePath("/staff")
   revalidatePath(`/staff/job/${jobId}`)
@@ -647,13 +649,14 @@ export async function sendQuoteRequest(_prev: RequestState, formData: FormData):
 
   // לצד הוואטסאפ, מייל עם אותו קישור. לקוח שלא כתב לנו בוואטסאפ עדיין מקבל.
   const [{ data: job }, { data: fs }] = await Promise.all([
-    supabase.from("job_cards").select("customer_email, customer_name, plate, vehicle_make, vehicle_model").eq("id", jobId).single(),
+    supabase.from("job_cards").select("customer_name, plate, vehicle_make, vehicle_model").eq("id", jobId).single(),
     supabase.from("findings").select("title, safety, price_original, price_aftermarket").in("id", ids),
   ])
-  if (job?.customer_email) {
+  const { customer_email } = await jobContact(supabase, jobId)
+  if (job && customer_email) {
     try {
       await sendEmail(
-        job.customer_email,
+        customer_email,
         requestEmail({
           customer: job.customer_name,
           plate: job.plate,

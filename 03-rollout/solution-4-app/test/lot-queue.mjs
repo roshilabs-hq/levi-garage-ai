@@ -11,7 +11,7 @@
 //
 // כל מה שנוצר כאן נמחק בסוף, גם אם בדיקה נכשלה.
 
-import { passwordFor } from "./_auth.mjs"
+import { passwordFor, readable } from "./_auth.mjs"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -32,7 +32,7 @@ const ok = (name, cond, extra = "") => {
 }
 
 const call = (path, { token = anonKey, key = anonKey, ...init } = {}) =>
-  fetch(`${url}${path}`, {
+  fetch(`${url}${readable(path, token)}`, {
     ...init,
     headers: { apikey: key, authorization: `Bearer ${token}`, "content-type": "application/json", prefer: "return=representation", ...(init.headers || {}) },
   })

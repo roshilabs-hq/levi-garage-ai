@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
 import { requireManager } from "@/lib/staff/session"
+import { bookingContact } from "@/lib/staff/contacts"
 import { serviceToCode } from "@/lib/staff/inspection"
 import { fmtStamp } from "@/lib/staff/format"
 import { realEmail } from "@/lib/staff/cal"
@@ -40,12 +41,14 @@ export default async function ArrivePage({
   const [{ data: booking }, { data: items }] = await Promise.all([
     supabase
       .from("bookings")
-      .select("id, source, status, plate, customer_name, customer_email, whatsapp_consent, service, notes, drop_off_at, vehicle_make, vehicle_model, vehicle_year")
+      .select("id, source, status, plate, customer_name, whatsapp_consent, service, notes, drop_off_at, vehicle_make, vehicle_model, vehicle_year")
       .eq("id", bookingId)
       .maybeSingle(),
     supabase.from("price_list").select("*").eq("active", true).order("sort", { ascending: true }),
   ])
   if (!booking) notFound()
+  // המייל מהתור, דרך המסד (062): העמודה לא נקראת ישירות
+  const { customer_email } = await bookingContact(supabase, booking.id)
   if (booking.status === "arrived") redirect("/staff")
 
   const car = [booking.vehicle_make, booking.vehicle_model].filter(Boolean).join(" ") || "רכב"
@@ -82,7 +85,7 @@ export default async function ArrivePage({
         bookingId={booking.id}
         items={(items ?? []) as PriceItem[]}
         defaultCode={serviceToCode(booking.service)}
-        email={realEmail(booking.customer_email)}
+        email={realEmail(customer_email)}
         consent={Boolean(booking.whatsapp_consent)}
       />
     </main>

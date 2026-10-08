@@ -8,7 +8,7 @@
 // כדי להוציא שמות, טלפונים ומחירים — גם אם המסך עצמו מראה שלוש ספרות.
 // הבדיקה הזאת היא ההבדל בין "המסך לא מציג" לבין "אי אפשר להוציא".
 
-import { passwordFor } from "./_auth.mjs"
+import { passwordFor, readable } from "./_auth.mjs"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -28,7 +28,7 @@ const ok = (name, cond, extra = "") => {
 }
 
 const call = (path, { token = anonKey, ...init } = {}) =>
-  fetch(`${url}${path}`, {
+  fetch(`${url}${readable(path, token)}`, {
     ...init,
     headers: { apikey: anonKey, authorization: `Bearer ${token}`, "content-type": "application/json", ...(init.headers || {}) },
   })
