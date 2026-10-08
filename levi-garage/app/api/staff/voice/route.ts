@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
-import { staffAiAllowed } from "@/lib/staff/ai-quota"
+import { staffAiAllowed, staffUploadAllowed } from "@/lib/staff/ai-quota"
 import { sniffAudio, sniffPhoto } from "@/lib/staff/sniff"
 import { createFindingFromAudio } from "@/lib/staff/make-finding"
 import { itemByKey } from "@/lib/staff/inspection"
@@ -77,6 +77,10 @@ export async function POST(req: Request) {
   const audioType = audioBytes ? sniffAudio(audioBytes) : null
   if (photoBytes && !photoType) return NextResponse.json({ error: "photo" }, { status: 400 })
   if (audioBytes && !audioType) return NextResponse.json({ error: "audio" }, { status: 400 })
+  // מכסת העלאות לפני השמירה. מכסת הניתוח (למטה) נבדקת אחרי, כדי שהקלטה תישמר גם כשהניתוח מחכה.
+  if ((photoBytes || audioBytes) && !(await staffUploadAllowed(staff.id))) {
+    return NextResponse.json({ error: "upload-limit", saved: false }, { status: 429 })
+  }
 
   if (photo && photoBytes && photoType) {
     const mime = photoType

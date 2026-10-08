@@ -11,3 +11,12 @@ export async function staffAiAllowed(staffId: string): Promise<boolean> {
   if (!(await allowed(`staff-ai:${staffId}`, 3600, 60))) return false
   return allowed("staff-ai:all", 86400, 2000)
 }
+
+// העלאות לאחסון: נספרות לפני השמירה (ביקורת חוזרת, 8.10, ממצא 3). עד היום ההקלטה נשמרה קודם
+// והמכסה נבדקה אחרי, ותמונה לממצא לא נספרה בכלל: סשן שנשאר פתוח יכול היה למלא את האחסון.
+//   · 120 בשעה לכל איש צוות: לכידה עם תמונה והקלטה היא שתיים, וגם זה פי כמה מיום עמוס.
+//   · 3,000 ביום לכל הצוות יחד.
+export async function staffUploadAllowed(staffId: string): Promise<boolean> {
+  if (!(await allowed(`staff-up:${staffId}`, 3600, 120))) return false
+  return allowed("staff-up:all", 86400, 3000)
+}

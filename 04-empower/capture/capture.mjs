@@ -335,7 +335,7 @@ async function shot(page, name, target = null, opts = {}) {
 
 // ------------------------------------------------------------------ הצילומים
 
-// הכניסה בעמדה קובעת למכונאי את הליפט (set_my_lift). מחזירים בסוף למה שהיה.
+// הכניסה בעמדה קובעת למכונאי את הליפט (station_login, 054). מחזירים בסוף למה שהיה.
 const motiLift = (await (await admin(`/rest/v1/staff?id=eq.${STAFF["מוטי"]?.id}&select=lift`)).json())[0]?.lift ?? null
 
 let failed = null

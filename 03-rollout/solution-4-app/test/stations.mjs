@@ -61,6 +61,8 @@ ok("מנהל מצמד עמדה ומקבל טוקן של 48 תווים", typeof t
 if (!token) process.exit(1)
 
 let stationId = null
+let noamId = null
+let noamLiftBefore = null
 try {
   // --- מה המכשיר רואה ---
   const info = await (await rpc("station_info", { p_token: token })).json()
@@ -82,8 +84,12 @@ try {
   const noStation = await (await rpc("station_login", { p_token: "b".repeat(48), p_staff_id: noam.id, p_pin: demoPin })).json()
   ok("קוד נכון ממכשיר לא מצומד: נדחה", noStation?.ok === false && noStation?.reason === "station")
 
+  const liftOfNoam = async () => (await (await call(`/rest/v1/staff?id=eq.${noam.id}&select=lift`, { token: manager })).json())[0]?.lift
+  noamLiftBefore = await liftOfNoam()
   const good = await (await rpc("station_login", { p_token: token, p_staff_id: noam.id, p_pin: demoPin })).json()
   ok("קוד נכון מעמדה מצומדת: נכנס, לליפט של העמדה", good?.ok === true && good?.email === "test6@test.com" && good?.lift === 3, JSON.stringify(good))
+  ok("הכניסה רושמת במסד שהוא עובד על הליפט של העמדה (054)", (await liftOfNoam()) === 3)
+  noamId = noam.id
   ok("הכניסה מחזירה מייל בלבד, לא סשן", good && !("access_token" in good) && !("password" in good))
 
   const notMech = await (await rpc("station_login", { p_token: token, p_staff_id: "00000000-0000-0000-0000-000000000000", p_pin: demoPin })).json()
@@ -151,6 +157,15 @@ try {
     // ביטול משאיר שורה (זה מה שקורה במוסך: רואים שהייתה עמדה). בבדיקה מוחקים.
     const key = process.env.SUPABASE_SECRET_KEY
     if (key) await fetch(`${url}/rest/v1/stations?id=eq.${stationId}`, { method: "DELETE", headers: { apikey: key, authorization: `Bearer ${key}` } })
+  }
+  // הכניסה העבירה את נועם לליפט 3 (054). מחזירים אותו לאן שהיה.
+  const key = process.env.SUPABASE_SECRET_KEY
+  if (noamId && key) {
+    await fetch(`${url}/rest/v1/staff?id=eq.${noamId}`, {
+      method: "PATCH",
+      headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ lift: noamLiftBefore ?? null }),
+    })
   }
 }
 

@@ -427,6 +427,9 @@ export async function setJobStatus(formData: FormData) {
   if (status === "delivered") patch.delivered_at = new Date().toISOString()
 
   const { error } = await supabase.from("job_cards").update(patch).eq("id", id)
+  // המסד בודק את אותו כלל שוב (054): אם בין הבדיקה למעלה לשמירה נוסף ממצא, ההודעה זהה.
+  if (error?.hint === "ready-inspect" || error?.hint === "ready-open")
+    redirect(`/staff/job/${id}?ready=${error.hint === "ready-inspect" ? "inspect" : "open"}`)
 
   // "מוכן" או "נמסר" סוגרים את "סיימתי" ו"בוא לעמדה" של הרכב הזה. בלי זה
   // "קוראים לך: סיים את העבודה" נשארה בלוח גם אחרי המסירה (סבב 2.10, ממצא 16).
@@ -775,23 +778,6 @@ export async function takeCar(formData: FormData) {
     .eq("id", id)
     .is("lift", null)
     .is("parked_at", null)
-
-  revalidatePath("/staff/lift")
-  revalidatePath("/staff")
-  revalidatePath("/staff/floor")
-}
-
-/** המכונאי בוחר איפה הוא עובד עכשיו: ליפט 1 עד 4, או עמדת האבחון. */
-export async function setMyLift(formData: FormData) {
-  const staff = await requireStaff()
-  const raw = String(formData.get("lift") || "")
-  const lift = raw === "" ? null : Number(raw)
-  if (lift !== null && ![1, 2, 3, 4].includes(lift)) return
-
-  const supabase = await createClient()
-  // דרך פונקציה במסד, שנוגעת רק בעמודת העמדה. עדכון ישיר של הטבלה היה מאפשר
-  // למכונאי לשנות לעצמו גם את התפקיד.
-  await supabase.rpc("set_my_lift", { p_lift: lift })
 
   revalidatePath("/staff/lift")
   revalidatePath("/staff")

@@ -40,10 +40,11 @@ const admin = (path, init = {}) => call(path, { ...init, token: serviceKey, key:
 // 051 (ביקורת אבטחה חיצונית, 7.10): מכונאי פועל רק על הרכב שעל הליפט שהוא עובד עליו. כמו
 // באפליקציה (כניסה לעמדה, ו"למשוך לליפט" שמעלה לליפט של המכונאי), לפני כל פעולה של מכונאי
 // הוא "עומד" ליד הליפט של הרכב, או ליד הליפט שאליו הוא מעלה אותו.
-const mechanics = new Set()
+// מ-054 מכונאי לא בוחר ליפט בעצמו (station_login קובעת לפי העמדה), ולכן כאן רושמים ישירות.
+const mechanics = new Map()
 const jobLift = async (id) => (await (await admin(`/rest/v1/job_cards?id=eq.${id}&select=lift`)).json())[0]?.lift ?? null
 const standAt = async (token, lift) => {
-  if (mechanics.has(token) && lift != null) await call(`/rest/v1/rpc/set_my_lift`, { method: "POST", body: JSON.stringify({ p_lift: lift }), token })
+  if (mechanics.has(token) && lift != null) await admin(`/rest/v1/staff?id=eq.${mechanics.get(token)}`, { method: "PATCH", body: JSON.stringify({ lift }) })
 }
 const rpc = async (fn, body, token) => {
   if (body?.p_job_id) await standAt(token, await jobLift(body.p_job_id))
@@ -64,10 +65,10 @@ const manager = await signIn("test1@test.com")
 const mechanic = await signIn("test5@test.com")
 const otherMechanic = await signIn("test2@test.com")
 const screen = await signIn("screen2@test.com")
-mechanics.add(mechanic)
-mechanics.add(otherMechanic)
 const idOf = async (token) => (await (await call(`/auth/v1/user`, { token })).json()).id
-const liftsBefore = await (await admin(`/rest/v1/staff?id=in.(${await idOf(mechanic)},${await idOf(otherMechanic)})&select=id,lift`)).json()
+mechanics.set(mechanic, await idOf(mechanic))
+mechanics.set(otherMechanic, await idOf(otherMechanic))
+const liftsBefore = await (await admin(`/rest/v1/staff?id=in.(${[...mechanics.values()].join(",")})&select=id,lift`)).json()
 
 const items = await (await admin(`/rest/v1/price_list?select=id,code,fixed_price,price_original`)).json()
 const item = (code) => items.find((i) => i.code === code)
@@ -130,7 +131,10 @@ try {
   ok("עלייה לליפט מנקה את הקדימות", reLifted.lift === 4 && reLifted.priority_at === null)
 
   await patchJob(a, { outside_at: new Date().toISOString(), lift: null }, manager)
-  await patchJob(a, { status: "ready" }, manager)
+  // מ-054 "מוכן" רק אחרי אבחון, גם במסד
+  await admin(`/rest/v1/job_cards?id=eq.${a}`, { method: "PATCH", body: JSON.stringify({ inspected_at: new Date().toISOString() }) })
+  const readyRes = await patchJob(a, { status: "ready" }, manager)
+  if (!readyRes.ok) console.log("  'מוכן' נדחה:", (await readyRes.json().catch(() => ({}))).hint)
   const doneCard = await job(a)
   ok("רכב מוכן יוצא מכל תור", doneCard.outside_at === null && doneCard.parked_at === null && doneCard.priority_at === null)
   ok("כל תזוזה נרשמה", (await moves(a)).join(",") === "lot,lift,parked,lot,lift,outside,done", (await moves(a)).join(","))

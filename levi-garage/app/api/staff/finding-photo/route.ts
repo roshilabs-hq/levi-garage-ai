@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
+import { staffUploadAllowed } from "@/lib/staff/ai-quota"
 import { sniffPhoto } from "@/lib/staff/sniff"
 
 // דניאל מוסיף תמונה לממצא שכבר קיים. המסלול החלופי לכלל "אדום או בטיחות — עם תמונה":
@@ -39,6 +40,8 @@ export async function POST(req: Request) {
   // הסוג לפי התוכן, לא לפי מה שהדפדפן הצהיר (ביקורת אבטחה חיצונית, 7.10, ממצא 8)
   const type = sniffPhoto(bytes)
   if (!type) return NextResponse.json({ error: "photo" }, { status: 400 })
+  // מכסת העלאות לפני השמירה (ביקורת חוזרת, 8.10, ממצא 3)
+  if (!(await staffUploadAllowed(staff.id))) return NextResponse.json({ error: "upload-limit" }, { status: 429 })
   const path = `job-${finding.job_card_id}/add-${finding.id}-${Date.now()}.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`
   const up = await supabase.storage.from("job-media").upload(path, bytes, { contentType: type, upsert: false })
   if (up.error) return NextResponse.json({ error: "upload" }, { status: 502 })

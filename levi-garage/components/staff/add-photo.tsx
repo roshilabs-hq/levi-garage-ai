@@ -9,7 +9,7 @@ import { shrink } from "./capture-button"
 export function AddPhoto({ findingId, missing }: { findingId: number; missing: boolean }) {
   const router = useRouter()
   const input = useRef<HTMLInputElement | null>(null)
-  const [state, setState] = useState<"idle" | "sending" | "error">("idle")
+  const [state, setState] = useState<"idle" | "sending" | "error" | "limit">("idle")
 
   async function onPick(list: FileList | null) {
     const file = list?.[0]
@@ -21,7 +21,7 @@ export function AddPhoto({ findingId, missing }: { findingId: number; missing: b
     form.append("photo", await shrink(file), "photo.jpg")
     const res = await fetch("/api/staff/finding-photo", { method: "POST", body: form }).catch(() => null)
     const json = res ? await res.json().catch(() => ({})) : {}
-    if (!res?.ok || !json.ok) return setState("error")
+    if (!res?.ok || !json.ok) return setState(json?.error === "upload-limit" ? "limit" : "error")
     setState("idle")
     router.refresh()
   }
@@ -34,6 +34,7 @@ export function AddPhoto({ findingId, missing }: { findingId: number; missing: b
         {state === "sending" ? "מעלה..." : missing ? "לצלם ולצרף" : "להוסיף תמונה"}
       </button>
       {state === "error" && <span className="staff-meta" role="status">התמונה לא נשמרה. לנסות שוב.</span>}
+      {state === "limit" && <span className="staff-meta" role="status">התמונה לא נשמרה: הרבה העלאות בשעה האחרונה. לנסות שוב בעוד כמה דקות.</span>}
     </div>
   )
 }

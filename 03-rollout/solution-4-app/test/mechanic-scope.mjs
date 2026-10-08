@@ -96,9 +96,17 @@ try {
     return f
   }
 
-  // המכונאי A עובד על L1, B על L2 (כמו כניסה לעמדה)
-  ok("מכונאי A בוחר ליפט", (await rpc("set_my_lift", { p_lift: L1 }, mechA.token)).ok)
-  ok("מכונאי B בוחר ליפט", (await rpc("set_my_lift", { p_lift: L2 }, mechB.token)).ok)
+  // המכונאי A עובד על L1, B על L2. בפועל station_login רושמת את זה לפי העמדה (054); כאן
+  // רושמים ישירות, כי לבדיקה אין טוקן של עמדה.
+  const placeAt = (id, lift) => admin(`/rest/v1/staff?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ lift }) })
+  await placeAt(mechA.id, L1)
+  await placeAt(mechB.id, L2)
+  const liftOf = async (id) => (await (await admin(`/rest/v1/staff?id=eq.${id}&select=lift`)).json())[0]?.lift
+
+  // 054 (ביקורת חוזרת, 8.10, ממצא 1): מכונאי לא מעביר את עצמו לליפט אחר
+  ok("A: לא בוחר לעצמו ליפט אחר (set_my_lift)", (await hint(await rpc("set_my_lift", { p_lift: L2 }, mechA.token))) === "lift-from-station")
+  ok("A: נשאר על הליפט שלו אחרי הניסיון", (await liftOf(mechA.id)) === L1)
+  ok("A: לא משנה את הליפט שלו ישירות בטבלה", (await patched("staff", mechA.id, { lift: L2 }, mechA.token)) === 0 && (await liftOf(mechA.id)) === L1)
 
   const onMine = await newJob({ lift: L1 })
   const onOther = await newJob({ lift: L2 })

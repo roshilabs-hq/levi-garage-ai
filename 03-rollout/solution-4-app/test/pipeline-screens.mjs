@@ -140,6 +140,8 @@ try {
     // רושם מתי ומפנה את הליפט, "נמסר" רושם מתי. בגרסה הראשונה של הבדיקה זה
     // חסר, והבוט "איבד" את הרכב אחרי המסירה — כי בלי delivered_at הוא לא יודע
     // שהמסירה הייתה היום.
+    // מ-054 "מוכן" רק אחרי אבחון, גם במסד. במוסך המכונאי מסיים את האבחון לפני כן.
+    if (stage.status === "ready") await service(`/rest/v1/job_cards?id=eq.${jobId}`, { method: "PATCH", body: JSON.stringify({ inspected_at: new Date().toISOString() }) })
     const patch = { status: stage.status, lift: stage.lift }
     if (stage.status === "ready") patch.ready_at = new Date().toISOString()
     if (stage.status === "delivered") patch.delivered_at = new Date().toISOString()

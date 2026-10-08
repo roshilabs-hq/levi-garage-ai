@@ -61,8 +61,8 @@ export async function stationLogin(formData: FormData) {
     console.error("station sign-in failed:", error.status, error.code)
     back("signin")
   }
-  // העמדה קובעת איפה הוא עובד: אין "איפה אני עובד עכשיו" לבחור בעמדה קבועה.
-  await supabase.rpc("set_my_lift", { p_lift: r.lift ?? null })
+  // העמדה קובעת איפה הוא עובד, ו-station_login כבר רשמה את זה במסד (054). מכונאי לא
+  // בוחר ליפט בעצמו: עובר ליפט כשהוא נכנס בעמדה של הליפט האחר.
   redirect("/staff/lift")
 }
 

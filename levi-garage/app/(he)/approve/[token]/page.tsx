@@ -45,12 +45,16 @@ type View = {
   discount_pct: number | null
 }
 
-// 049: הדלי פרטי. כתובת חתומה לשעה, והמסד נותן אותה רק כל עוד האישור בתוקף,
-// ולכן אחרי שהקישור פג גם התמונות לא נפתחות (כמו שכתוב במדיניות הפרטיות).
+// 049: הדלי פרטי. כתובת חתומה, והמסד נותן אותה רק כל עוד האישור בתוקף, ולכן אחרי שהקישור
+// פג גם התמונות לא נפתחות (כמו שכתוב במדיניות הפרטיות). התוקף של הכתובת הוא שעה, או מה שנשאר
+// לקישור אם זה פחות (055, ביקורת חוזרת, 8.10, ממצא 5): בלי זה תמונה נשארה פתוחה עד שעה אחרי.
 type Supa = Awaited<ReturnType<typeof createClient>>
-async function signPhotos(supabase: Supa, paths: string[]): Promise<Record<string, string>> {
+async function signPhotos(supabase: Supa, token: string, paths: string[]): Promise<Record<string, string>> {
   if (paths.length === 0) return {}
-  const { data } = await supabase.storage.from("shared-quotes").createSignedUrls(paths, 60 * 60)
+  const { data: left } = await supabase.rpc("link_seconds_left", { p_token: token })
+  const ttl = typeof left === "number" ? Math.min(60 * 60, left) : 60 * 60
+  if (ttl < 1) return {}
+  const { data } = await supabase.storage.from("shared-quotes").createSignedUrls(paths, ttl)
   const urls: Record<string, string> = {}
   for (const d of data ?? []) if (d.path && d.signedUrl && !d.error) urls[d.path] = d.signedUrl
   return urls
@@ -287,7 +291,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
     const a = (agreedRaw ?? {}) as { lines?: AgreedLine[]; approved?: AgreedLine[] }
     const agreed = [...(a.lines ?? []), ...(a.approved ?? [])].filter((l) => l && l.price !== null)
     const rows = req as RequestRow[]
-    const photoUrls = await signPhotos(supabase, rows.filter((r) => !r.expired && !r.decision).flatMap((r) => r.photo_paths ?? []))
+    const photoUrls = await signPhotos(supabase, token, rows.filter((r) => !r.expired && !r.decision).flatMap((r) => r.photo_paths ?? []))
     return <RequestPage token={token} rows={rows} agreed={agreed} photoUrls={photoUrls} />
   }
   const { data } = await supabase.rpc("approval_view", { p_token: token })
@@ -306,7 +310,7 @@ export default async function ApprovePage({ params }: { params: Promise<{ token:
   }
 
   const decided = Boolean(view.decision)
-  const photoUrls = view.expired ? {} : await signPhotos(supabase, view.photo_paths ?? [])
+  const photoUrls = view.expired ? {} : await signPhotos(supabase, token, view.photo_paths ?? [])
   const photos = (view.photo_paths ?? []).filter((p) => photoUrls[p])
 
   return (

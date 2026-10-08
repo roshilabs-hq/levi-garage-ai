@@ -92,7 +92,21 @@ try {
   ok("מכונאי: לסמן שהלקוח אישר נחסם", (await patch("job_cards", j3.id, { work_approved_at: new Date().toISOString() }, mechanic)) === "approval-locked")
   ok("מנהל: לסמן שהלקוח אישר נחסם (רק בקישור או 'חתם')", (await patch("job_cards", j3.id, { work_approved_at: new Date().toISOString() }, manager)) === "approval-locked")
   ok("מנהל: 'חתם על העותק' (הפונקציה) עדיין עובד", (await rpc("mark_intake_signed", { p_job_id: j3.id }, manager)).ok && Boolean((await row("job_cards", j3.id)).work_approved_at))
-  ok("מנהל: לסמן 'מוכן' מותר", (await patch("job_cards", j2.id, { status: "ready" }, manager)) === "ok")
+  // 054 (ביקורת חוזרת, 8.10, ממצא 4): "מוכן" נאכף במסד, לא רק בכפתור
+  ok("מנהל: 'מוכן' בלי אבחון נחסם", (await patch("job_cards", j2.id, { status: "ready" }, manager)) === "ready-inspect")
+  await admin(`/rest/v1/job_cards?id=eq.${j2.id}`, { method: "PATCH", body: JSON.stringify({ inspected_at: new Date().toISOString() }) })
+  const [waiting] = await (
+    await admin(`/rest/v1/findings`, {
+      method: "POST",
+      headers: { prefer: "return=representation" },
+      body: JSON.stringify({ job_card_id: j2.id, source: "manual", title: "בדיקה", summary: "בדיקה", urgency: "yellow", status: "draft" }),
+    })
+  ).json()
+  ok("מנהל: 'מוכן' עם ממצא שמחכה לשליחה נחסם", (await patch("job_cards", j2.id, { status: "ready" }, manager)) === "ready-open")
+  await admin(`/rest/v1/findings?id=eq.${waiting.id}`, { method: "PATCH", body: JSON.stringify({ status: "sent", sent_at: new Date().toISOString() }) })
+  ok("מנהל: 'מוכן' עם ממצא שמחכה ללקוח נחסם", (await patch("job_cards", j2.id, { status: "ready" }, manager)) === "ready-open")
+  await admin(`/rest/v1/findings?id=eq.${waiting.id}`, { method: "PATCH", body: JSON.stringify({ status: "declined" }) })
+  ok("מנהל: אחרי אבחון ובלי ממצא פתוח, 'מוכן' מותר", (await patch("job_cards", j2.id, { status: "ready" }, manager)) === "ok")
 
   // 4. ממצא
   const [it] = await (await admin(`/rest/v1/price_list?code=eq.brakes-front-pads&select=id`)).json()

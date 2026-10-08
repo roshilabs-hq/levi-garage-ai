@@ -75,8 +75,17 @@ try {
   const [l] = await anon("request_view", live)
   ok("בתוקף: הכול כרגיל", l && l.expired === false && l.title === "לא נענה" && Number(l.price_original) === 500 && l.vehicle === "מאזדה 3", JSON.stringify(l))
 
+  // 055 (ביקורת חוזרת, 8.10, ממצא 5): תוקף התמונות לא עובר את תוקף הקישור
+  const soon = await mk(new Date(Date.now() + 10 * 60_000).toISOString(), false)
+  const s = await anon("link_seconds_left", soon)
+  ok("קישור שנשארו לו עשר דקות: התמונות לעשר דקות, לא לשעה", typeof s === "number" && s > 500 && s <= 600, String(s))
+  const lv = await anon("link_seconds_left", live)
+  ok("קישור בתוקף ליומיים: יותר משעה (הדף נשאר עם שעה)", typeof lv === "number" && lv > 3600, String(lv))
+  ok("קישור שפג: 0", (await anon("link_seconds_left", expiredOpen)) === 0)
+  ok("טוקן שלא קיים: כלום", (await anon("link_seconds_left", tok())) === null)
+
   // הצעת הקבלה
-  const ri = await add("quote_requests", { job_card_id: jobId, token: tok(), kind: "intake", expires_at: past })
+  const ri =await add("quote_requests", { job_card_id: jobId, token: tok(), kind: "intake", expires_at: past })
   const iv = await anon("intake_view", ri.token)
   ok("קבלה שפגה: רק 'פג', בלי רכב, שם ופריטים", iv?.status === "expired" && iv.vehicle === null && iv.customer === null && Array.isArray(iv.lines) && iv.lines.length === 0, JSON.stringify(iv))
 

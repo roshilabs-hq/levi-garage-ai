@@ -76,14 +76,13 @@ export async function POST(req: Request) {
     : []
 
   try {
-    // ניסיון חוזר אחד (7.10): בבדיקה, קריאה אחת ל-Gemini נכשלה ומיד אחריה אותה שאלה עברה
-    const call = () =>
-      generateJson<{ answer: string; refs: string[]; exam?: boolean }>({
-        system,
-        contents: [...history, { role: "user", text: question }],
-        schema,
-      })
-    const out = await call().catch(call)
+    // קריאה אחת. המעבר לאירופה כשהמאגר העולמי עמוס כבר נמצא ב-generateJson (lib/site/gemini.ts).
+    // ניסיון חוזר נוסף כאן הכפיל את זה עד ארבע קריאות לשאלה (ביקורת חוזרת, 8.10, ממצא 7).
+    const out = await generateJson<{ answer: string; refs: string[]; exam?: boolean }>({
+      system,
+      contents: [...history, { role: "user", text: question }],
+      schema,
+    })
     const refs = [...new Set(out.refs ?? [])]
       .map((id) => BY_ID.get(id))
       .filter((b): b is NonNullable<typeof b> => Boolean(b))
