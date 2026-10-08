@@ -116,7 +116,9 @@ try {
   await patchJob(a, { lift: 3, status: "in_progress" }, mechanic)
   ok("המכונאי מושך לליפט", (await job(a)).lift === 3)
 
-  const lowered = await patchJob(a, { lift: null, parked_at: new Date().toISOString() }, mechanic)
+  // 063: מכונאי מוריד מליפט רק דרך lower_car, עם "סגור וכשיר לנסיעה"
+  await standAt(mechanic, await jobLift(a))
+  const lowered = await call(`/rest/v1/rpc/lower_car`, { method: "POST", body: JSON.stringify({ p_job_id: a, p_fit: true }), token: mechanic })
   const afterLower = await job(a)
   ok("המכונאי מוריד לחניה", lowered.ok && afterLower.lift === null && afterLower.parked_at !== null, `status ${lowered.status}`)
 

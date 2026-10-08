@@ -76,7 +76,18 @@ try {
   ok("מכונאי: open → in_progress מותר", (await patch("job_cards", j1.id, { status: "in_progress" }, mechanic)) === "ok")
   ok("מכונאי: מחכה לשליחה מותר", (await patch("job_cards", j1.id, { status: "waiting_quote" }, mechanic)) === "ok")
   ok("מכונאי: 'סיימתי' (לחניה, גמור) מותר", (await patch("job_cards", j1.id, { parked_at: new Date().toISOString(), work_done_at: new Date().toISOString() }, mechanic)) === "ok")
-  ok("מכונאי: סיום אבחון מותר", (await patch("job_cards", j1.id, { inspected_at: new Date().toISOString() }, mechanic)) === "ok")
+  // 063 (ביקורת רביעית, ממצא 2): האבחון מסתיים רק ב-complete_inspection, אחרי תשעת הפריטים
+  ok("מכונאי: לכתוב 'האבחון הסתיים' ישירות נחסם", (await patch("job_cards", j1.id, { inspected_at: new Date().toISOString() }, mechanic)) === "inspect-rpc")
+  ok("מנהל: גם הוא לא כותב את זה ישירות", (await patch("job_cards", j1.id, { inspected_at: new Date().toISOString() }, manager)) === "inspect-rpc")
+  const hintOf = async (res) => (res.ok ? "ok" : ((await res.json().catch(() => ({}))).hint ?? `status ${res.status}`))
+  ok("מכונאי: סיום אבחון בלי הפריטים נדחה", (await hintOf(await rpc("complete_inspection", { p_job_id: j1.id }, mechanic))) === "inspect-incomplete")
+  for (const key of ["brakes", "tires", "steering", "lights", "fluids", "leaks", "battery", "wipers"]) {
+    await rpc("set_inspection_item", { p_job_id: j1.id, p_key: key, p_light: "green" }, mechanic)
+  }
+  ok("מכונאי: שמונה מתוך תשעה עדיין לא מספיק", (await hintOf(await rpc("complete_inspection", { p_job_id: j1.id }, mechanic))) === "inspect-incomplete")
+  ok("מכונאי: לסמן 'הושלם' בטבלת האבחון ישירות נחסם", !(await call(`/rest/v1/inspections?job_card_id=eq.${j1.id}`, { method: "PATCH", token: mechanic, body: JSON.stringify({ completed_at: new Date().toISOString() }) })).ok)
+  await rpc("set_inspection_item", { p_job_id: j1.id, p_key: "scan", p_light: "green" }, mechanic)
+  ok("מכונאי: אחרי תשעה פריטים, סיום אבחון עובר", (await hintOf(await rpc("complete_inspection", { p_job_id: j1.id }, mechanic))) === "ok" && Boolean((await row("job_cards", j1.id)).inspected_at))
 
   // 2. מכונאי: מה אסור
   const j2 = await newJob()
@@ -118,6 +129,10 @@ try {
   })
   ok("מנהל: להוסיף ממצא פתוח לרכב מוכן נחסם", (await lateAdd.json().catch(() => ({}))).hint === "job-ready")
   ok("מנהל: עדכון אחר לרכב מוכן עדיין מותר", (await patch("job_cards", j2.id, { odometer_km: 123456 }, manager)) === "ok")
+  // 063 (ביקורת רביעית, ממצא 4): "נמסר" רק מ"מוכן"
+  const j6 = await newJob()
+  ok("מנהל: 'נמסר' לרכב שעוד בעבודה נחסם", (await patch("job_cards", j6.id, { status: "delivered", delivered_at: new Date().toISOString() }, manager)) === "deliver-ready")
+  ok("מנהל: 'נמסר' לרכב מוכן מותר", (await patch("job_cards", j2.id, { status: "delivered", delivered_at: new Date().toISOString() }, manager)) === "ok")
 
   // 4. ממצא
   const [it] = await (await admin(`/rest/v1/price_list?code=eq.brakes-front-pads&select=id`)).json()

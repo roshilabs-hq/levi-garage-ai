@@ -123,12 +123,16 @@ try {
   const [priceItem] = await (await admin(`/rest/v1/price_list?active=eq.true&select=id&limit=1`)).json()
 
   // 1. כרטיסים
-  ok("A: מעדכן את הרכב שעל הליפט שלו", (await patched("job_cards", onMine.id, { inspected_at: new Date().toISOString() }, mechA.token)) === 1)
-  ok("A: לא מעדכן רכב שעל ליפט אחר", (await patched("job_cards", onOther.id, { inspected_at: new Date().toISOString() }, mechA.token)) === 0)
+  ok("A: מעדכן את הרכב שעל הליפט שלו", (await patched("job_cards", onMine.id, { status: "in_progress" }, mechA.token)) === 1)
+  ok("A: לא מעדכן רכב שעל ליפט אחר", (await patched("job_cards", onOther.id, { status: "in_progress" }, mechA.token)) === 0)
   ok("A: מעדכן רכב בתור (בלי ליפט)", (await patched("job_cards", queued.id, { status: "in_progress" }, mechA.token)) === 1)
   ok("A: לא מעלה רכב מהתור לליפט של מישהו אחר", (await patched("job_cards", queued.id, { lift: L2 }, mechA.token)) === 0)
-  ok("A: לא נוגע בכרטיס שכבר מוכן", (await patched("job_cards", closed.id, { inspected_at: new Date().toISOString() }, mechA.token)) === 0)
-  ok("A: מוריד את הרכב שלו לחניה", (await patched("job_cards", onMine.id, { lift: null, parked_at: new Date().toISOString() }, mechA.token)) === 1)
+  ok("A: לא נוגע בכרטיס שכבר מוכן", (await patched("job_cards", closed.id, { parked_at: new Date().toISOString() }, mechA.token)) === 0)
+  // 063 (ביקורת רביעית, ממצא 5): מליפט לחניה רק דרך lower_car, עם האישור
+  ok("A: הורדה ישירה (PATCH) נחסמת", (await patched("job_cards", onMine.id, { lift: null, parked_at: new Date().toISOString() }, mechA.token)) === 0)
+  ok("A: lower_car בלי 'כשיר לנסיעה' נחסמת", (await hint(await rpc("lower_car", { p_job_id: onMine.id, p_fit: false }, mechA.token))) === "fit-required")
+  ok("A: lower_car של רכב על ליפט אחר נחסמת", (await hint(await rpc("lower_car", { p_job_id: onOther.id, p_fit: true }, mechA.token))) === "not-your-car")
+  ok("A: מוריד את הרכב שלו לחניה (lower_car)", (await (await rpc("lower_car", { p_job_id: onMine.id, p_fit: true }, mechA.token)).json()) === true)
   // מחזירים אותו לליפט (כמנהל) להמשך הבדיקה
   ok("מנהל: מחזיר את הרכב לליפט של A", (await patched("job_cards", onMine.id, { lift: L1, parked_at: null }, manager.token)) === 1)
 
@@ -157,10 +161,10 @@ try {
   ok("A: לא מצמיד לרכב שלו ממצא של רכב אחר", !(await inserted("media", media(onMine.id, otherFinding.id), mechA.token)))
 
   // 5. B על הליפט שלו, ומנהל בלי שינוי
-  ok("B: מעדכן את הרכב שעל הליפט שלו", (await patched("job_cards", onOther.id, { inspected_at: new Date().toISOString() }, mechB.token)) === 1)
-  ok("מנהל: מעדכן רכב על כל ליפט", (await patched("job_cards", onOther.id, { inspected_at: new Date().toISOString() }, manager.token)) === 1)
+  ok("B: מעדכן את הרכב שעל הליפט שלו", (await patched("job_cards", onOther.id, { status: "in_progress" }, mechB.token)) === 1)
+  ok("מנהל: מעדכן רכב על כל ליפט", (await patched("job_cards", onOther.id, { notes: NOTE }, manager.token)) === 1)
   ok("מנהל: מסמן בבדיקה של כל רכב", (await rpc("set_inspection_item", { p_job_id: onOther.id, p_key: "brakes", p_light: "green" }, manager.token)).ok)
-  ok("מנהל: מעדכן כרטיס מוכן", (await patched("job_cards", closed.id, { inspected_at: new Date().toISOString() }, manager.token)) === 1)
+  ok("מנהל: מעדכן כרטיס מוכן", (await patched("job_cards", closed.id, { odometer_km: 12345 }, manager.token)) === 1)
 
   // 6. 062 (ביקורת רביעית, ממצא 1): מה מכונאי רשאי לקרוא
   const status = async (path, token) => (await call(path, { token })).status

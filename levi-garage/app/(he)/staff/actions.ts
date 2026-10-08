@@ -285,7 +285,7 @@ export async function setInspectionItem(formData: FormData) {
 
 /** סיום האבחון. רק כשכל הפריטים סומנו — אחרת זה לא אבחון, זה ניחוש. */
 export async function completeInspection(formData: FormData) {
-  const staff = await requireStaff()
+  await requireStaff()
   const jobId = Number(formData.get("job_id"))
   if (!jobId) return
 
@@ -296,9 +296,9 @@ export async function completeInspection(formData: FormData) {
   const undocumented = Object.values(items).some((s) => (s.light === "yellow" || s.light === "red") && !s.finding_id)
   if (!progress(items).complete || undocumented) redirect(`/staff/inspect/${jobId}?e=incomplete`)
 
-  const now = new Date().toISOString()
-  await supabase.from("inspections").update({ completed_at: now }).eq("job_card_id", jobId)
-  await supabase.from("job_cards").update({ inspected_at: now, inspected_by: staff.id }).eq("id", jobId)
+  // המסד בודק שוב את אותם תנאים וכותב את שני השדות (063). כתיבה ישירה שלהם נחסמת.
+  const { error } = await supabase.rpc("complete_inspection", { p_job_id: jobId })
+  if (error) redirect(`/staff/inspect/${jobId}?e=incomplete`)
   await markWaitingIfDrafts(supabase, jobId)
 
   revalidatePath("/staff")
@@ -324,16 +324,8 @@ export async function callManager(formData: FormData) {
   // לבדיקה", ודניאל בודק על הקרקע ומסמן "מוכן" מתי שהוא פנוי. עד 2.10 הרכב
   // נשאר על הליפט עד הבדיקה, והליפט חיכה לבן אדם.
   if (kind === "done") {
-    const now = new Date().toISOString()
-    let done = supabase
-      .from("job_cards")
-      .update({ lift: null, parked_at: now, work_done_at: now })
-      .eq("id", jobId)
-      .not("lift", "is", null)
-      .in("status", [...ACTIVE])
-    // 043: מכונאי מסיים רק את הרכב שעל הליפט שלו.
-    if (staff.role === "mechanic") done = done.eq("lift", staff.lift ?? -1)
-    await done
+    // מהמסד (063): מכונאי מסיים רק את הרכב שעל הליפט שלו, ורק רכב פעיל
+    await supabase.rpc("finish_on_lift", { p_job_id: jobId })
     revalidatePath("/staff/floor")
     revalidatePath("/wall")
     revalidatePath("/staff")
@@ -809,12 +801,8 @@ export async function lowerCar(formData: FormData) {
   // ביקורת UX, 8.10, ממצא 1: רק אחרי "כן, הרכב סגור ואפשר לנסוע בו" (components/staff/lower-car.tsx)
   if (!id || formData.get("fit") !== "yes") return
   const supabase = await createClient()
-  await supabase
-    .from("job_cards")
-    .update({ lift: null, parked_at: new Date().toISOString() })
-    .eq("id", id)
-    .not("lift", "is", null)
-    .in("status", [...ACTIVE])
+  // גם המסד דורש את האישור (063): בלעדיו lower_car נדחית
+  await supabase.rpc("lower_car", { p_job_id: id, p_fit: true })
   await markWaitingIfDrafts(supabase, id)
   revalidateFloor(id)
 }
