@@ -46,18 +46,27 @@ const mechanics = new Map()
 const STATION_LABEL = "עמדת בדיקה אוטומטית (lot-queue)"
 const stationTokens = {}
 const jobLift = async (id) => (await (await admin(`/rest/v1/job_cards?id=eq.${id}&select=lift`)).json())[0]?.lift ?? null
+// מ-068 כניסה נרשמת לעמדה אחת, בלי מעבר: מכונאי שעובר ליפט נכנס שוב בעמדה של הליפט האחר, כמו במוסך.
+// לכן לכל מכונאי ולכל ליפט יש כניסה משלו, שנוצרת פעם אחת. בלי ליפט: הכניסה הרגילה (בלי עמדה).
+const atLift = {}
 const standAt = async (token, lift) => {
-  if (!mechanics.has(token) || lift == null) return
+  const who = mechanics.get(token)
+  if (!who || lift == null) return token
   stationTokens[lift] ??= await (await call(`/rest/v1/rpc/create_station`, { method: "POST", body: JSON.stringify({ p_label: STATION_LABEL, p_lift: lift }), token: manager })).json()
-  await call(`/rest/v1/rpc/bind_station_session`, { method: "POST", body: JSON.stringify({ p_token: stationTokens[lift] }), token })
+  const key = `${who.email}:${lift}`
+  if (!atLift[key]) {
+    atLift[key] = await signIn(who.email)
+    await call(`/rest/v1/rpc/bind_station_session`, { method: "POST", body: JSON.stringify({ p_token: stationTokens[lift] }), token: atLift[key] })
+  }
+  return atLift[key]
 }
 const rpc = async (fn, body, token) => {
-  if (body?.p_job_id) await standAt(token, await jobLift(body.p_job_id))
-  return call(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(body), token })
+  const t = body?.p_job_id ? await standAt(token, await jobLift(body.p_job_id)) : token
+  return call(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(body), token: t })
 }
 const patchJob = async (id, body, token) => {
-  await standAt(token, "lift" in body && body.lift !== null ? body.lift : await jobLift(id))
-  return call(`/rest/v1/job_cards?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(body), token })
+  const t = await standAt(token, "lift" in body && body.lift !== null ? body.lift : await jobLift(id))
+  return call(`/rest/v1/job_cards?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(body), token: t })
 }
 
 async function signIn(email) {
@@ -71,9 +80,9 @@ const mechanic = await signIn("test5@test.com")
 const otherMechanic = await signIn("test2@test.com")
 const screen = await signIn("screen2@test.com")
 const idOf = async (token) => (await (await call(`/auth/v1/user`, { token })).json()).id
-mechanics.set(mechanic, await idOf(mechanic))
-mechanics.set(otherMechanic, await idOf(otherMechanic))
-const liftsBefore = await (await admin(`/rest/v1/staff?id=in.(${[...mechanics.values()].join(",")})&select=id,lift`)).json()
+mechanics.set(mechanic, { id: await idOf(mechanic), email: "test5@test.com" })
+mechanics.set(otherMechanic, { id: await idOf(otherMechanic), email: "test2@test.com" })
+const liftsBefore = await (await admin(`/rest/v1/staff?id=in.(${[...mechanics.values()].map((m) => m.id).join(",")})&select=id,lift`)).json()
 
 const items = await (await admin(`/rest/v1/price_list?select=id,code,fixed_price,price_original`)).json()
 const item = (code) => items.find((i) => i.code === code)
@@ -117,8 +126,7 @@ try {
   ok("המכונאי מושך לליפט", (await job(a)).lift === 3)
 
   // 063: מכונאי מוריד מליפט רק דרך lower_car, עם "סגור וכשיר לנסיעה"
-  await standAt(mechanic, await jobLift(a))
-  const lowered = await call(`/rest/v1/rpc/lower_car`, { method: "POST", body: JSON.stringify({ p_job_id: a, p_fit: true }), token: mechanic })
+  const lowered = await rpc("lower_car", { p_job_id: a, p_fit: true }, mechanic)
   const afterLower = await job(a)
   ok("המכונאי מוריד לחניה", lowered.ok && afterLower.lift === null && afterLower.parked_at !== null, `status ${lowered.status}`)
 

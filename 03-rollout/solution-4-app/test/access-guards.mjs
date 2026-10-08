@@ -192,6 +192,10 @@ try {
   const j4 = await newJob({ booking_id: b.id, status: "open", work_approved_at: null, work_approved_via: null })
   await admin(`/rest/v1/quote_items`, { method: "POST", body: JSON.stringify({ job_card_id: j4.id, title: "בדיקה", labor_hours: 1, price_original: 100, warranty_original: "ללא", single_reason: "עבודה בלבד.", part_choice: "original" }) })
   const token = await (await rpc("send_intake_request", { p_job_id: j4.id }, manager)).json()
+  // 068 (ביקורת שישית, ממצא 1): מרגע שהקישור נשלח, הפריטים קפואים. מה שהלקוח רואה הוא מה שהוא מאשר.
+  const [qiSent] = await (await admin(`/rest/v1/quote_items?job_card_id=eq.${j4.id}&select=id,price_original`)).json()
+  ok("מנהל: לשנות מחיר אחרי שהקישור נשלח (ולפני אישור) נחסם", (await patch("quote_items", qiSent.id, { price_original: 999 }, manager)) === "quote-locked")
+  ok("והמחיר שהלקוח רואה לא השתנה", Number((await (await admin(`/rest/v1/quote_items?id=eq.${qiSent.id}&select=price_original`)).json())[0]?.price_original) === Number(qiSent.price_original))
   ok("רכב בלי תור: אישור בלי תקנון מחזיר 'terms'", (await (await rpc("intake_decide", { p_token: token, p_decision: "approved" })).json()) === "terms")
   ok("רכב בלי תור: אחרי התקנון, האישור עובר", (await (await rpc("intake_accept_terms", { p_token: token })).json()) === "done" && (await (await rpc("intake_decide", { p_token: token, p_decision: "approved" })).json()) === "done")
   // 067: אחרי שהלקוח אישר את הקבלה, הפריטים קפואים (כמו ממצא שנשלח)

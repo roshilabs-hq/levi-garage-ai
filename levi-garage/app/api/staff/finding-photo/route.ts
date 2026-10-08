@@ -20,6 +20,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
+  // גוף גדול מהמותר נדחה לפי הכותרת, לפני שקוראים אותו לזיכרון (ביקורת שישית, ממצא 3)
+  if (Number(req.headers.get("content-length") ?? "0") > MAX_PHOTO + 64 * 1024) return NextResponse.json({ error: "photo" }, { status: 413 })
   const form = await req.formData().catch(() => null)
   const findingId = Number(form?.get("finding_id"))
   const file = form?.get("photo")

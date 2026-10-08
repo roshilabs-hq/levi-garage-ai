@@ -31,6 +31,8 @@ export async function POST(req: Request) {
   const staff = await getStaff()
   if (!staff || staff.role === "display") return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
+  // גוף גדול מהמותר נדחה לפי הכותרת, לפני שקוראים אותו לזיכרון (ביקורת שישית, ממצא 3)
+  if (Number(req.headers.get("content-length") ?? "0") > MAX_AUDIO + MAX_PHOTO + 64 * 1024) return NextResponse.json({ error: "size" }, { status: 413 })
   const form = await req.formData().catch(() => null)
   const jobId = Number(form?.get("job_id"))
   const audioFile = form?.get("audio")

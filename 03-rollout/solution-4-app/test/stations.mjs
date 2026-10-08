@@ -157,6 +157,11 @@ try {
   const created2 = await rpc("create_station", { p_label: "ליפט 2 (בדיקה אוטומטית)", p_lift: 2 }, manager)
   token2 = created2.ok ? await created2.json() : null
   const second = token2 ? await atStation(token2) : null
+  // 068 (ביקורת שישית, ממצא 2): כניסה נרשמת פעם אחת. אי אפשר לחדש אותה (להאריך את 12 השעות) או להעביר לעמדה אחרת.
+  const before = (await (await call(`/rest/v1/rpc/my_station_session`, { method: "POST", body: "{}", token: first?.session })).json())
+  ok("רישום חוזר של אותה כניסה לאותה עמדה לא נכשל", (await rpc("bind_station_session", { p_token: token }, first?.session)).ok)
+  ok("אבל גם לא מעביר אותה לעמדה אחרת", !(await rpc("bind_station_session", { p_token: token2 }, first?.session)).ok)
+  ok("הכניסה נשארת על הליפט שלה", (await (await rpc("my_lift", {}, first?.session)).json()) === 3 && before?.bound === true)
   ok("אותו מכונאי נכנס בעמדה של ליפט 2", second?.lift === 2 && (await json(await rpc("my_lift", {}, second.session))) === 2)
   ok("והכניסה הפתוחה בליפט 3 נשארת על ליפט 3", (await json(await rpc("my_lift", {}, first?.session))) === 3)
 
