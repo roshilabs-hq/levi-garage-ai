@@ -133,6 +133,8 @@ export function noticeLabel(
   kind: Kind = "ready",
 ): string | null {
   if (!n) return null
+  // 071: דניאל שלח בעצמו, מהוואטסאפ של המוסך, וסימן "שלחתי"
+  if (n.status === "sent" && n.reason === "manual") return kind === "quote" ? "הקישור לאישור נשלח ידנית, מהוואטסאפ של המוסך" : "ההודעה שהרכב מוכן נשלחה ידנית"
   if (n.status === "sent") return kind === "quote" ? "הקישור לאישור נשלח ללקוח בוואטסאפ" : "נשלחה ללקוח הודעת וואטסאפ שהרכב מוכן"
   if (n.status === "pending") return kind === "quote" ? "שולחים ללקוח את הקישור לאישור…" : "שולחים ללקוח הודעה שהרכב מוכן…"
   const why: Record<string, string> = {

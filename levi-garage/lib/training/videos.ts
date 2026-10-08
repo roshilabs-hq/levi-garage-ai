@@ -87,7 +87,7 @@ export const VIDEOS: TrainingVideo[] = [
     id: "flow",
     title: "רכב אחד, שני מסכים",
     who: "לכולם: מימין הטלפון של הלקוחה, משמאל המוסך, באותו רגע",
-    length: "2:07",
+    length: "2:05",
     src: "/training/video/flow.mp4",
     poster: "/training/video/flow.jpg",
     chapters: [
@@ -97,8 +97,8 @@ export const VIDEOS: TrainingVideo[] = [
       { t: 43.5, title: "הליפט · 08:15" },
       { t: 60.1, title: "הודעה אחת · 09:08" },
       { t: 76.7, title: "דנה מחליטה · 09:48" },
-      { t: 98.3, title: "מוכן · 14:30" },
-      { t: 110, title: "סגירה" },
+      { t: 95.3, title: "מוכן · 14:30" },
+      { t: 106.9, title: "סגירה" },
     ],
   },
   {

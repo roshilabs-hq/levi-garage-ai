@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { decideRequest } from "@/app/(he)/approve/actions"
@@ -44,6 +44,28 @@ export function RequestForm({
 }) {
   const router = useRouter()
   const [picks, setPicks] = useState<Record<number, Pick>>({})
+  // הבחירות נשמרות בדפדפן עד השליחה (ביקורת UX חוזרת, 8.10, ממצא 7): רענון או חזרה לדף לא מאפסים
+  // שלושה ממצאים שכבר הוחלטו. רק טיוטה: ההחלטה נרשמת במסד רק בשליחה, ונמחקת מכאן אחריה.
+  const draftKey = `approve-draft:${token}`
+  useEffect(() => {
+    // אחרי ההידרציה, לא בזמן הרינדור: השרת לא מכיר את הטיוטה שבדפדפן
+    let raw: string | null = null
+    try {
+      raw = sessionStorage.getItem(draftKey)
+    } catch {}
+    if (!raw) return
+    const saved = JSON.parse(raw) as Record<number, Pick>
+    const id = setTimeout(() => setPicks(saved), 0)
+    return () => clearTimeout(id)
+  }, [draftKey])
+  const choose = (id: number, p: Pick) =>
+    setPicks((prev) => {
+      const next = { ...prev, [id]: p }
+      try {
+        sessionStorage.setItem(draftKey, JSON.stringify(next))
+      } catch {}
+      return next
+    })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
 
@@ -74,6 +96,9 @@ export function RequestForm({
       setError("לא הצלחנו לשמור את התשובה. אפשר להתקשר אלינו: 055-3048489")
       return
     }
+    try {
+      sessionStorage.removeItem(draftKey)
+    } catch {}
     router.refresh()
   }
 
@@ -132,7 +157,7 @@ export function RequestForm({
                 <legend>מה עושים?</legend>
                 {opts.map((o) => (
                   <label key={o.key} className={pick === o.key ? "picked" : ""}>
-                    <input type="radio" name={`p-${i.finding_id}`} checked={pick === o.key} onChange={() => setPicks((p) => ({ ...p, [i.finding_id]: o.key }))} />
+                    <input type="radio" name={`p-${i.finding_id}`} checked={pick === o.key} onChange={() => choose(i.finding_id, o.key)} />
                     <span>
                       {o.label}
                       {o.warranty && <small>אחריות: {o.warranty}</small>}
@@ -141,7 +166,7 @@ export function RequestForm({
                   </label>
                 ))}
                 <label className={pick === "declined" ? "picked declined" : ""}>
-                  <input type="radio" name={`p-${i.finding_id}`} checked={pick === "declined"} onChange={() => setPicks((p) => ({ ...p, [i.finding_id]: "declined" }))} />
+                  <input type="radio" name={`p-${i.finding_id}`} checked={pick === "declined"} onChange={() => choose(i.finding_id, "declined")} />
                   <span>לא עכשיו, לא לתקן</span>
                 </label>
               </fieldset>

@@ -304,6 +304,19 @@ export async function callManager(formData: FormData) {
   revalidatePath("/staff")
 }
 
+/** דניאל שלח את הקישור בעצמו (ביקורת UX חוזרת, 8.10, ממצא 6): נרשם כנשלח ידנית (071), והכרטיס מפסיק להציג "לא יצא". */
+export async function markNoticeManual(formData: FormData) {
+  await requireManager()
+  const noticeId = Number(formData.get("notice_id"))
+  const jobId = Number(formData.get("job_id"))
+  if (!noticeId || !jobId) return
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("mark_notice_manual", { p_notice_id: noticeId })
+  if (error) console.error("mark_notice_manual failed:", error.code)
+  revalidatePath(`/staff/job/${jobId}`)
+  revalidatePath("/staff")
+}
+
 /** דניאל הגיע, או טיפל ב"סיימתי". */
 export async function resolveCall(formData: FormData) {
   const staff = await requireManager()

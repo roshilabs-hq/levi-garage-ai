@@ -114,6 +114,16 @@ try {
   ok("בלי הסכמה לוואטסאפ: לא נשלח", r.body?.send === false && r.body?.phone === undefined)
   ok("…והצוות רואה למה", n?.status === "skipped" && n?.reason === "no_consent")
 
+  // 071 (ביקורת UX חוזרת, 8.10, ממצא 6): דניאל שלח בעצמו וסימן "שלחתי"
+  r = await rpc("mark_notice_manual", { p_notice_id: n.id }, mechanic)
+  ok("מכונאי לא מסמן 'שלחתי בעצמי'", r.status !== 200)
+  r = await rpc("mark_notice_manual", { p_notice_id: n.id }, manager)
+  n = await noticeOf(b.id)
+  ok("מנהל מסמן 'שלחתי בעצמי': נשלח ידנית, עם שעה", r.body === true && n?.status === "sent" && n?.reason === "manual" && n?.sent_at !== null)
+  r = await rpc("mark_notice_manual", { p_notice_id: n.id }, manager)
+  ok("סימון שני לא משנה כלום", r.body === false)
+  ok("אורח לא מסמן", (await rpc("mark_notice_manual", { p_notice_id: n.id }, anonKey)).status !== 200)
+
   const c = await job({ status: "ready", whatsapp_consent: true, customer_phone: "  " })
   r = await rpc("claim_ready_notice", { p_job_id: c.id }, manager)
   n = await noticeOf(c.id)

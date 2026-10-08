@@ -101,8 +101,8 @@ export default async function JobCardPage({
     supabase.from("price_list").select("*").eq("active", true).order("sort", { ascending: true }),
     supabase.from("inspections").select("items, completed_at").eq("job_card_id", jobId).maybeSingle(),
     supabase.from("media").select("id, kind, storage_path, mime, finding_id, created_at").eq("job_card_id", jobId).order("created_at", { ascending: true }),
-    supabase.from("customer_notices").select("kind, ref, status, reason, sent_at").eq("job_card_id", jobId),
-    supabase.from("quote_requests").select("id, sent_at, decided_at, expires_at, nudged_at").eq("job_card_id", jobId).order("sent_at", { ascending: false }),
+    supabase.from("customer_notices").select("id, kind, ref, status, reason, sent_at").eq("job_card_id", jobId),
+    supabase.from("quote_requests").select("id, kind, sent_at, decided_at, expires_at, nudged_at").eq("job_card_id", jobId).order("sent_at", { ascending: false }),
     supabase.from("help_calls").select("id").eq("job_card_id", jobId).eq("kind", "done").is("resolved_at", null).limit(1),
   ])
 
@@ -177,6 +177,11 @@ export default async function JobCardPage({
     groups.push({ key: `f${f.id}`, requestId: null, token: approvalToken.get(f.id) ?? "", sentAt: a?.sent_at ?? f.sent_at, decidedAt: a?.decided_at ?? null, items: [f] })
   }
 
+  // הצעת הקבלה שמחכה ללקוח, והאם ההודעה עליה יצאה (ביקורת UX חוזרת, 8.10, ממצא 4)
+  const intakeReq = (requests ?? []).find((r) => r.kind === "intake" && !r.decided_at) ?? null
+  const intakeToken = intakeReq ? (requestToken.get(intakeReq.id) ?? "") : ""
+  const intakeNotice = intakeToken ? (quoteNotice.get(intakeToken) ?? null) : null
+
   return (
     <main className="staff-wrap job-page">
       <TopBar staff={staff} current="other" />
@@ -236,6 +241,9 @@ export default async function JobCardPage({
               </form>
               <Link className="btn quiet" href={`/staff/job/${job.id}/quote?print=1`}>להדפיס לחתימה</Link>
             </div>
+          )}
+          {canSend && intakeToken && intakeNotice && intakeNotice.status !== "sent" && (
+            <SendLinkMyself kind="intake" phone={job.customer_phone} path={`/approve/${intakeToken}`} name={job.customer_name} noticeId={intakeNotice.id} jobId={job.id} />
           )}
         </div>
       )}
@@ -432,7 +440,7 @@ export default async function JobCardPage({
                   )}
                   {/* ביקורת UX, 8.10, ממצא 3: ההודעה האוטומטית לא יצאה, ודניאל שולח בעצמו */}
                   {open && canSend && g.token && n && n.status !== "sent" && (
-                    <SendLinkMyself phone={job.customer_phone} path={`/approve/${g.token}`} name={job.customer_name} />
+                    <SendLinkMyself kind="findings" phone={job.customer_phone} path={`/approve/${g.token}`} name={job.customer_name} noticeId={n.id} jobId={job.id} />
                   )}
                 </li>
               )

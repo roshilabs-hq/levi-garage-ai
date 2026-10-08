@@ -5,6 +5,7 @@ import { requireManager } from "@/lib/staff/session"
 import { OPENING } from "@/lib/hours"
 import { customerResponse, discountsSince, israel, liftDeadMinutesPerDay, readyByFour, writtenApprovals, type Approval, type Discounted, type Move } from "@/lib/staff/metrics"
 import { TopBar } from "@/components/staff/top-bar"
+import { AutoRefresh } from "@/components/staff/auto-refresh"
 import { todayNumbers, type TodayCard } from "@/lib/staff/today"
 import Link from "next/link"
 
@@ -211,6 +212,8 @@ export default async function DashboardPage() {
   return (
     <main className="staff-wrap">
       <TopBar staff={staff} current="dashboard" />
+      {/* ביקורת UX חוזרת (8.10, ממצא 3): "היום, עכשיו" חושב בטעינה ולא התרענן. עכשיו כמו הלוח. */}
+      <AutoRefresh seconds={60} live />
 
       <header className="board-head">
         <div>
@@ -221,7 +224,9 @@ export default async function DashboardPage() {
       </header>
 
       <section className="staff-section today-strip" aria-labelledby="today-title">
-        <h2 id="today-title">היום, עכשיו</h2>
+        <h2 id="today-title">
+          היום, עכשיו <span className="staff-meta today-refresh">מתעדכן לבד כל דקה</span>
+        </h2>
         <ul className="today-nums">
           <li>
             <b className="num">{today.ready}</b>
