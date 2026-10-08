@@ -105,6 +105,11 @@ try {
   ok("4 טעויות: 'נשארו' יורד מ-4 ל-1", lefts.join(",") === "pin:4,pin:3,pin:2,pin:1", lefts.join(","))
   const fifth = await (await rpc("station_login", { p_token: token, p_staff_id: noam.id, p_pin: wrongPin })).json()
   ok("טעות חמישית: נעול", fifth?.reason === "locked", JSON.stringify(fifth))
+  // 060: הנעילה נרשמת ביומן האבטחה, ואבי ודניאל רואים אותה
+  const alerts = await (await rpc("security_alerts", {}, manager)).json()
+  ok("הנעילה נרשמה ביומן האבטחה (מנהל רואה)", Number(alerts?.day?.pin_locked) >= 1, JSON.stringify(alerts?.day))
+  ok("מכונאי לא רואה את יומן האבטחה", !(await rpc("security_alerts", {}, mechanic)).ok)
+  ok("אורח לא רואה את יומן האבטחה", !(await rpc("security_alerts", {})).ok)
   const afterLock = await (await rpc("station_login", { p_token: token, p_staff_id: noam.id, p_pin: demoPin })).json()
   ok("בזמן נעילה גם הקוד הנכון לא נכנס", afterLock?.ok === false && afterLock?.reason === "locked")
 

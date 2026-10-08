@@ -60,6 +60,8 @@ const mechB = await signIn("test6@test.com")
 const NOTE = "רשומת בדיקה אוטומטית (mechanic-scope)"
 const jobs = []
 const before = await (await admin(`/rest/v1/staff?id=in.(${mechA.id},${mechB.id})&select=id,lift`)).json()
+const STATION_LABEL = "עמדת בדיקה אוטומטית (mechanic-scope)"
+const stationTokens = {}
 
 try {
   // שני ליפטים שאין עליהם עכשיו רכב פעיל, כדי לא להתנגש ברכבי ההדגמה
@@ -96,17 +98,21 @@ try {
     return f
   }
 
-  // המכונאי A עובד על L1, B על L2. בפועל station_login רושמת את זה לפי העמדה (054); כאן
-  // רושמים ישירות, כי לבדיקה אין טוקן של עמדה.
-  const placeAt = (id, lift) => admin(`/rest/v1/staff?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ lift }) })
-  await placeAt(mechA.id, L1)
-  await placeAt(mechB.id, L2)
-  const liftOf = async (id) => (await (await admin(`/rest/v1/staff?id=eq.${id}&select=lift`)).json())[0]?.lift
+  // המכונאי A עובד על L1, B על L2: כל אחד נרשם בעמדת בדיקה של הליפט שלו, כמו מכשיר אמיתי
+  // (bind_station_session, 057). מ-059 כניסה של מכונאי בלי עמדה לא עובדת על אף ליפט.
+  const ownLift = async (token) => (await (await rpc("my_lift", {}, token)).json())
+  ok("A, לפני שנרשם בעמדה: אין לו ליפט (059)", (await ownLift(mechA.token)) === null)
+  for (const lift of [L1, L2]) {
+    const res = await rpc("create_station", { p_label: STATION_LABEL, p_lift: lift }, manager.token)
+    stationTokens[lift] = await res.json()
+  }
+  ok("A נרשם בעמדה של L1", (await rpc("bind_station_session", { p_token: stationTokens[L1] }, mechA.token)).ok)
+  ok("B נרשם בעמדה של L2", (await rpc("bind_station_session", { p_token: stationTokens[L2] }, mechB.token)).ok)
 
   // 054 (ביקורת חוזרת, 8.10, ממצא 1): מכונאי לא מעביר את עצמו לליפט אחר
   ok("A: לא בוחר לעצמו ליפט אחר (set_my_lift)", (await hint(await rpc("set_my_lift", { p_lift: L2 }, mechA.token))) === "lift-from-station")
-  ok("A: נשאר על הליפט שלו אחרי הניסיון", (await liftOf(mechA.id)) === L1)
-  ok("A: לא משנה את הליפט שלו ישירות בטבלה", (await patched("staff", mechA.id, { lift: L2 }, mechA.token)) === 0 && (await liftOf(mechA.id)) === L1)
+  ok("A: נשאר על הליפט שלו אחרי הניסיון", (await ownLift(mechA.token)) === L1)
+  ok("A: לא משנה ליפט ישירות בטבלה", (await patched("staff", mechA.id, { lift: L2 }, mechA.token)) === 0 && (await ownLift(mechA.token)) === L1)
 
   const onMine = await newJob({ lift: L1 })
   const onOther = await newJob({ lift: L2 })
@@ -164,6 +170,8 @@ try {
     }
     await admin(`/rest/v1/job_cards?id=eq.${id}`, { method: "DELETE" })
   }
+  // עמדות הבדיקה, ואיתן רישומי הכניסה (on delete cascade)
+  await admin(`/rest/v1/stations?label=eq.${encodeURIComponent(STATION_LABEL)}`, { method: "DELETE" })
   for (const s of Array.isArray(before) ? before : []) {
     await admin(`/rest/v1/staff?id=eq.${s.id}`, { method: "PATCH", body: JSON.stringify({ lift: s.lift }) })
   }

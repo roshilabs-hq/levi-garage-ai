@@ -40,11 +40,16 @@ const admin = (path, init = {}) => call(path, { ...init, token: serviceKey, key:
 // 051 (ביקורת אבטחה חיצונית, 7.10): מכונאי פועל רק על הרכב שעל הליפט שהוא עובד עליו. כמו
 // באפליקציה (כניסה לעמדה, ו"למשוך לליפט" שמעלה לליפט של המכונאי), לפני כל פעולה של מכונאי
 // הוא "עומד" ליד הליפט של הרכב, או ליד הליפט שאליו הוא מעלה אותו.
-// מ-054 מכונאי לא בוחר ליפט בעצמו (station_login קובעת לפי העמדה), ולכן כאן רושמים ישירות.
+// מ-057 הליפט שייך לכניסה בעמדה: המכונאי "עומד" ליד ליפט כשהוא נרשם בעמדה שלו, כמו מכשיר אמיתי.
+// עמדות הבדיקה נוצרות פעם אחת לכל ליפט, ונמחקות בסוף.
 const mechanics = new Map()
+const STATION_LABEL = "עמדת בדיקה אוטומטית (lot-queue)"
+const stationTokens = {}
 const jobLift = async (id) => (await (await admin(`/rest/v1/job_cards?id=eq.${id}&select=lift`)).json())[0]?.lift ?? null
 const standAt = async (token, lift) => {
-  if (mechanics.has(token) && lift != null) await admin(`/rest/v1/staff?id=eq.${mechanics.get(token)}`, { method: "PATCH", body: JSON.stringify({ lift }) })
+  if (!mechanics.has(token) || lift == null) return
+  stationTokens[lift] ??= await (await call(`/rest/v1/rpc/create_station`, { method: "POST", body: JSON.stringify({ p_label: STATION_LABEL, p_lift: lift }), token: manager })).json()
+  await call(`/rest/v1/rpc/bind_station_session`, { method: "POST", body: JSON.stringify({ p_token: stationTokens[lift] }), token })
 }
 const rpc = async (fn, body, token) => {
   if (body?.p_job_id) await standAt(token, await jobLift(body.p_job_id))
@@ -314,6 +319,7 @@ try {
     ok("תזכורת אחת לכל בקשה", Array.isArray(againNudge) && !againNudge.some((x) => x.token === eToken))
   }
 } finally {
+  await admin(`/rest/v1/stations?label=eq.${encodeURIComponent(STATION_LABEL)}`, { method: "DELETE" })
   for (const s of Array.isArray(liftsBefore) ? liftsBefore : []) {
     await admin(`/rest/v1/staff?id=eq.${s.id}`, { method: "PATCH", body: JSON.stringify({ lift: s.lift }) })
   }

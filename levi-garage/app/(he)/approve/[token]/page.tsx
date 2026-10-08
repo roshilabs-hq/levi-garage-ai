@@ -224,36 +224,43 @@ function IntakePage({ token, view }: { token: string; view: Intake }) {
         </h1>
         <h2 className="approve-title">הצעת המחיר לעבודה שדיברנו עליה בקבלה</h2>
 
-        <ul className="intake-lines">
-          {view.lines.map((l, i) => (
-            <li key={i}>
-              <b>{l.title}</b>
-              <span className="intake-price">{choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}</span>
-              <span className="intake-meta">
-                {l.labor_hours === null
-                  ? ""
-                  : Number(l.labor_hours) === 1
-                    ? "שעת עבודה אחת צפויה"
-                    : `${Number(l.labor_hours).toLocaleString("he-IL")} שעות עבודה צפויות`}
-                {l.warranty ? ` · אחריות: ${l.warranty}` : ""}
-              </span>
-              {l.price_aftermarket !== null && l.part_diff && <span className="intake-meta">ההבדל בין מקורי לחלופי: {l.part_diff}</span>}
-              {l.price_aftermarket === null && l.single_reason && <span className="intake-meta">{l.single_reason}</span>}
-            </li>
-          ))}
-        </ul>
-        <p className="intake-total">
-          סה&quot;כ: <b className="num">{shekel(total)}</b> · כולל מע&quot;מ
-          {hoursTotal > 0 ? ` · ${hoursTotal.toLocaleString("he-IL")} שעות עבודה` : ""}
-        </p>
-        <p className="intake-free">{FREE_INSPECTION}</p>
+        {/* קישור שפג מחזיר רק סטטוס (058): בלי פריטים, ואז גם בלי סכום של 0 */}
+        {view.lines.length > 0 && (
+          <>
+            <ul className="intake-lines">
+              {view.lines.map((l, i) => (
+                <li key={i}>
+                  <b>{l.title}</b>
+                  <span className="intake-price">{choiceAndPrice(l.part_choice, l.price_aftermarket, l.price)}</span>
+                  <span className="intake-meta">
+                    {l.labor_hours === null
+                      ? ""
+                      : Number(l.labor_hours) === 1
+                        ? "שעת עבודה אחת צפויה"
+                        : `${Number(l.labor_hours).toLocaleString("he-IL")} שעות עבודה צפויות`}
+                    {l.warranty ? ` · אחריות: ${l.warranty}` : ""}
+                  </span>
+                  {l.price_aftermarket !== null && l.part_diff && <span className="intake-meta">ההבדל בין מקורי לחלופי: {l.part_diff}</span>}
+                  {l.price_aftermarket === null && l.single_reason && <span className="intake-meta">{l.single_reason}</span>}
+                </li>
+              ))}
+            </ul>
+            <p className="intake-total">
+              סה&quot;כ: <b className="num">{shekel(total)}</b> · כולל מע&quot;מ
+              {hoursTotal > 0 ? ` · ${hoursTotal.toLocaleString("he-IL")} שעות עבודה` : ""}
+            </p>
+            <p className="intake-free">{FREE_INSPECTION}</p>
+          </>
+        )}
 
         {view.status === "approved" || view.status === "signed" ? (
           <div className="approve-done approved">
             <b>{view.status === "approved" ? "אישרת את ההצעה. מתחילים לעבוד על הרכב." : "ההצעה אושרה בחתימה על העותק המודפס."}</b>
-            <p className="approve-stamp">
-              נרשם אצלנו בכתב, {fmtStamp(view.decided_at)}. אם יימצא ברכב משהו נוסף, נשלח אליך קישור כזה לפני שנוגעים בו.
-            </p>
+            {view.decided_at && (
+              <p className="approve-stamp">
+                נרשם אצלנו בכתב, {fmtStamp(view.decided_at)}. אם יימצא ברכב משהו נוסף, נשלח אליך קישור כזה לפני שנוגעים בו.
+              </p>
+            )}
           </div>
         ) : view.status === "declined" ? (
           <div className="approve-done declined">

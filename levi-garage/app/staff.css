@@ -1325,6 +1325,10 @@ p.gate-wait { margin-top: 8px; font-size: 15.5px; line-height: 1.5; }
 .today-nums li.late { box-shadow: 0 0 0 2px var(--amber); }
 .today-nums li.late b { color: color-mix(in srgb, var(--amber) 75%, var(--ink)); }
 @media (max-width: 640px) { .today-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* אירועי אבטחה (060): שורה שקטה, ענבר כשהיה משהו ב-24 השעות האחרונות */
+.today-security { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+.today-security b { color: var(--ink); font-weight: 600; }
+.today-security.alert { color: color-mix(in srgb, var(--amber) 75%, var(--ink)); }
 .capture.quiet .capture-btn { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 .capture.quiet .capture-dot { background: #c0392b; }
 

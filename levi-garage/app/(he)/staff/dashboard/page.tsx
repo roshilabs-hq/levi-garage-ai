@@ -40,6 +40,13 @@ async function all<T>(page: (from: number, to: number) => PromiseLike<{ data: T[
   return out
 }
 
+// [אחד, רבים]: "נעילת קוד אחת", לא "1 נעילות קוד"
+const SECURITY_LABEL: Record<string, [string, string]> = {
+  pin_locked: ["נעילת קוד אחת", "נעילות קוד"],
+  rate_limited: ["חסימת הצפה אחת", "חסימות הצפה"],
+  station_requests_full: ["הצפה אחת של בקשות עמדה", "הצפות של בקשות עמדה"],
+}
+
 export default async function DashboardPage() {
   // 1.2.0: המדדים של אבי ודניאל. מכונאים לא צריכים אותם.
   const staff = await requireManager()
@@ -63,6 +70,16 @@ export default async function DashboardPage() {
       .not("status", "in", "(delivered,cancelled)"),
     supabase.from("job_cards").select("ready_at").gte("ready_at", new Date(nowMs - 24 * 60 * 60 * 1000).toISOString()),
   ])
+  // אירועי אבטחה (060): נעילות קוד, חסימות הצפה, הצפת בקשות עמדה. שורה אחת מתחת לפס "היום".
+  const { data: alertsRaw } = await supabase.rpc("security_alerts")
+  const alerts = alertsRaw as { day?: Record<string, number>; month?: Record<string, number>; last_housekeeping?: { at: string } | null } | null
+  const alertText = (counts: Record<string, number> | undefined) =>
+    Object.entries(counts ?? {})
+      .filter(([kind]) => kind in SECURITY_LABEL)
+      .map(([kind, n]) => (Number(n) === 1 ? SECURITY_LABEL[kind][0] : `${n} ${SECURITY_LABEL[kind][1]}`))
+      .join(" · ")
+  const alertsDay = alertText(alerts?.day)
+  const alertsMonth = alertText(alerts?.month)
   const todayDate = israel(now).date
   const today = todayNumbers(
     (liveCards ?? []) as TodayCard[],
@@ -223,6 +240,12 @@ export default async function DashboardPage() {
             <span>{today.late > 0 ? <Link href="/staff#g-late">חריגות, בלוח</Link> : "חריגות"}</span>
           </li>
         </ul>
+        {alerts && (
+          <p className={`today-security${alertsDay ? " alert" : ""}`}>
+            <b>אבטחה, 24 שעות:</b> {alertsDay || "אין אירועים"}
+            {alertsMonth && !alertsDay ? ` · ב-30 יום: ${alertsMonth}` : ""}
+          </p>
+        )}
       </section>
 
       <section className="staff-section" aria-labelledby="measured-title">

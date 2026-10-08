@@ -6,6 +6,7 @@
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 import { createHmac } from "node:crypto"
+import { passwordFor } from "./_auth.mjs"
 if (!process.env.STATION_SECRET) throw new Error("חסר STATION_SECRET (levi-garage/.env.staff.local)")
 const secret = createHmac("sha256", process.env.STATION_SECRET).update("rate-limit-v1").digest("base64url")
 
@@ -36,6 +37,20 @@ ok("עם הסוד של השרת: נספר ומותר", good.ok && (await good.js
 await rpc({ p_key: key, p_window_seconds: 60, p_max: 2, p_secret: secret })
 const third = await rpc({ p_key: key, p_window_seconds: 60, p_max: 2, p_secret: secret })
 ok("עם הסוד של השרת: הפעם השלישית מעל 2 נחסמת", third.ok && (await third.json()) === false)
+
+// 060: החסימה נרשמת ביומן האבטחה, לפי הסוג בלבד (בלי הכתובת המגובבת)
+const login = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+  method: "POST",
+  headers: { apikey: anonKey, "content-type": "application/json" },
+  body: JSON.stringify({ email: "test1@test.com", password: passwordFor("test1@test.com") }),
+})
+const manager = (await login.json()).access_token
+const alerts = await (await fetch(`${url}/rest/v1/rpc/security_alerts`, {
+  method: "POST",
+  headers: { apikey: anonKey, authorization: `Bearer ${manager}`, "content-type": "application/json" },
+  body: "{}",
+})).json()
+ok("החסימה נרשמה ביומן האבטחה", Number(alerts?.day?.rate_limited) >= 1, JSON.stringify(alerts?.day))
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

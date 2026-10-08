@@ -63,8 +63,11 @@ try {
   const expiredDone = await mk(past, true)
   const live = await mk(future, false)
 
-  const [e] = await anon("request_view", expiredOpen)
+  const eRows = await anon("request_view", expiredOpen)
+  const [e] = eRows
   ok("פג ולא נענה: מסומן שפג", e?.expired === true)
+  // 058 (ביקורת שנייה, ממצא 8): שורה אחת, בלי מזהה ממצא ובלי תאריכים
+  ok("פג ולא נענה: שורה אחת, בלי מזהה ממצא ובלי תאריך", Array.isArray(eRows) && eRows.length === 1 && e.finding_id === null && e.decided_at === null, JSON.stringify(eRows))
   ok("פג ולא נענה: בלי פריט, מחיר, רכב והודעה", e && e.title === null && e.price_original === null && e.vehicle === null && e.plate_last3 === null && e.message_text === null, JSON.stringify(e))
   ok("פג ולא נענה: בלי 'אושר קודם'", (await anon("request_agreed", expiredOpen)) === null)
 
@@ -88,6 +91,13 @@ try {
   const ri =await add("quote_requests", { job_card_id: jobId, token: tok(), kind: "intake", expires_at: past })
   const iv = await anon("intake_view", ri.token)
   ok("קבלה שפגה: רק 'פג', בלי רכב, שם ופריטים", iv?.status === "expired" && iv.vehicle === null && iv.customer === null && Array.isArray(iv.lines) && iv.lines.length === 0, JSON.stringify(iv))
+  // 058 (ביקורת שנייה, ממצא 9): חתם על עותק מודפס אחרי שהקישור פג. הקישור מראה "נחתם", בלי פרטים ובלי תאריך
+  await admin(`/rest/v1/job_cards?id=eq.${jobId}`, { method: "PATCH", body: JSON.stringify({ work_approved_at: new Date().toISOString(), work_approved_via: "print" }) })
+  const signed = await anon("intake_view", ri.token)
+  ok("קבלה שפגה ונחתמה במוסך: רק 'נחתם', בלי רכב, שם, פריטים ותאריך", signed?.status === "signed" && signed.vehicle === null && signed.customer === null && signed.decided_at === null && signed.lines.length === 0, JSON.stringify(signed))
+  const ri2 = await add("quote_requests", { job_card_id: jobId, token: tok(), kind: "intake", expires_at: future })
+  const liveSigned = await anon("intake_view", ri2.token)
+  ok("קבלה בתוקף שנחתמה: הקבלה המלאה נשארת", liveSigned?.status === "signed" && liveSigned.vehicle === "מאזדה 3" && Boolean(liveSigned.decided_at), JSON.stringify(liveSigned))
 
   // הקישור הישן, ממצא בודד
   const fo = await finding("ישן")

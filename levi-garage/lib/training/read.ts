@@ -27,15 +27,34 @@ export const readsFor = (track: TrackId) => READS.filter((g) => g.tracks.include
 
 // בלי הכותרת הראשית (היא בראש הדף), עם id לכל כותרת כדי שקישור כמו faq#כללי יגיע אליה,
 // ותמונות שנטענות רק כשמגיעים אליהן. התוכן שלנו, מהריפו, ונבנה מראש בזמן הבנייה.
+//
+// ניקוי (ביקורות האבטחה, 7.10-8.10: "Markdown בלי ניקוי"): גם אם יום אחד ייכנס למדריך תוכן
+// ממקור אחר, או תרגום מהמודל, הוא לא מגיע לדף כקוד. HTML גולמי מוצג כטקסט, כל ערך בתכונה עובר
+// escape, וכתובת של קישור או תמונה מותרת רק אם היא יחסית, #, https, mailto או tel.
+const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+const SAFE_URL = /^(https:\/\/|mailto:|tel:|#|\/(?!\/)|\.{1,2}\/|[^:/?#]+(?:[/?#]|$))/i
+const safeUrl = (href: string) => (SAFE_URL.test(href.trim()) ? esc(href.trim()) : "#")
+// כמו marked עצמו: עברית בכתובת מקודדת (faq#%D7%9B...), בלי לקודד פעמיים את מה שכבר מקודד.
+const linkUrl = (href: string) => safeUrl(encodeURI(href).replace(/%25/g, "%"))
+
 const md = new Marked({
   renderer: {
     heading({ tokens, depth }) {
       const text = this.parser.parseInline(tokens)
       const id = text.replace(/<[^>]+>/g, "").trim().replace(/\s+/g, "-")
-      return `<h${depth} id="${id}">${text}</h${depth}>\n`
+      // הטקסט כבר מקודד (marked), ולכן גם ה-id. בלי תגיות ובלי מרכאות גולמיות.
+      return `<h${depth} id="${id}">${text}</h${depth}>
+`
     },
     image({ href, text }) {
-      return `<img src="${href}" alt="${text}" loading="lazy">`
+      return `<img src="${safeUrl(href)}" alt="${esc(text)}" loading="lazy">`
+    },
+    link({ href, title, tokens }) {
+      const text = this.parser.parseInline(tokens)
+      return `<a href="${linkUrl(href)}"${title ? ` title="${esc(title)}"` : ""}>${text}</a>`
+    },
+    html({ text }) {
+      return esc(text)
     },
   },
 })
