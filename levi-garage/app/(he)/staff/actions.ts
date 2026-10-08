@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { getStaff, requireStaff, requireManager, screenPath } from "@/lib/staff/session"
-import { bookingContact, jobContact } from "@/lib/staff/contacts"
+import { jobContact } from "@/lib/staff/contacts"
 import { notifyReady, notifyRequest, sendDueReminders } from "@/lib/staff/notify"
 import { INSPECTION_ITEMS, progress, type InspectionState, type Light } from "@/lib/staff/inspection"
 import { quoteEmail, requestEmail, type QuoteReason, type QuoteSnapshot } from "@/lib/staff/quote"
@@ -55,7 +55,7 @@ export async function signOut() {
  * הרכב בחניה, והמסד לא נותן להעלות אותו לליפט. קודם זה היה V של דניאל בלבד.
  */
 export async function receiveCar(formData: FormData) {
-  const staff = await requireManager()
+  await requireManager()
   const bookingId = Number(formData.get("booking_id"))
   // כמה עבודות בקבלה אחת (רועי, 30.9: "הכנה לטסט וגם טיפול"). כל שורה: "מזהה:סוג-חלק".
   const lines = formData
@@ -75,79 +75,36 @@ export async function receiveCar(formData: FormData) {
   if (!explained) redirect(`/staff/arrive/${bookingId}?e=explain`)
 
   const supabase = await createClient()
-  const [{ data: booking }, { data: picked }] = await Promise.all([
-    supabase
-      .from("bookings")
-      .select("id, status, plate, customer_name, whatsapp_consent, vehicle_make, vehicle_model, vehicle_year, engine_code, fuel")
-      .eq("id", bookingId)
-      .maybeSingle(),
-    supabase.from("price_list").select("*").in("id", lines.map((l) => l.id)),
-  ])
-  if (!booking || !picked || picked.length !== lines.length) redirect(`/staff/arrive/${bookingId}?e=missing`)
-  if (booking.status === "arrived") redirect("/staff")
-  // ס' 132(ב): קישור לאישור רק למי שהסכים לעדכונים אלקטרוניים. בלי הסכמה — עותק מודפס וחתימה.
-  if (!onPaper && !consent && !booking.whatsapp_consent) redirect(`/staff/arrive/${bookingId}?e=paper`)
+  const { data: booking } = await supabase.from("bookings").select("id, plate").eq("id", bookingId).maybeSingle()
+  if (!booking) redirect(`/staff/arrive/${bookingId}?e=missing`)
 
-  const { data: job, error } = await supabase
-    .from("job_cards")
-    .insert({
-      booking_id: booking.id,
-      plate: booking.plate,
-      vehicle_make: booking.vehicle_make,
-      vehicle_model: booking.vehicle_model,
-      vehicle_year: booking.vehicle_year,
-      engine_code: booking.engine_code,
-      fuel: booking.fuel,
-      customer_name: booking.customer_name,
-      // הטלפון מהתור, דרך המסד (062): העמודה לא נקראת ישירות
-      customer_phone: (await bookingContact(supabase, booking.id)).customer_phone,
-      customer_email: email,
-      odometer_km: odometer,
-      whatsapp_consent: consent || (booking.whatsapp_consent ?? false),
-      updates_consent_at: consent ? new Date().toISOString() : null,
-      // תקנה 8: לא מתחילים עבודה שהלקוח לא אישר, גם לא אבחון. האישור מגיע מהלקוח (036).
-      work_approved_at: null,
-      lift: null,
-      status: "open",
-      opened_by: staff.id,
-    })
-    .select("id")
-    .single()
-  if (error || !job) redirect(`/staff/arrive/${bookingId}?e=failed`)
-
-  await supabase.from("quote_items").insert(
-    lines.map((l) => {
-      const item = picked.find((i) => i.id === l.id)!
-      return {
-        job_card_id: job.id,
-        price_list_id: item.id,
-        title: item.title,
-        labor_hours: item.labor_hours,
-        price_original: item.price_original,
-        price_aftermarket: item.price_aftermarket,
-        warranty_original: item.warranty_original,
-        warranty_aftermarket: item.warranty_aftermarket,
-        part_diff: item.part_diff,
-        single_reason: item.single_reason,
-        part_choice: l.choice === "aftermarket" && item.price_aftermarket !== null ? "aftermarket" : "original",
-        created_by: staff.id,
-      }
-    }),
-  )
-  await supabase.from("bookings").update({ status: "arrived" }).eq("id", booking.id)
-
+  // הגרעין בפעולה אחת במסד (070, ביקורת שביעית, ממצא 1): כרטיס, פריטי ההצעה, התור וקישור האישור
+  // נרשמים יחד, או לא נרשמים בכלל. עד היום אלה היו ארבע כתיבות נפרדות, וכישלון באמצע לא נבדק.
+  // המסד בודק את התפקיד, את ההסכמה (ס' 132(ב)) ואת הפריטים, ומחזיר רמז לכל כישלון צפוי.
+  const { data: received, error } = await supabase.rpc("receive_car", {
+    p_booking_id: booking.id,
+    p_lines: lines,
+    p_email: email,
+    p_odometer: odometer,
+    p_consent: consent,
+    p_on_paper: onPaper,
+  })
+  if (error || !received) {
+    const hint = (error as { hint?: string } | null)?.hint
+    if (hint === "arrived") redirect("/staff")
+    if (hint === "paper" || hint === "law-132b") redirect(`/staff/arrive/${bookingId}?e=paper`)
+    if (hint === "missing") redirect(`/staff/arrive/${bookingId}?e=missing`)
+    console.error("receive_car failed:", error?.code, error?.message)
+    redirect(`/staff/arrive/${bookingId}?e=failed`)
+  }
+  const job = { id: Number((received as { job_id: number }).job_id) }
   // הקישור לאישור: אותו דף ואותה הודעת בוט כמו בממצאים. המייל של ההצעה מקבל אותו כפתור.
-  let approveToken: string | null = null
+  const approveToken: string | null = (received as { token?: string | null }).token ?? null
   let requestId: number | null = null
-  if (!onPaper) {
-    const { data: token, error: reqError } = await supabase.rpc("send_intake_request", { p_job_id: job.id })
-    if (reqError || !token) console.error("send_intake_request failed:", reqError?.code, reqError?.message)
-    else {
-      approveToken = String(token)
-      // 045: הטוקן לא נקרא ישירות מהטבלה; פונקציה שבודקת שזה דניאל או אבי.
-      const { data: rid } = await supabase.rpc("request_id_by_token", { p_token: approveToken })
-      requestId = rid ? Number(rid) : null
-    }
+  if (approveToken) {
+    // 045: הטוקן לא נקרא ישירות מהטבלה; פונקציה שבודקת שזה דניאל או אבי.
+    const { data: rid } = await supabase.rpc("request_id_by_token", { p_token: approveToken })
+    requestId = rid ? Number(rid) : null
   }
 
   const outcome = await issueQuote(job.id, "intake", email ? "email" : "print", approveToken)
@@ -316,18 +273,25 @@ export async function callManager(formData: FormData) {
   const kind = formData.get("kind") === "done" ? "done" : "help"
   if (!jobId) return
 
+  // "סיימתי" מוריד את הרכב מהליפט, ולכן שואל קודם אם הוא סגור וכשיר לנסיעה (066), כמו "להוריד
+  // לחניה". בלי האישור לא נרשם כלום, גם לא הקריאה לדניאל (ביקורת שביעית, ממצא 4). המסד דורש את
+  // האישור גם הוא, ומכונאי מסיים רק את הרכב שעל הליפט שלו (063).
+  if (kind === "done" && formData.get("fit") !== "yes") return
+
   const supabase = await createClient()
   const { data: job } = await supabase.from("job_cards").select("lift, plate").eq("id", jobId).maybeSingle()
-  await supabase.from("help_calls").insert({ job_card_id: jobId, lift: job?.lift ?? staff.lift, requested_by: staff.id, kind })
 
   // "סיימתי" מפנה את הליפט מיד (רועי, 2.10). הרכב יורד לחניה, "גמור, מחכה
   // לבדיקה", ודניאל בודק על הקרקע ומסמן "מוכן" מתי שהוא פנוי. עד 2.10 הרכב
   // נשאר על הליפט עד הבדיקה, והליפט חיכה לבן אדם.
   if (kind === "done") {
-    // "סיימתי" מוריד את הרכב מהליפט, ולכן שואל קודם אם הוא סגור וכשיר לנסיעה (066), כמו "להוריד
-    // לחניה". המסד דורש את האישור גם הוא, ומכונאי מסיים רק את הרכב שעל הליפט שלו (063).
-    if (formData.get("fit") !== "yes") return
-    await supabase.rpc("finish_on_lift", { p_job_id: jobId, p_fit: true })
+    // קודם המסד משנה את המצב. רק אם הצליח נרשמת הקריאה לדניאל ומוצג האישור; אחרת, הודעה.
+    const { error } = await supabase.rpc("finish_on_lift", { p_job_id: jobId, p_fit: true })
+    if (error) {
+      console.error("finish_on_lift failed:", error.code, error.hint)
+      redirect("/staff/lift?e=done")
+    }
+    await supabase.from("help_calls").insert({ job_card_id: jobId, lift: job?.lift ?? staff.lift, requested_by: staff.id, kind })
     revalidatePath("/staff/floor")
     revalidatePath("/wall")
     revalidatePath("/staff")
@@ -335,6 +299,7 @@ export async function callManager(formData: FormData) {
     redirect(`/staff/lift?done=${encodeURIComponent(job?.plate ?? "")}`)
   }
 
+  await supabase.from("help_calls").insert({ job_card_id: jobId, lift: job?.lift ?? staff.lift, requested_by: staff.id, kind })
   revalidatePath("/staff/lift")
   revalidatePath("/staff")
 }

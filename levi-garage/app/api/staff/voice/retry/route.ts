@@ -36,6 +36,10 @@ export async function POST(req: Request) {
   if (media.finding_id) return NextResponse.json({ error: "already" }, { status: 409 })
   // מכסה לפני הקריאה ל-Gemini (ביקורת אבטחה חיצונית, 7.10, ממצא 7)
   if (!(await staffAiAllowed(staff.id))) return NextResponse.json({ error: "limit" }, { status: 429 })
+  // תפיסה בפעולה אחת במסד (070, ביקורת שביעית, ממצא 5): שתי לחיצות במקביל ראו שתיהן "אין טיוטה"
+  // ויצרו שתיים. עכשיו רק הראשונה עוברת, והשנייה נדחית לשתי דקות.
+  const { data: claimed } = await supabase.rpc("claim_media_retry", { p_media_id: mediaId })
+  if (!claimed) return NextResponse.json({ error: "already" }, { status: 409 })
 
   const { data: job } = await supabase
     .from("job_cards")

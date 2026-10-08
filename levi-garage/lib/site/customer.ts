@@ -119,10 +119,15 @@ export function firstName(cars: CustomerCar[]): string | null {
  * העובדות על הרכבים של השולח, בעברית פשוטה, כדי ש-Gemini יענה עליהן בכל
  * ניסוח ובכל אחת משלוש השפות. רק מה שכתוב כאן — בלי מחירים ובלי אבחון.
  */
+// טקסט חופשי שנכנס להנחיות של Gemini (ביקורת שביעית, ממצא 7): "זמן מוכן משוער" הוקלד על ידי דניאל,
+// והיצרן והדגם הגיעו מהמאגר הממשלתי. שורה אחת, בלי תווי בקרה ובלי סוגריים משולשים, עד 60 תווים.
+export const fact = (s: string | null | undefined, max = 60) =>
+  (s ?? "").replace(/[\p{Cc}<>`]/gu, " ").replace(/\s+/g, " ").trim().slice(0, max)
+
 export function describeCars(cars: CustomerCar[]): string {
   return cars
     .map((c) => {
-      const car = carLabel(c)
+      const car = fact(carLabel(c), 80)
       if (c.kind === "booking") {
         const at = c.drop_off_at ? when.format(new Date(c.drop_off_at)) : "מועד לא ידוע"
         return `- ${car}: יש תור לטיפול ברכב, מסירה ב${at}. התור נקלט במערכת. יום לפני תישלח תזכורת בוואטסאפ.`
@@ -136,7 +141,7 @@ export function describeCars(cars: CustomerCar[]): string {
           : c.status === "delivered"
             ? `כבר נאסף מהמוסך${c.since ? `, ב${when.format(new Date(c.since))}` : ""}. הרכב אצל הלקוח, לא אצלנו`
             : (JOB_STATE[c.status] ?? "אצלנו במוסך")
-      const eta = c.eta && c.status !== "ready" && c.status !== "delivered" ? ` זמן מוכן משוער: ${c.eta}.` : ""
+      const eta = c.eta && c.status !== "ready" && c.status !== "delivered" ? ` זמן מוכן משוער: ${fact(c.eta)}.` : ""
       return `- ${car}: ${state}.${eta}`
     })
     .join("\n")

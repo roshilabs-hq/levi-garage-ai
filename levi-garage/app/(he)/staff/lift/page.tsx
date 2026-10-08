@@ -229,9 +229,9 @@ function whereFindings(atCustomer: number, atDaniel: number) {
   return [customer, daniel].filter(Boolean).join(", ו")
 }
 
-export default async function LiftPage({ searchParams }: { searchParams: Promise<{ done?: string }> }) {
+export default async function LiftPage({ searchParams }: { searchParams: Promise<{ done?: string; e?: string }> }) {
   const staff = await requireStaff()
-  const { done } = await searchParams
+  const { done, e } = await searchParams
   const supabase = await createClient()
   const atDiag = staff.lift === null
 
@@ -285,6 +285,12 @@ export default async function LiftPage({ searchParams }: { searchParams: Promise
           </p>
         </div>
       </header>
+
+      {e === "done" && (
+        <p className="staff-note" role="alert">
+          <span>הרכב לא ירד לחניה. אולי הוא כבר לא על הליפט שלך, או שהאבחון לא הושלם. נסה שוב, או קרא לדניאל.</span>
+        </p>
+      )}
 
       {done !== undefined && mine.length === 0 && (
         <p className="staff-note notice-sent" role="status">

@@ -80,7 +80,10 @@ export async function createFindingFromAudio({
   if (error) throw new Error(`finding insert failed: ${error.message}`)
 
   if (mediaPaths.length) {
-    await supabase.from("media").update({ finding_id: finding.id }).in("storage_path", mediaPaths)
+    // השיוך של ההקלטה והתמונה לטיוטה הוא מה שמונע טיוטה כפולה מאותה הקלטה. כישלון כאן הוא שגיאה,
+    // לא שתיקה (ביקורת שביעית, ממצא 5).
+    const { error: linkError } = await supabase.from("media").update({ finding_id: finding.id }).in("storage_path", mediaPaths)
+    if (linkError) throw new Error(`media link failed: ${linkError.message}`)
   }
 
   // ממצא מהליפט עוצר את הרכב עד שדניאל שולח: זה הזמן שהלוח מודד ("מחכה

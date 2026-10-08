@@ -4,12 +4,14 @@ import { createClient } from "@/lib/supabase/server"
 import { getStaff } from "@/lib/staff/session"
 import { staffUploadAllowed } from "@/lib/staff/ai-quota"
 import { sniffPhoto } from "@/lib/staff/sniff"
+import { readForm } from "@/lib/site/body"
 
 // דניאל מוסיף תמונה לממצא שכבר קיים. המסלול החלופי לכלל "אדום או בטיחות — עם תמונה":
 // המכונאי דיווח מהליפט בלי לצלם, והתור מסמן "חסרה תמונה". דניאל ניגש לרכב עם
 // הנייד, מצלם, והתמונה נקשרת לממצא הזה בלבד — היא זו שתגיע ללקוח עם ההצעה.
 
-const MAX_PHOTO = 12 * 1024 * 1024
+// עד 3MB: הדפדפן מקטין ל-1600 פיקסל, ו-Vercel מקבלת גוף של עד 4.5MB (ביקורת שביעית, ממצא 2)
+const MAX_PHOTO = 3 * 1024 * 1024
 const ALLOWED_PHOTO = ["image/jpeg", "image/png", "image/webp"]
 
 export async function POST(req: Request) {
@@ -20,9 +22,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
-  // גוף גדול מהמותר נדחה לפי הכותרת, לפני שקוראים אותו לזיכרון (ביקורת שישית, ממצא 3)
-  if (Number(req.headers.get("content-length") ?? "0") > MAX_PHOTO + 64 * 1024) return NextResponse.json({ error: "photo" }, { status: 413 })
-  const form = await req.formData().catch(() => null)
+  // גוף גדול מהמותר נדחה לפי הכותרת, ובזרם גם בלעדיה (ביקורת שישית, ממצא 3; שביעית, ממצא 6)
+  const form = await readForm(req, MAX_PHOTO + 64 * 1024)
+  if (!form) return NextResponse.json({ error: "photo" }, { status: 413 })
   const findingId = Number(form?.get("finding_id"))
   const file = form?.get("photo")
   const photo = file instanceof Blob && file.size > 0 ? file : null

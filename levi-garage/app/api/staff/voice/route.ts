@@ -6,6 +6,7 @@ import { staffAiAllowed, staffUploadAllowed } from "@/lib/staff/ai-quota"
 import { sniffAudio, sniffPhoto } from "@/lib/staff/sniff"
 import { createFindingFromAudio } from "@/lib/staff/make-finding"
 import { itemByKey } from "@/lib/staff/inspection"
+import { readForm } from "@/lib/site/body"
 
 // לכידה אחת של מכונאי: תמונה והקלטה, או רק אחת מהן. מהכפתור הגדול בדף הליפט
 // ומבדיקת הכניסה, ועד טיוטת ממצא בכרטיס.
@@ -15,8 +16,11 @@ import { itemByKey } from "@/lib/staff/inspection"
 
 export const maxDuration = 90
 
-const MAX_AUDIO = 20 * 1024 * 1024
-const MAX_PHOTO = 12 * 1024 * 1024
+// התקרות לפי מה שהדפדפן באמת שולח ולפי Vercel (ביקורת שביעית, ממצא 2): פונקציה ב-Vercel מקבלת גוף של
+// עד 4.5MB, ומה שגדול יותר נדחה ב-413 עוד לפני הקוד. הדפדפן מקטין כל תמונה ל-1600 פיקסל (shrink,
+// capture-button.tsx), ומקליט עד 25 שניות. שתיהן יחד רחוקות מ-4MB.
+const MAX_AUDIO = 2 * 1024 * 1024
+const MAX_PHOTO = 2 * 1024 * 1024
 
 // הדלי משווה mime כמחרוזת מדויקת, והדפדפן שולח "audio/webm;codecs=opus". לכן הסוג נקבע לפי
 // תוכן הקובץ (lib/staff/sniff.ts), ותמיד יוצא אחד מהסוגים שהדלי מקבל.
@@ -31,9 +35,9 @@ export async function POST(req: Request) {
   const staff = await getStaff()
   if (!staff || staff.role === "display") return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
-  // גוף גדול מהמותר נדחה לפי הכותרת, לפני שקוראים אותו לזיכרון (ביקורת שישית, ממצא 3)
-  if (Number(req.headers.get("content-length") ?? "0") > MAX_AUDIO + MAX_PHOTO + 64 * 1024) return NextResponse.json({ error: "size" }, { status: 413 })
-  const form = await req.formData().catch(() => null)
+  // גוף גדול מהמותר נדחה לפי הכותרת, ובזרם גם בלעדיה (ביקורת שישית, ממצא 3; שביעית, ממצא 6)
+  const form = await readForm(req, MAX_AUDIO + MAX_PHOTO + 64 * 1024)
+  if (!form) return NextResponse.json({ error: "size" }, { status: 413 })
   const jobId = Number(form?.get("job_id"))
   const audioFile = form?.get("audio")
   const photoFile = form?.get("photo")

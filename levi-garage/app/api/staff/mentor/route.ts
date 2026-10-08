@@ -6,6 +6,7 @@ import { staffAiAllowed } from "@/lib/staff/ai-quota"
 import { sniffPhoto } from "@/lib/staff/sniff"
 import { INSPECTION_ITEMS, type InspectionState } from "@/lib/staff/inspection"
 import { askMentor, type MentorTurn } from "@/lib/mentor/ask"
+import { readForm } from "@/lib/site/body"
 
 // "המוסכניק הוותיק" בעמדה (סבב 2.10). שאלה ← תשובה, עם ההקשר של הכרטיס, וכל שאלה
 // ותשובה נשמרות (031). הדפדפן שולח רק את השאלה, מזהה הכרטיס, את השיחה עד עכשיו
@@ -13,16 +14,17 @@ import { askMentor, type MentorTurn } from "@/lib/mentor/ask"
 
 export const maxDuration = 90
 
-const MAX_PHOTO = 8 * 1024 * 1024
+// עד 3MB: הדפדפן מקטין ל-1600 פיקסל, ו-Vercel מקבלת גוף של עד 4.5MB (ביקורת שביעית, ממצא 2)
+const MAX_PHOTO = 3 * 1024 * 1024
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"]
 
 export async function POST(req: Request) {
   const staff = await getStaff()
   if (!staff || staff.role === "display") return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
-  // גוף גדול מהמותר נדחה לפי הכותרת, לפני שקוראים אותו לזיכרון (ביקורת שישית, ממצא 3)
-  if (Number(req.headers.get("content-length") ?? "0") > MAX_PHOTO + 64 * 1024) return NextResponse.json({ error: "photo" }, { status: 413 })
-  const form = await req.formData().catch(() => null)
+  // גוף גדול מהמותר נדחה לפי הכותרת, ובזרם גם בלעדיה (ביקורת שישית, ממצא 3; שביעית, ממצא 6)
+  const form = await readForm(req, MAX_PHOTO + 64 * 1024)
+  if (!form) return NextResponse.json({ error: "photo" }, { status: 413 })
   const question = String(form?.get("question") ?? "").trim().slice(0, 2000)
   const jobId = Number(form?.get("job_id")) || null
   const photoFile = form?.get("photo")
