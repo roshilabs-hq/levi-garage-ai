@@ -7,7 +7,7 @@ import { getStaff } from "@/lib/staff/session"
 import { STATION_COOKIE } from "@/lib/staff/station"
 import { PinPad } from "@/components/staff/pin-pad"
 import { StationRequest } from "@/components/staff/station-request"
-import { stationSwitch } from "./actions"
+import { stationSwitch, unpairThisDevice } from "./actions"
 
 export const metadata: Metadata = { title: "עמדה | מוסך לוי ובניו", robots: { index: false, follow: false } }
 
@@ -63,7 +63,7 @@ export default async function StationPage({
           <h1>העמדה בוטלה</h1>
           <p>צריך לחבר את המכשיר מחדש: לוחצים כאן, ודניאל מאשר מהלוח שלו.</p>
           <StationRequest />
-
+          <StationFoot />
         </div>
       </main>
     )
@@ -106,9 +106,35 @@ export default async function StationPage({
                 </li>
               ))}
             </ul>
+            <StationFoot />
           </>
         )}
       </div>
     </main>
+  )
+}
+
+/**
+ * מכשיר של עמדה חוזר לכאן מכל כתובת של הצוות, בכוונה. אבל לפעמים דניאל צריך את הלוח שלו
+ * דווקא על המכשיר הזה (רועי כבוחן, 10.10: "הקישור /staff מוביל ל-/station"), או שהמכשיר חוזר
+ * להיות מחשב משרד. סגור כברירת מחדל, כדי שמכונאי לא יראה את זה כחלק מהכניסה שלו. הניתוק מוחק
+ * רק את העוגייה במכשיר; העמדה עצמה נשארת במסד, ודניאל מחבר מחדש באישור.
+ */
+function StationFoot() {
+  return (
+    <details className="station-foot">
+      <summary>דניאל או אבי? או מכשיר שכבר לא צריך להיות עמדה</summary>
+      <p className="staff-meta">
+        המכשיר הזה שייך לליפט, ולכן כל כתובת של הצוות חוזרת לכאן. כניסה בסיסמה פותחת את הלוח על המכשיר הזה בלי לנתק את העמדה.
+      </p>
+      <Link className="btn quiet" href="/staff/login">
+        כניסה בסיסמה (דניאל ואבי)
+      </Link>
+      <form action={unpairThisDevice}>
+        <button className="btn quiet" type="submit">
+          לנתק את המכשיר מהעמדה
+        </button>
+      </form>
+    </details>
   )
 }

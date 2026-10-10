@@ -1009,6 +1009,14 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2.5
 .station-wait { margin-top: 22px; font-size: 18px; }
 .station-box > p.station-alt { margin-top: 22px; font-size: 15px; }
 .station-alt a { padding: 8px 2px; }
+/* יציאה מהעמדה (1.28.0): דניאל נכנס בסיסמה על המכשיר, או מנתק אותו. סגור, קטן, בתחתית. */
+.station-foot { margin-top: 26px; text-align: center; }
+.station-foot summary { color: var(--muted); font-size: 15px; padding: 10px; cursor: pointer; list-style: none; }
+.station-foot summary::-webkit-details-marker { display: none; }
+.station-foot summary::before { content: "▾ "; }
+.station-foot[open] summary::before { content: "▴ "; }
+.station-foot > p { margin: 6px 0 0; line-height: 1.5; }
+.station-foot .btn { display: block; width: 100%; margin-top: 10px; }
 .station-req-chip {
   flex: none; min-width: 72px; padding: 8px 10px; border-radius: 10px; text-align: center;
   background: var(--sunk); color: var(--ink); font-weight: 900; font-size: 22px; letter-spacing: 0.06em;
