@@ -123,7 +123,7 @@ export const VIDEOS: TrainingVideo[] = [
     id: "exam",
     title: "המסמך, ואיך בוחנים בעצמכם",
     who: "לבוחני הפרויקט: מה כתוב במסמך ההגשה, ואיך בודקים את המוסך בעצמכם",
-    length: "4:09",
+    length: "4:07",
     src: "/training/video/exam.mp4",
     poster: "/training/video/exam.jpg",
     chapters: [
@@ -132,9 +132,9 @@ export const VIDEOS: TrainingVideo[] = [
       { t: 48.2, title: "שלב O: תכנון" },
       { t: 72.6, title: "שלב R: ארבעת הפתרונות, חיים" },
       { t: 131.7, title: "שלב R: אבטחה, בדיקות וגרסאות" },
-      { t: 155.6, title: "שלב E: המסירה" },
-      { t: 191.9, title: "איך בוחנים בעצמכם" },
-      { t: 237.4, title: "מוסך לוי ובניו" },
+      { t: 154.1, title: "שלב E: המסירה" },
+      { t: 190.4, title: "איך בוחנים בעצמכם" },
+      { t: 235.9, title: "מוסך לוי ובניו" },
     ],
   },
 ]
